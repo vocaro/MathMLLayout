@@ -257,7 +257,8 @@ final class RobustnessTests: XCTestCase {
     func testTheLargestFormulasFinish() throws {
         // The worst cases the bounds allow, as a guard against layout that hangs. In an
         // unoptimized build each takes a fraction of a second, where a row of stretchy fences once
-        // took eight. Nested rows of space-like children are the exception, at several seconds.
+        // took eight. Nested rows of space-like children are the exception, at several seconds,
+        // until https://github.com/vocaro/MathMLLayout/issues/34 is fixed.
         let many = MathLimits.nodes - 2
         let slow: Set = ["nested rows of spaces"]
         let cases: [(String, MathMLNode)] = [
