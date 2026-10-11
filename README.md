@@ -133,6 +133,10 @@ Stretchy operators use the font's MATH variants and assemblies. Attributes inclu
 Layout follows MathML Core with TeX's choices where it leaves room: a unary minus after `=` or
 `(`, and a delimiter factor and shortfall so `f(x)` keeps plain parentheses. Text is an operand
 to the operators beside it, so a word equation (`<mtext>` operands) is spaced like any other.
+A label on a stretchy arrow is placed by the MATH table's StretchStack constants as OpenType
+defines them, with the shifts from the baseline
+([w3c/mathml-core#121](https://github.com/w3c/mathml-core/issues/121)); Core's text has them
+from the arrow's ink, which sets the label far too high with STIX Two Math.
 
 ## Font
 

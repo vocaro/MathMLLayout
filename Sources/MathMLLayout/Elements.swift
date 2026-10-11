@@ -259,6 +259,19 @@ extension LayoutEngine {
     /// `munder`, `mover` and `munderover`: limits on large operators in display style (as
     /// scripts in text style when `movablelimits`), accents, and stretchy arrows and braces
     /// sized to the widest child (MathML Core 3.4.4).
+    ///
+    /// A script's distance from its base is picked by the base, in Core's order (3.4.2.3 to
+    /// 3.4.2.5): the limit constants for a large operator, the StretchStack constants for an
+    /// operator that stretches horizontally (a labelled arrow), and otherwise the accent rule
+    /// or the over- and underbar gaps. Two readings differ from Core's text, both settled in
+    /// https://github.com/w3c/mathml-core/issues/121:
+    /// - The StretchStack shifts are from the base's baseline, as OpenType means them, not from
+    ///   its ink: STIX Two Math's `stretchStackTopShiftUp` is 0.8em, well above an arrow.
+    /// - `stretchStackGapAboveMin` is the gap to the script above the stretched operator and
+    ///   `stretchStackGapBelowMin` to the one below, as OpenType defines them. Core swaps them.
+    ///
+    /// The same definitions give a script that is itself the stretched operator (a brace or an
+    /// arrow over an expression) the gap towards its base. Core has no such case.
     func underOver(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment,
                    depth: Int) throws -> MathBox {
         try arity(node, node.name == "munderover" ? 3 : 2)
@@ -301,31 +314,38 @@ extension LayoutEngine {
         }
         let base = boxes[0]!
         let isLimits = coreFlags.contains(.largeop)
+        let isStretchStack = !isLimits && stretchy[0]
         let rule = value(\.fractionRuleThickness, context)
         var ascent = base.ascent, descent = base.descent
         var overY: CGFloat = 0, underY: CGFloat = 0
         if let over = boxes[2] {
             if isLimits {
                 overY = base.ascent + max(value(\.upperLimitBaselineRiseMin, context), value(\.upperLimitGapMin, context) + over.descent)
+            } else if isStretchStack {
+                overY = max(value(\.stretchStackTopShiftUp, context),
+                            base.ascent + value(\.stretchStackGapAboveMin, context) + over.descent)
             } else if accent {
                 overY = max(0, base.ascent - value(\.accentBaseHeight, context), base.ascent + rule + over.descent)
             } else {
                 let gap = stretchy[2] ? value(\.stretchStackGapBelowMin, context) : value(\.overbarVerticalGap, context)
                 overY = base.ascent + gap + over.descent
             }
-            ascent = max(ascent, overY + over.ascent + (accent || isLimits ? 0 : value(\.overbarExtraAscender, context)))
+            ascent = max(ascent, overY + over.ascent + (accent || isLimits || isStretchStack ? 0 : value(\.overbarExtraAscender, context)))
             descent = max(descent, over.descent - overY)
         }
         if let under = boxes[1] {
             if isLimits {
                 underY = -(base.descent + max(value(\.lowerLimitBaselineDropMin, context), value(\.lowerLimitGapMin, context) + under.ascent))
+            } else if isStretchStack {
+                underY = -max(value(\.stretchStackBottomShiftDown, context),
+                              base.descent + value(\.stretchStackGapBelowMin, context) + under.ascent)
             } else if accentUnder {
                 underY = min(0, -(base.descent + rule / 2 + under.ascent))
             } else {
                 let gap = stretchy[1] ? value(\.stretchStackGapAboveMin, context) : value(\.underbarVerticalGap, context)
                 underY = -(base.descent + gap + under.ascent)
             }
-            descent = max(descent, under.descent - underY + (accentUnder || isLimits ? 0 : value(\.underbarExtraDescender, context)))
+            descent = max(descent, under.descent - underY + (accentUnder || isLimits || isStretchStack ? 0 : value(\.underbarExtraDescender, context)))
             ascent = max(ascent, under.ascent + underY)
         }
         // Centre everything; limits of a slanted integral lean with it, and an accent sits on
