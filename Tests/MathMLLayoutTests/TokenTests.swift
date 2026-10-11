@@ -327,6 +327,9 @@ final class TokenTests: XCTestCase {
         XCTAssertEqual(MathLength("0")?.resolve(em: 20, ex: 9), 0)
         XCTAssertEqual(MathLength("0.0")?.resolve(em: 20, ex: 9), 0)
         XCTAssertEqual(MathLength("0")?.resolve(em: 20, ex: 9, reference: 30), 0)
+        // Only the unitless zero: no percentage or pseudo-unit of nothing is a length, and nor is
+        // any other number without a unit.
+        for invalid in ["0%", "0width", "0height", "0depth", "2"] { XCTAssertNil(MathLength(invalid)?.resolve(em: 20, ex: 9), invalid) }
     }
 
     func testLengthsAreBounded() {
