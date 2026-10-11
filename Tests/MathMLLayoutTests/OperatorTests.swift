@@ -103,10 +103,11 @@ final class OperatorTests: XCTestCase {
     }
 
     func testAnExplicitInfixFormKeepsItsSpacingAtTheStartOfARow() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/9 is fixed.
         // MathML 3, 3.2.5.7: the form attribute, not the position, selects the dictionary entry.
         try assertSpacing([mo("+", ["form": "infix"]), a], 8, "+a with form=infix")
         try assertSpacing([a, mo("="), mo("−", ["form": "infix"]), b], 18, "a = −b with the minus marked infix")
+        // It is still an operator to what follows it.
+        try assertSpacing([a, mo("+", ["form": "infix"]), mo("−"), b], 8, "a sign after an operator marked infix")
     }
 
     // MARK: TeX's rule 5: binary operators that are unary
