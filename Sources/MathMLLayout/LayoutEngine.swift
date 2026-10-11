@@ -719,7 +719,7 @@ final class LayoutEngine {
         var text = operatorText(node)
         let properties = properties(node, form: embellishment.form, context)
         if Self.hasGlyph(node) {
-            let content = try glyphContent(of: node, context)
+            let content = try operatorGlyphContent(of: node, context)
             try countText(content.text)
             var box = textBox(context.variant?.apply(to: content.text) ?? content.text, images: content.images, context)
             box.op = properties

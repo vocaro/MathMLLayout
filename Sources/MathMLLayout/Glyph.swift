@@ -79,6 +79,18 @@ extension LayoutEngine {
         return (String(text), images)
     }
 
+    /// `glyphContent` of an `mo`, with its text as `operatorText` draws it: a hyphen-minus is the
+    /// minus sign and an apostrophe the prime, beside an `mglyph` as alone. Either is all the text
+    /// the `mo` has apart from markers and white space, so it is the only one of its kind there.
+    /// An `alt` is left as written: it describes an image, and names no operator.
+    func operatorGlyphContent(of node: MathMLNode, _ context: LayoutContext) throws -> (text: String, images: [MathBox]) {
+        let typed = Self.normalized(Self.unmarked(node.text)), drawn = operatorText(node)
+        guard typed != drawn else { return try glyphContent(of: node, context) }
+        var shown = node
+        shown.text = node.text.replacingOccurrences(of: typed, with: drawn, options: .literal)
+        return try glyphContent(of: shown, context)
+    }
+
     /// An `alt` on its `mglyph`'s `mathbackground`, which fills "the bounding box of the element"
     /// (3.1.10): the image's when there is one, and without one the box of what is drawn instead.
     /// So this `alt` is a box of its own among the token's text, where any other is part of that

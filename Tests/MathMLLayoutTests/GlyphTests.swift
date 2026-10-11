@@ -671,6 +671,40 @@ final class GlyphTests: MathTestCase {
         XCTAssertNotNil(engine.embellishedCore(try node("<mo>\(sized)</mo>").children[0]))
     }
 
+    /// An `mo`'s hyphen-minus is drawn as the minus sign, and its apostrophe as the prime
+    /// (`operatorText`): beside an `mglyph` as alone.
+    func testAnOperatorsTextIsDrawnTheSameBesideAGlyph() throws {
+        let images = provider(["g": quarters(10, 10)])
+        let glyph = #"<mglyph src="g" alt="g"/>"#
+        func glyphs(_ box: MathBox) -> [[CGGlyph]] { glyphRuns(box).map(\.glyphs) }
+        func text(_ string: String) throws -> MathBox { try box("<mtext>\(string)</mtext>", images: nil) }
+        for (typed, drawn) in [("-", "\u{2212}"), ("'", "\u{2032}")] {
+            let expected = try text(drawn)
+            XCTAssertNotEqual(glyphs(expected), glyphs(try text(typed)), "the font has both")
+            // Before the glyph and after it, indented, and in a tree a host built without markers.
+            let operators = [
+                try node("<mo>\(typed)\(glyph)</mo>"), try node("<mo>\(glyph)\(typed)</mo>"), try node("<mo>\n  \(typed)\(glyph)\n</mo>"),
+                MathMLNode(name: "mo", children: [MathMLNode(name: "mglyph", attributes: ["src": "g", "alt": "g"])], text: typed),
+            ]
+            for (index, node) in operators.enumerated() {
+                let beside = try box(node, images: images)
+                XCTAssertEqual(glyphs(beside), glyphs(expected), "\(typed) \(index)")
+                XCTAssertEqual(beside.width, expected.width + 10, accuracy: 0.001, "\(typed) \(index)")
+                XCTAssertEqual(imageRects(beside).map(\.minX), [index == 1 ? 0 : expected.width], "\(typed) \(index)")
+            }
+            // Beside an alt it is the same, and the alt is drawn as written: it names no operator.
+            XCTAssertEqual(glyphs(try box(#"<mo>\#(typed)<mglyph src="s" alt="\#(typed)"/></mo>"#, images: nil)), glyphs(try text(drawn + typed)))
+            XCTAssertEqual(glyphs(try box(#"<mo><mglyph src="s" alt="\#(typed)"/></mo>"#, images: nil)), glyphs(try text(typed)))
+            // More than the one character is no minus sign or prime, with a glyph or without.
+            XCTAssertEqual(glyphs(try box("<mo>\(typed)\(typed)\(glyph)</mo>", images: images)), glyphs(try text(typed + typed)))
+        }
+        // It was the minus sign to the dictionary all along.
+        let minus = try box("<mi>a</mi><mo>-\(glyph)</mo><mi>b</mi>", images: images)
+        let operands = try box("<mi>a</mi>", images: nil).width + box("<mi>b</mi>", images: nil).width
+        XCTAssertEqual(minus.width, operands + (try text("\u{2212}").width) + 10 + 2 * 20 * 4 / 18, accuracy: 0.001)
+        XCTAssertEqual(try box("<mo>-\(glyph)</mo>", images: images).op?.isBinary, true)
+    }
+
     func testRowLevelGlyphIsLaidOutAsText() throws {
         let images = provider(["g": quarters(10, 10)])
         let glyph = #"<mglyph src="g" alt="braid" width="12px" height="8px" valign="-2px"/>"#
