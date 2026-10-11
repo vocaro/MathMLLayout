@@ -161,17 +161,25 @@ final class RobustnessTests: XCTestCase {
     /// The spoken reading is bounded like layout. `isSimple` once recursed without a depth
     /// bound, so a deep hand-built tree under `msqrt`, `mfrac` or `msup` overflowed the stack:
     /// about 2,000 levels on a secondary thread's 512 KB stack, about 30,000 on the main thread.
+    ///
+    /// Swift frees a tree of values level by level on the stack of whichever thread lets go of
+    /// it last, and 5,000 levels do not fit in 512 KB either. So the thread only borrows the
+    /// tree: it gives its reference up before it says it has finished, and this thread, with the
+    /// stack for it, keeps its own until then. An optimized build otherwise drops this thread's
+    /// reference first, and the test ends the process for a reason that is not the reading.
     func testSpeechOfADeepTreeDoesNotOverflowTheStack() throws {
         let deep = nested(5_000) { MathMLNode(name: "mrow", children: [$0]) }
         let roots = [MathMLNode(name: "msqrt", children: [deep]), MathMLNode(name: "mfrac", children: [deep, deep]), MathMLNode(name: "msup", children: [mi("x"), deep])]
+        nonisolated(unsafe) var lent: [MathMLNode]? = roots
         let finished = expectation(description: "read on a secondary thread")
         let thread = Thread {
-            for root in roots { _ = root.accessibilityDescription }
+            for root in lent ?? [] { _ = root.accessibilityDescription }
+            lent = nil
             finished.fulfill()
         }
         thread.stackSize = 512 * 1024
         thread.start()
-        wait(for: [finished], timeout: 60)
+        withExtendedLifetime(roots) { wait(for: [finished], timeout: 60) }
     }
 
     // MARK: The documented bounds, at their edges
