@@ -126,7 +126,6 @@ final class GroupingElementTests: XCTestCase {
     /// has the same effect as setting the attribute to zero … the effective bounding box of an
     /// mpadded element always has non-negative dimensions."
     func testPaddedDimensionsNeverGoNegative() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/10 is fixed.
         XCTAssertEqual(try padded("width=\"-25px\"").width, 0, accuracy: 0.01, "width decremented past zero")
         XCTAssertEqual(try padded("height=\"-25px\"").ascent, 0, accuracy: 0.01, "height decremented past zero")
         XCTAssertEqual(try padded("depth=\"-25px\"").descent, 0, accuracy: 0.01, "depth decremented past zero")

@@ -373,20 +373,23 @@ extension LayoutEngine {
 
     // MARK: Padding
 
-    /// `mpadded` with MathML 3's relative values and pseudo-units (`+0.5width`).
+    /// `mpadded` with MathML 3's relative values and pseudo-units (`+0.5width`). A width, height
+    /// or depth decremented past zero is zero (MathML 3, 3.3.6.2), so what follows the box is
+    /// never placed before where it began. `lspace` and `voffset` may be negative.
     func padded(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment,
                 depth: Int) throws -> MathBox {
         let content = try row(node.children, context, embellishment, depth: depth)
         let dimensions = (width: content.width, height: content.ascent, depth: content.descent)
-        func resolve(_ name: String, _ current: CGFloat, reference: CGFloat) -> CGFloat {
+        func resolve(_ name: String, _ current: CGFloat, reference: CGFloat, nonNegative: Bool = false) -> CGFloat {
             guard let attribute = node.attributes[name], let length = MathLength(attribute),
                   let value = length.resolve(em: context.fontSize, ex: xHeight(context), reference: reference,
                                              content: dimensions) else { return current }
-            return length.isRelative ? current + value : value
+            let resolved = length.isRelative ? current + value : value
+            return nonNegative ? max(0, resolved) : resolved
         }
-        var box = MathBox(width: resolve("width", content.width, reference: content.width),
-                          ascent: resolve("height", content.ascent, reference: content.ascent),
-                          descent: resolve("depth", content.descent, reference: content.descent))
+        var box = MathBox(width: resolve("width", content.width, reference: content.width, nonNegative: true),
+                          ascent: resolve("height", content.ascent, reference: content.ascent, nonNegative: true),
+                          descent: resolve("depth", content.descent, reference: content.descent, nonNegative: true))
         box.add(content, at: CGPoint(x: resolve("lspace", 0, reference: content.width),
                                      y: resolve("voffset", 0, reference: content.ascent)))
         box.op = content.op
