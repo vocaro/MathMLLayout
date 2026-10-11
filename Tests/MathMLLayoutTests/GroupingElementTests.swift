@@ -383,7 +383,6 @@ final class GroupingElementTests: XCTestCase {
     /// What is read aloud is what is drawn: the selected child of an action, and the
     /// presentation child of `semantics`, whichever position it is in.
     func testTheSpokenReadingFollowsTheChildThatIsDrawn() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/16 is fixed.
         XCTAssertEqual(try mathML("<maction selection=\"1\"><mi>a</mi><mi>b</mi></maction>").accessibilityDescription, "a")
         XCTAssertEqual(try mathML("<maction actiontype=\"toggle\" selection=\"2\"><mi>a</mi><mi>b</mi></maction>").accessibilityDescription, "b",
                        "selection=2 draws b")

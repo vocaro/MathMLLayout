@@ -209,6 +209,25 @@ final class LayoutEngine {
     /// Elements that draw nothing.
     private static let empty: Set<String> = ["none", "mprescripts", "annotation", "annotation-xml", "malignmark", "maligngroup"]
 
+    /// The child that stands for a `semantics` or an `maction`: the first child of `semantics` that
+    /// is not an annotation, and the child of `maction` that `selection` names, counted from 1, or
+    /// its first when `selection` is missing, no number, or names no child. nil when there is no
+    /// such child, and for every other element. Layout draws this child and a reading says it
+    /// (`Speaker`), and both ask here, so that what is read aloud is what is drawn.
+    static func shownChild(_ node: MathMLNode) -> MathMLNode? {
+        let children = node.children
+        switch node.name {
+        case "semantics":
+            return children.first { $0.name != "annotation" && $0.name != "annotation-xml" }
+        case "maction":
+            let selection = node.attributes["selection"].flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } ?? 1
+            // Compared, not subtracted from first: a `selection` of `Int.min` has no number before it.
+            return selection >= 1 && selection <= children.count ? children[selection - 1] : children.first
+        default:
+            return nil
+        }
+    }
+
     func layout(_ node: MathMLNode, _ outer: LayoutContext, _ embellishment: Embellishment = .none,
                 depth: Int) throws -> MathBox {
         guard depth < MathLimits.depth else { throw MathLayoutError.limitExceeded }
@@ -265,14 +284,8 @@ final class LayoutEngine {
             box = try elementaryMath(node, context, depth: depth)
         case "mfenced":
             box = try row(fenced(node), context, embellishment, depth: depth)
-        case "semantics":
-            let shown = children.first { $0.name != "annotation" && $0.name != "annotation-xml" }
-            box = try shown.map { try layout($0, context, embellishment, depth: depth + 1) } ?? .empty()
-        case "maction":
-            let selection = node.attributes["selection"].flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } ?? 1
-            // Compared, not subtracted from first: a `selection` of `Int.min` has no number before it.
-            let shown = selection >= 1 && selection <= children.count ? children[selection - 1] : children.first
-            box = try shown.map { try layout($0, context, embellishment, depth: depth + 1) } ?? .empty()
+        case "semantics", "maction":
+            box = try Self.shownChild(node).map { try layout($0, context, embellishment, depth: depth + 1) } ?? .empty()
         case "merror":
             box = try errorBox(node, context, depth: depth)
         case let name where Self.empty.contains(name):
