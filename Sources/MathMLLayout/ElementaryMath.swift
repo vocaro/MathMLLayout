@@ -77,6 +77,9 @@ private struct StackLine {
     /// A rule's thickness, and how far it runs past its columns.
     var thickness: CGFloat = 0
     var overhang: (left: CGFloat, right: CGFloat) = (0, 0)
+    /// A division's bar. The rest of the frame meets it where the columns end, so it keeps to
+    /// them where an `msline` across the stack follows a sign that overflows them.
+    var isFrame = false
 }
 
 /// What an `mstack` or `mlongdiv` settles for all its lines (3.6.1.2).
@@ -588,10 +591,18 @@ extension LayoutEngine {
             }
             return (left, right)
         }
+        // A rule with no length spans the stack (3.6.7.2), which is as wide as its rows of digits
+        // are: the columns, and as far past the first and the last as a sign overflows them, or
+        // the rule under a sum would stop short of its sign. Carries have no width (3.6.1.1).
+        var reach: (left: CGFloat, right: CGFloat) = (0, width)
+        for (index, line) in lines.enumerated() where line.kind == .digits && !line.cells.isEmpty {
+            let (left, right) = ends(of: line.cells.indices, on: index)
+            reach = (min(reach.left, left), max(reach.right, right))
+        }
         /// The ends of the rule that is line `index`, with its overhangs.
         func ends(ofRule index: Int) -> (left: CGFloat, right: CGFloat) {
             let line = lines[index]
-            let (left, right) = line.count > 0 ? ends(ofColumns: 0..<line.count, on: index) : (0, width)
+            let (left, right) = line.count > 0 ? ends(ofColumns: 0..<line.count, on: index) : line.isFrame ? (0, width) : reach
             return (left - line.overhang.left, right + line.overhang.right)
         }
         var backgrounds: [MathItem] = [], groups: [MathItem] = []
@@ -605,8 +616,8 @@ extension LayoutEngine {
                 for member in index..<index + count {
                     let inner = lines[member]
                     if inner.kind == .rule || !inner.cells.isEmpty {
-                        let reach = inner.kind == .rule ? ends(ofRule: member) : ends(of: inner.cells.indices, on: member)
-                        if reach.left < reach.right { left = min(left, reach.left); right = max(right, reach.right) }
+                        let span = inner.kind == .rule ? ends(ofRule: member) : ends(of: inner.cells.indices, on: member)
+                        if span.left < span.right { left = min(left, span.left); right = max(right, span.right) }
                     }
                     for (column, carry) in inner.attached where member > index && carry.location != .n && carry.box.width > 0 {
                         let x = origin(of: carry, on: member, column).x
@@ -735,7 +746,7 @@ extension LayoutEngine {
         if form.hasResultOnTop {
             lines = try collected(node.children[1].name == "none" ? [] : [node.children[1]])
             if lines.isEmpty { try visit(context, depth: depth + 1) }
-            var line = StackLine(kind: .rule, em: em, color: color, thickness: rule)
+            var line = StackLine(kind: .rule, em: em, color: color, thickness: rule, isFrame: true)
             switch form {
             case .leftTop:
                 left = (divisor.map { $0.width + 0.1 * em } ?? 0) + 0.3 * em + rule

@@ -278,8 +278,9 @@ final class ElementaryMathTests: MathTestCase {
         XCTAssertGreaterThan(plus.advance, total[0].advance + 1)
         equal(total[2].origin.x - total[1].origin.x, total[1].origin.x - total[0].origin.x, "no gap after the hundreds")
         equal(plus.right, total[0].right, "a leading sign overflows to the left")
-        equal(sum.rules[0].rect.width, 3 * total[0].advance + 2 * (total[1].origin.x - total[0].right))
-        XCTAssertGreaterThan(sum.box.width, sum.rules[0].rect.width, "the box still covers the sign")
+        equal(sum.rules[0].rect.minX, plus.origin.x, "and the line under the sum starts under it")
+        equal(sum.rules[0].rect.maxX, total[2].right)
+        XCTAssertGreaterThan(sum.box.width, total[2].right - total[0].origin.x, "the box still covers the sign")
         try assertCoversInk(body)
         let trailing = try drawing("<mstack stackalign='right'><mn>123</mn><msrow><mn>456</mn><mo>+</mo></msrow></mstack>")
         let gap = try trailing.glyph("three").origin.x - trailing.glyph("two").right
@@ -444,6 +445,64 @@ final class ElementaryMathTests: MathTestCase {
         let double = try drawing("<mstack><mn>12</mn><msline/><msline/></mstack>")
         XCTAssertEqual(double.rules.count, 2)
         XCTAssertGreaterThan(double.rules[0].rect.minY - double.rules[1].rect.maxY, standard)
+    }
+
+    /// A line with no length spans the stack (3.6.7.2). The stack is as wide as its rows, so the
+    /// line goes on under a sign that overflows the first or the last column, as the line under
+    /// a sum does on paper.
+    func testALineAcrossTheStackReachesASignThatOverflows() throws {
+        func stack(_ line: String = "", sign: String = "<mo>+</mo>") throws -> Drawing {
+            let body = "<mstack><mn>99</mn><msrow>\(sign)<mn>11</mn></msrow><msline\(line)/><mn>110</mn></mstack>"
+            try assertCoversInk(body)
+            return try drawing(body)
+        }
+        // "+11" over "110": the plus shares the hundreds with a digit, and overflows them to the left.
+        let sum = try stack()
+        let plus = try sum.glyph("plus"), total = sum.row(2)
+        XCTAssertLessThan(plus.origin.x, total[0].origin.x - 1, "the sign does overflow")
+        equal(sum.rules[0].rect.minX, plus.origin.x); equal(sum.rules[0].rect.maxX, total[2].right)
+        equal(sum.rules[0].rect.minX, 0); equal(sum.rules[0].rect.width, sum.box.width)
+        // A trailing sign overflows to the right.
+        let trailing = try drawing("<mstack stackalign='right'><mn>123</mn><msrow><mn>456</mn><mo>+</mo></msrow><msline/><mn>579</mn></mstack>")
+        XCTAssertGreaterThan(try trailing.glyph("plus").right, try trailing.glyph("nine").right + 1)
+        equal(trailing.rules[0].rect.minX, try trailing.glyph("four").origin.x)
+        equal(trailing.rules[0].rect.maxX, try trailing.glyph("plus").right)
+        // Every such line of a stack is the same, wherever the sign is, and overhangs start from there.
+        let lines = try drawing("<mstack><msline/><mn>99</mn><msrow><mo>+</mo><mn>11</mn></msrow><msline/><mn>110</mn><msline/></mstack>")
+        XCTAssertEqual(lines.rules.count, 3)
+        for rule in lines.rules { equal(rule.rect.minX, try lines.glyph("plus").origin.x); equal(rule.rect.width, sum.rules[0].rect.width) }
+        let hanging = try stack(" leftoverhang='0.5em' rightoverhang='3px'")
+        equal(hanging.rules[0].rect.minX, try hanging.glyph("plus").origin.x - 0.5 * em)
+        equal(hanging.rules[0].rect.maxX, hanging.row(2)[2].right + 3)
+        // A line with a length is a number of that many digits, and keeps to their columns.
+        let counted = try stack(" length='3'")
+        equal(counted.rules[0].rect.minX, counted.row(2)[0].origin.x); equal(counted.rules[0].rect.maxX, counted.row(2)[2].right)
+        XCTAssertGreaterThan(counted.rules[0].rect.minX, try counted.glyph("plus").origin.x + 1)
+        // A sign with a column of its own overflows nothing, and carries have no width (3.6.1.1).
+        let fitting = try stack(sign: "<mo>+</mo><none/>")
+        equal(fitting.rules[0].rect.minX, try fitting.glyph("plus").origin.x); equal(fitting.rules[0].rect.width, fitting.box.width)
+        let carried = try drawing("<mstack><mscarries location='w'><mn>1</mn><none/></mscarries><mn>34</mn><msline/></mstack>")
+        XCTAssertLessThan(try carried.glyph("one").origin.x, try carried.glyph("three").origin.x - 1)
+        equal(carried.rules[0].rect.minX, try carried.glyph("three").origin.x)
+        equal(carried.rules[0].rect.maxX, try carried.glyph("four").right)
+
+        // In a division the bar is part of the frame, which meets it where the columns end. A sign
+        // in the work that overflows them moves a line of the work, not the bar.
+        let rule = constants.fractionRuleThickness * em
+        let us = try drawing("<mlongdiv><mn>7</mn><mn>58</mn><mn>406</mn><msrow><mo>-</mo><mn>35</mn></msrow><msline/></mlongdiv>")
+        let minus = try us.glyph("uni2212"), hook = try XCTUnwrap(us.segments.first)
+        XCTAssertLessThan(minus.origin.x, try us.glyph("four").origin.x - 1)
+        let bar = try XCTUnwrap(us.horizontals.max { $0.minY < $1.minY }), under = try XCTUnwrap(us.horizontals.min { $0.minY < $1.minY })
+        equal(bar.minX, hook.from.x - rule / 2); equal(bar.maxX, try us.glyph("six").right)
+        equal(under.minX, minus.origin.x); equal(under.maxX, bar.maxX)
+        let chinese = try drawing("<mlongdiv longdivstyle='righttop' stackalign='right'><mn>7</mn><mn>58</mn><mn>406</mn>"
+            + "<msrow><mn>35</mn><mo>-</mo></msrow><msline/></mlongdiv>")
+        let corner = chinese.horizontals.sorted { $0.minY > $1.minY }
+        XCTAssertEqual(corner.count, 3)
+        equal(corner[0].maxX, corner[1].maxX, "the bar still ends where the line under the divisor does")
+        equal(corner[0].minX, try chinese.glyph("four").origin.x)
+        XCTAssertGreaterThan(try chinese.glyph("uni2212").right, try chinese.glyph("six").right + 1)
+        equal(corner[2].minX, corner[0].minX); equal(corner[2].maxX, try chinese.glyph("uni2212").right)
     }
 
     /// The specification's repeating decimals (3.6.8.4): a line over or under some digits.
