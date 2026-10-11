@@ -14,6 +14,8 @@ struct MathBox {
     var topAccentAttachment: CGFloat?
     /// Set when the box is an embellished operator: the core `mo`'s resolved properties.
     var op: OperatorProperties?
+    /// Set when the box is a row a line may break inside: its children, kept apart.
+    var row: BreakableRow?
     var items: [MathItem] = []
 
     var height: CGFloat { ascent + descent }
@@ -27,6 +29,9 @@ struct MathBox {
     mutating func add(_ box: MathBox, at point: CGPoint) {
         guard !box.items.isEmpty else { return }
         if point == .zero, box.items.count == 1, case .box = box.items[0] { items.append(box.items[0]); return }
+        // What is drawn keeps no row structure: that is for whoever may still break the row.
+        var box = box
+        box.row = nil
         items.append(.box(box, at: point))
     }
 

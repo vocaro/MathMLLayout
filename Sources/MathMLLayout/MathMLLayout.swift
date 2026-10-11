@@ -80,29 +80,76 @@ public enum MathLayoutError: Error, Equatable, Sendable {
 
 /// A laid-out formula. Immutable and thread-safe: lay out off the main thread, draw anywhere.
 ///
-/// Its box covers everything it draws, so a host may clip to it.
+/// It is one row unless the markup forces a line break or `maximumWidth` requires one. Its box
+/// covers everything it draws, and each row's box everything that row draws, so a host may clip
+/// to either.
 public final class MathLayout: @unchecked Sendable {
-    // Unchecked: the box tree is never mutated after init, and the CoreText fonts and
-    // CoreGraphics paths it holds are immutable and thread-safe.
+    // Unchecked: the box trees are never mutated after init, and the CoreText fonts and
+    // CoreGraphics paths they hold are immutable and thread-safe.
 
-    /// Width, and height above (`ascent`) and below (`descent`) the baseline, in points.
+    /// Width, and height above (`ascent`) and below (`descent`) the baseline, in points. The
+    /// baseline is the first row's: `descent` reaches down through the last row.
     public let width: CGFloat
     public let ascent: CGFloat
     public let descent: CGFloat
-    private let box: MathBox
+    /// The lines of the formula, top to bottom. One, unless the markup forces a break or
+    /// `maximumWidth` requires one.
+    public let rows: [Row]
+    /// How far the math axis is above the baseline, at the style's font size (the MATH table's
+    /// AxisHeight).
+    public let axisHeight: CGFloat
+    /// The width of the widest unit that cannot break: the narrowest `maximumWidth` at which no row
+    /// overflows. When it is more than the `maximumWidth` given, a row is wider than that, and a
+    /// host scales the formula. Tables, fractions, radicals and enclosures count as they were laid
+    /// out: wrapped as far as the width given asked, and no further.
+    public let widestUnbreakableWidth: CGFloat
+
+    /// One line of a formula.
+    public struct Row: @unchecked Sendable {
+        /// The left end of this row's baseline relative to the layout's baseline origin, y up.
+        public let origin: CGPoint
+        /// The row's own box: `width` wide, `ascent` above and `descent` below its baseline.
+        public let width: CGFloat
+        public let ascent: CGFloat
+        public let descent: CGFloat
+        fileprivate let box: MathBox
+
+        /// Draws this row alone: what a host does to put an inline formula's rows on consecutive
+        /// text lines. The row's baseline starts at `baselineOrigin`, in a context whose y axis
+        /// points up.
+        public func draw(in context: CGContext, baselineOrigin: CGPoint) {
+            context.saveGState()
+            defer { context.restoreGState() }
+            context.textMatrix = .identity
+            box.draw(in: context, at: baselineOrigin)
+        }
+    }
 
     /// Lays out `root`, usually a `math` element (whose `display="block"` also selects display
     /// style). Throws `unsupported` for elements outside presentation MathML's common subset.
-    public init(_ root: MathMLNode, style: MathStyle) throws {
-        box = try LayoutEngine(fontName: style.fontName).layoutRoot(root, style: style)
-        width = box.width; ascent = box.ascent; descent = box.descent
+    ///
+    /// Rows are no wider than `maximumWidth`, and the first no wider than `firstRowMaximumWidth`:
+    /// the space left on the text line where an inline formula starts. Lines break where the
+    /// markup forces them (`linebreak="newline"`, whatever the width) and otherwise at operators,
+    /// at relations sooner than sums and at sums sooner than products (MathML 3, 3.1.7). Only a
+    /// unit that cannot break makes a row wider: see `widestUnbreakableWidth`.
+    public init(_ root: MathMLNode, style: MathStyle, maximumWidth: CGFloat = .infinity,
+                firstRowMaximumWidth: CGFloat? = nil) throws {
+        let lines = try LayoutEngine.lines(root, style: style, maximumWidth: maximumWidth,
+                                           firstRowMaximumWidth: firstRowMaximumWidth)
+        rows = lines.rows.map {
+            Row(origin: $0.origin, width: $0.box.width, ascent: $0.box.ascent, descent: $0.box.descent, box: $0.box)
+        }
+        width = lines.width; ascent = lines.ascent; descent = lines.descent
+        axisHeight = lines.axisHeight; widestUnbreakableWidth = lines.widestUnbreakable
     }
 
-    /// Draws with the baseline's left end at `baselineOrigin`, in a context whose y axis points up.
+    /// Draws every row at its origin from `baselineOrigin`, the left end of the first row's
+    /// baseline unless that row is indented, in a context whose y axis points up.
     public func draw(in context: CGContext, baselineOrigin: CGPoint) {
-        context.saveGState()
-        defer { context.restoreGState() }
-        context.textMatrix = .identity
-        box.draw(in: context, at: baselineOrigin)
+        for row in rows {
+            row.draw(in: context, baselineOrigin: CGPoint(x: baselineOrigin.x + row.origin.x,
+                                                          y: baselineOrigin.y + row.origin.y))
+        }
     }
 }

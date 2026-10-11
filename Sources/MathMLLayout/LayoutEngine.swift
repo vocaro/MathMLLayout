@@ -31,6 +31,8 @@ struct LayoutContext {
     var cramped = false
     var variant: MathVariant?
     var color: CGColor
+    /// MathML 3's line-breaking and indentation attributes, which `mo` and `mspace` read.
+    var lines = LineStyle()
 }
 
 /// What an embellished operator learns from where it sits: its form from its position in a
@@ -71,19 +73,8 @@ final class LayoutEngine {
         let context = LayoutContext(fontSize: size, unclampedSize: size, minSize: min(size, max(8, size * 0.6)),
                                     display: style.isDisplay || root.attributes["display"] == "block",
                                     color: style.color)
-        let laidOut = try layout(root, context, depth: 0)
-        var box = MathBox(width: laidOut.width, ascent: laidOut.ascent, descent: laidOut.descent)
-        // The root covers its ink, so a host that clips to the box (an attachment image) never
-        // cuts an italic overhang or a glyph that leans past the left edge.
-        let ink = laidOut.inkBounds ?? .zero
-        let left = max(0, -ink.minX)
-        box.add(laidOut, at: CGPoint(x: left, y: 0))
-        box.width = max(0, laidOut.width + left, ink.maxX + left)
-        box.ascent = max(0, laidOut.ascent, ink.maxY)
-        box.descent = max(0, laidOut.descent, -ink.minY)
-        guard [box.width, box.ascent, box.descent].allSatisfy({ $0.isFinite && $0 <= MathLimits.extent }),
-              box.itemCount <= MathLimits.items else { throw MathLayoutError.limitExceeded }
-        return box
+        // One unbroken row: `lines` breaks it, makes each row cover its ink and checks the result's size.
+        return try layout(root, context, depth: 0)
     }
 
     // MARK: Context
@@ -169,6 +160,7 @@ final class LayoutEngine {
             let bold = attributes["fontweight"] == "bold", italic = attributes["fontstyle"] == "italic"
             context.variant = bold ? (italic ? .boldItalic : .bold) : (italic ? .italic : .normal)
         }
+        inheritLineStyle(node, &context)
         return context
     }
 
@@ -255,6 +247,20 @@ final class LayoutEngine {
         guard node.children.count == count else { throw MathLayoutError.invalidMarkup(node.name) }
     }
 
+    /// The width lines break to, `MathLayout`'s `maximumWidth`, and the width a table, fraction,
+    /// radical or enclosure wraps its content to stay within: the same, or less to leave room
+    /// for what stands beside it.
+    var lineWidth = CGFloat.infinity, wrapWidth = CGFloat.infinity
+    /// The widest of those that could be narrower still, the least it can be, and whether it is a table.
+    var narrowable: (width: CGFloat, minimum: CGFloat, isTable: Bool)?
+
+    /// Starts the counts of untrusted input again, to lay the same formula out once more.
+    func restart() {
+        nodeCount = 0
+        textLength = 0
+        narrowable = nil
+    }
+
     // MARK: Embellished operators
 
     /// The core `mo` of an embellished operator (MathML Core 3.2.4), or nil.
@@ -331,7 +337,8 @@ final class LayoutEngine {
             && core.attributes["lspace"] == nil && core.attributes["rspace"] == nil
         return OperatorProperties(form: form, lspace: lspace, rspace: rspace, flags: flags,
                                   isHorizontal: OperatorDictionary.isHorizontal(text), isBinary: isBinary,
-                                  dictionarySpacing: (entry.lspace, entry.rspace))
+                                  dictionarySpacing: (entry.lspace, entry.rspace),
+                                  breakPoint: BreakPoint(operator: text, entry, form: form, flags: flags, context.lines))
     }
 
     private func isStretchy(_ node: MathMLNode, form: OperatorForm?, horizontal: Bool) -> Bool {
@@ -395,6 +402,7 @@ final class LayoutEngine {
         }
         var box = MathBox()
         var x: CGFloat = 0
+        var offsets: [CGFloat] = []
         for (index, child) in boxes.enumerated() {
             var lspace = child.op?.lspace ?? 0, rspace = child.op?.rspace ?? 0
             if index == core {
@@ -406,6 +414,7 @@ final class LayoutEngine {
                 rspace = context.fontSize * 3 / 18 // A thin space after a function name, as TeX's \sin x.
             }
             x += lspace
+            offsets.append(x)
             box.add(child, at: CGPoint(x: x, y: 0))
             x += child.width + rspace
             box.ascent = index == 0 ? child.ascent : max(box.ascent, child.ascent)
@@ -422,6 +431,7 @@ final class LayoutEngine {
             if spacesCore.left { box.op?.lspace = 0 }
             if spacesCore.right { box.op?.rspace = 0 }
         }
+        box.row = try breakableRow(children, boxes, at: offsets, unary: unary, box, context, depth: depth)
         return box
     }
 

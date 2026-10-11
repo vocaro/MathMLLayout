@@ -11,8 +11,8 @@ extension LayoutEngine {
                   depth: Int) throws -> MathBox {
         try arity(node, 2)
         let inner = scriptContext(context, levels: context.display ? 0 : 1)
-        let numerator = try layout(node.children[0], inner, embellishment, depth: depth + 1)
-        let denominator = try layout(node.children[1], inner.with(cramped: true), depth: depth + 1)
+        var numerator = try layout(node.children[0], inner, embellishment, depth: depth + 1)
+        var denominator = try layout(node.children[1], inner.with(cramped: true), depth: depth + 1)
         let standard = value(\.fractionRuleThickness, context)
         let thickness: CGFloat = switch node.attributes["linethickness"]?.trimmingCharacters(in: .whitespaces).lowercased() {
         case nil: standard
@@ -24,6 +24,11 @@ extension LayoutEngine {
         if node.attributes.flag("bevelled") == true {
             return bevelled(numerator, denominator, context)
         }
+        // A little room each side, like TeX's null delimiters, so adjacent bars stay apart.
+        let pad = context.fontSize * 0.08
+        // A fraction too wide for the line stacks each part in lines.
+        numerator = wrapped(numerator, beside: 2 * pad) ?? numerator
+        denominator = wrapped(denominator, beside: 2 * pad) ?? denominator
         let display = context.display
         let axis = value(\.axisHeight, context)
         var numeratorShift: CGFloat, denominatorShift: CGFloat
@@ -45,8 +50,6 @@ extension LayoutEngine {
                 denominatorShift += (minimum - gap) / 2
             }
         }
-        // A little room each side, like TeX's null delimiters, so adjacent bars stay apart.
-        let pad = context.fontSize * 0.08
         let width = max(numerator.width, denominator.width)
         func offset(_ part: MathBox, _ attribute: String) -> CGFloat {
             switch node.attributes[attribute]?.trimmingCharacters(in: .whitespaces).lowercased() {
@@ -96,7 +99,7 @@ extension LayoutEngine {
 
     /// `msqrt` and `mroot`: the radical sign stretched to cover the base and the gap above it,
     /// with the overbar joining its top (MathML Core 3.3.3).
-    func radical(base: MathBox, index: MathBox?, _ context: LayoutContext) -> MathBox {
+    func radical(base: MathBox, index: MathBox?, _ context: LayoutContext, wraps: Bool = true) -> MathBox {
         let thickness = value(\.radicalRuleThickness, context)
         let gap = context.display ? value(\.radicalDisplayStyleVerticalGap, context) : value(\.radicalVerticalGap, context)
         let target = base.ascent + base.descent + gap + thickness
@@ -131,6 +134,11 @@ extension LayoutEngine {
         box.width = x + base.width
         box.ascent = ascent
         box.descent = descent
+        // A radicand too wide for the line stacks in lines under the one bar, beside the sign as wide
+        // as it was: taller, it may be wider.
+        if wraps, let stacked = wrapped(base, beside: x, align: .left) {
+            return radical(base: stacked, index: index, context, wraps: false)
+        }
         return box
     }
 
@@ -202,13 +210,26 @@ extension LayoutEngine {
         var box = MathBox()
         var x: CGFloat = 0
         var ascent = base.ascent, descent = base.descent
+        // A base that is a row may break across lines, as in a long bracketed sum squared. Its
+        // scripts are then kept apart too, each raised or lowered as here and held to its neighbour,
+        // so the exponent stays on the closing bracket wherever that lands.
+        let breaks = base.row != nil && base.op == nil
+        var parts: [BreakableRow.Child] = []
+        func keep(_ part: MathBox, at point: CGPoint) {
+            guard breaks else { return }
+            var part = shifted(part, by: point.y)
+            part.op = nil
+            parts.append(BreakableRow.Child(box: part, x: point.x, isAttached: !parts.isEmpty))
+        }
         func place(_ sub: MathBox?, _ sup: MathBox?, subX: CGFloat, supX: CGFloat) {
             if let sub {
                 box.add(sub, at: CGPoint(x: subX, y: -subShift))
+                keep(sub, at: CGPoint(x: subX, y: -subShift))
                 descent = max(descent, subShift + sub.descent); ascent = max(ascent, sub.ascent - subShift)
             }
             if let sup {
                 box.add(sup, at: CGPoint(x: supX, y: superShift))
+                keep(sup, at: CGPoint(x: supX, y: superShift))
                 ascent = max(ascent, superShift + sup.ascent); descent = max(descent, sup.descent - superShift)
             }
         }
@@ -218,6 +239,7 @@ extension LayoutEngine {
             x += width + space
         }
         box.add(base, at: CGPoint(x: x, y: 0))
+        if breaks { parts.append(BreakableRow.Child(box: base, x: x, isAttached: !parts.isEmpty)) }
         x += base.width
         for (index, (sub, sup)) in post.enumerated() {
             let subX = x - (index == 0 ? base.italicCorrection : 0)
@@ -228,6 +250,7 @@ extension LayoutEngine {
         box.ascent = ascent
         box.descent = descent
         box.op = base.op
+        if breaks { box.row = BreakableRow(children: parts, itemCount: box.items.count, context) }
         return box
     }
 
@@ -355,7 +378,7 @@ extension LayoutEngine {
     /// `menclose` notations: box, roundedbox, circle, the four sides, strikes, longdiv,
     /// actuarial and madruwb. Unknown notations are ignored, as MathML Core asks.
     func enclose(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
-        let content = try row(node.children, context, depth: depth)
+        var content = try row(node.children, context, depth: depth)
         let notations = Set((node.attributes["notation"] ?? "longdiv").split(whereSeparator: \.isWhitespace).map(String.init))
         if notations == ["radical"] { return radical(base: content, index: nil, context) }
         let stroke = value(\.overbarRuleThickness, context)
@@ -366,6 +389,10 @@ extension LayoutEngine {
         var left = pad, right = pad, top = pad, bottom = pad
         if notations.contains("longdiv") { left += em * 0.3 }
         if notations.contains("radical") { left += em * 0.6 }
+        // Content too wide for the line stacks in lines inside the one enclosure. A circle is √2 times
+        // as wide as its padded content, so it leaves that share of the line.
+        let bulge = notations.contains("circle") && wrapWidth.isFinite ? (wrapWidth - left - right + 2 * pad) * (1 - 0.5.squareRoot()) : 0
+        content = wrapped(content, beside: left + right + bulge, align: .left) ?? content
         if notations.contains("circle") {
             // An ellipse through the padded box's corners.
             let width = content.width + 2 * pad, height = content.height + 2 * pad
@@ -476,19 +503,6 @@ extension LayoutEngine {
             labels.append(try label.map { try layout($0, rowContext, depth: depth + 2) })
         }
         let columns = cells.map(\.count).max() ?? 0
-        var widths = [CGFloat](repeating: 0, count: columns)
-        var ascents = [CGFloat](repeating: 0, count: cells.count), descents = ascents
-        for (rowIndex, row) in cells.enumerated() {
-            for (column, cell) in row.enumerated() {
-                widths[column] = max(widths[column], cell.box.width)
-                ascents[rowIndex] = max(ascents[rowIndex], cell.box.ascent)
-                descents[rowIndex] = max(descents[rowIndex], cell.box.descent)
-            }
-            if let label = labels[rowIndex] {
-                ascents[rowIndex] = max(ascents[rowIndex], label.ascent)
-                descents[rowIndex] = max(descents[rowIndex], label.descent)
-            }
-        }
         let ex = xHeight(context), em = context.fontSize
         func spacing(_ name: String, _ standard: CGFloat, count: Int) -> [CGFloat] {
             let values = list(name, in: attributes)
@@ -504,6 +518,23 @@ extension LayoutEngine {
         let frameX = frame == "none" ? 0 : (pick(framing, 0).flatMap { length($0, context) } ?? 0.4 * em)
         let frameY = frame == "none" ? 0 : (pick(framing, 1).flatMap { length($0, context) } ?? 0.5 * ex)
         let tableAlign = list("columnalign", in: attributes)
+        let labelGap = length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em
+        let labelWidth = labels.compactMap { $0?.width }.max().map { $0 + labelGap } ?? 0
+        // Before the rows are measured: a table too wide for the line wraps its cells, which grow taller.
+        wrapCells(&cells, columnAlign: tableAlign, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
+        var widths = [CGFloat](repeating: 0, count: columns)
+        var ascents = [CGFloat](repeating: 0, count: cells.count), descents = ascents
+        for (rowIndex, row) in cells.enumerated() {
+            for (column, cell) in row.enumerated() {
+                widths[column] = max(widths[column], cell.box.width)
+                ascents[rowIndex] = max(ascents[rowIndex], cell.box.ascent)
+                descents[rowIndex] = max(descents[rowIndex], cell.box.descent)
+            }
+            if let label = labels[rowIndex] {
+                ascents[rowIndex] = max(ascents[rowIndex], label.ascent)
+                descents[rowIndex] = max(descents[rowIndex], label.descent)
+            }
+        }
 
         let gridWidth = widths.reduce(0, +) + columnGaps.reduce(0, +)
         let height = ascents.reduce(0, +) + descents.reduce(0, +) + rowGaps.reduce(0, +) + 2 * frameY
@@ -537,8 +568,6 @@ extension LayoutEngine {
             }
         }
         var box = MathBox()
-        let labelGap = length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em
-        let labelWidth = labels.compactMap { $0?.width }.max().map { $0 + labelGap } ?? 0
         let labelsLeft = attributes["side"]?.lowercased().hasPrefix("left") == true
         let gridX = labelsLeft ? labelWidth : 0
         for (rowIndex, row) in cells.enumerated() {
