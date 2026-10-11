@@ -201,9 +201,18 @@ final class GlyphTests: MathTestCase {
         try assertBox(#"valign="-0.5em""#, width: 30, ascent: 10, descent: 10)
         try assertBox(#"valign="-0.5em""#, width: 30, ascent: 0, descent: 20, size: 40)
         try assertBox(#"width="12px" height="50px" valign="-20px""#, width: 12, ascent: 30, descent: 20)
-        // Its default is zero, and a percentage or a multiple of zero is zero (MathML 3, 2.1.5.2).
+        // Its default is zero, and a percentage or a multiple of zero is zero (MathML 3, 2.1.5.2: "unless
+        // otherwise stated, the reference value is the default value", which 3.2.1.2.2 gives as 0ex).
+        // So it is of nothing else: not of the image's height, of the line's, or of an em.
         try assertBox(#"valign="-25%""#, width: 30, ascent: 20)
         try assertBox(#"valign="3""#, width: 30, ascent: 20)
+        try assertBox(#"valign="150%""#, width: 30, ascent: 20)
+        try assertBox(#"valign="-0.5""#, width: 30, ascent: 20)
+        try assertBox(#"height="40px" valign="50%""#, width: 60, ascent: 40)
+        // Zero with any unit or none comes to the same.
+        try assertBox(#"valign="0""#, width: 30, ascent: 20)
+        try assertBox(#"valign="0%""#, width: 30, ascent: 20)
+        try assertBox(#"valign="0ex""#, width: 30, ascent: 20)
 
         // A script's glyph is sized by the script's em; an unsized image does not shrink.
         let script = try box(#"<msup><mi>x</mi><mi><mglyph src="g" alt="g" width="1em"/></mi></msup>"#, images: images)

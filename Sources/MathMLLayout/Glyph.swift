@@ -118,6 +118,8 @@ extension LayoutEngine {
         let height = min(given.height ?? given.width.map { $0 * natural.height / natural.width } ?? natural.height,
                          MathLimits.extent)
         guard width > 0, height > 0 else { return .empty() }
+        // A percentage or a multiple of `valign`'s default, 0ex, is zero. Resolved with nothing to be
+        // a percentage of it is no length at all, which comes to the same.
         let raise = min(max(length(glyph.attributes["valign"], context) ?? 0, -MathLimits.extent),
                         MathLimits.extent - height)
         let rect = CGRect(x: 0, y: raise, width: width, height: height)
