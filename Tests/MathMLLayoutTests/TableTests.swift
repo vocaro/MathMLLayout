@@ -192,12 +192,23 @@ final class TableTests: XCTestCase {
     /// environment's, which puts the row's baseline on the baseline; and a row number that is
     /// out of range is ignored.
     func testAlignWithARowNumberFollowsMathML3() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/11 is fixed.
         func ascent(_ align: String) throws -> CGFloat { try innerBox(grid("align=\"\(align)\"")).ascent }
         XCTAssertEqual(try ascent("axis 1"), try ascent("baseline 1"), accuracy: 0.01, "axis 1: row 1's axis on the axis")
         XCTAssertEqual(try ascent("axis 2"), try ascent("baseline 2"), accuracy: 0.01, "axis 2")
+        XCTAssertEqual(try ascent("axis -1"), try ascent("baseline 2"), accuracy: 0.01, "axis -1")
         XCTAssertEqual(try ascent("top 9"), try ascent("top"), accuracy: 0.01, "an out-of-range row number is ignored")
         XCTAssertEqual(try ascent("bottom -9"), try ascent("bottom"), accuracy: 0.01)
+        // The grid has two rows: 2 and -2 are the last numbers that name one.
+        XCTAssertEqual(try ascent("top 3"), try ascent("top"), accuracy: 0.01, "top 3")
+        XCTAssertEqual(try ascent("bottom -3"), try ascent("bottom"), accuracy: 0.01, "bottom -3")
+        XCTAssertEqual(try ascent("bottom -2"), try ascent("bottom 1"), accuracy: 0.01, "bottom -2")
+        for align in ["axis", "center", "baseline"] {
+            XCTAssertEqual(try ascent("\(align) 3"), try ascent(align), accuracy: 0.01, "\(align) 3")
+            XCTAssertEqual(try ascent("\(align) -9223372036854775808"), try ascent(align), accuracy: 0.01, "\(align) with the least integer")
+        }
+        // A row of text set on the line by its axis is on the line: x = [x; x] with `axis 1`.
+        let found = try inks("<mi mathcolor=\"red\">x</mi><mtable align=\"axis 1\"><mtr><mtd><mi mathcolor=\"blue\">x</mi></mtd></mtr><mtr><mtd><mi>x</mi></mtd></mtr></mtable>")
+        XCTAssertEqual(try XCTUnwrap(found[.red]).minY, try XCTUnwrap(found[.blue]).minY, accuracy: 0.01)
     }
 
     // MARK: Style in cells

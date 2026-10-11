@@ -567,8 +567,10 @@ extension LayoutEngine {
 
         let gridWidth = widths.reduce(0, +) + columnGaps.reduce(0, +)
         let height = ascents.reduce(0, +) + descents.reduce(0, +) + rowGaps.reduce(0, +) + 2 * frameY
-        // `align`: axis (default), center or baseline, top, bottom, optionally naming a row
-        // whose baseline takes that place.
+        // `align`: axis (default), center or baseline, top, bottom, for the whole table or for the row
+        // whose number follows, counted from the bottom when it is negative. A row's axis is as far
+        // above its baseline as the surrounding one's, so `axis` with a row is `baseline` with it. A
+        // number that names no row is ignored (MathML 3, 3.5.1.2).
         let alignParts = list("align", in: attributes)
         var top: CGFloat
         var baselines: [CGFloat] = []
@@ -579,15 +581,14 @@ extension LayoutEngine {
         }
         let axis = value(\.axisHeight, context)
         let alignment = alignParts.first ?? "axis"
-        if alignParts.count > 1, let number = Int(alignParts[1]), number != 0, !cells.isEmpty {
-            let row = number > 0 ? min(number, cells.count) - 1 : max(cells.count + number, 0)
-            let reference: CGFloat = switch alignment {
+        if alignParts.count > 1, let number = Int(alignParts[1]), number != 0, (-cells.count...cells.count).contains(number) {
+            let row = number > 0 ? number - 1 : cells.count + number
+            top = switch alignment {
             case "top": baselines[row] - ascents[row]
             case "bottom": baselines[row] + descents[row]
             case "center": baselines[row] + (descents[row] - ascents[row]) / 2
             default: baselines[row]
             }
-            top = reference + (alignment == "axis" ? axis : 0)
         } else {
             top = switch alignment {
             case "top": 0
