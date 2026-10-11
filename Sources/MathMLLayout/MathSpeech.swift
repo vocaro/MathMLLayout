@@ -46,24 +46,14 @@ private struct Speaker {
     /// A row of a stack, and the depth it is read at.
     private typealias StackRow = (node: MathMLNode, depth: Int)
 
-    /// Text as it is said: runs of XML whitespace collapsed to one space and none left at either
-    /// end, so that a padded `<mo> + </mo>` is still found by name and no word carries a space.
-    private static func collapsed(_ text: String) -> String {
-        func isSpace(_ scalar: Unicode.Scalar) -> Bool {
-            scalar == " " || scalar == "\t" || scalar == "\n" || scalar == "\r"
-        }
-        guard text.unicodeScalars.contains(where: isSpace) else { return text }
-        return text.unicodeScalars.split(whereSeparator: isSpace).map { String($0) }.joined(separator: " ")
-    }
-
     /// A token's text. Speech cannot show an image, so a U+FFFC, which stands for the `mglyph`
     /// child at its position, is read as that glyph's `alt`. Glyphs past the last marker follow
     /// the text, for a tree built without markers; a marker without a glyph says nothing.
     private mutating func text(of node: MathMLNode) -> String {
-        let marker: Unicode.Scalar = "\u{FFFC}"
+        let marker = LayoutEngine.glyphMarker
         guard LayoutEngine.tokens.contains(node.name),
-              node.text.unicodeScalars.contains(marker) || node.children.contains(where: { $0.name == "mglyph" }) else {
-            return Self.collapsed(node.text)
+              node.text.unicodeScalars.contains(marker) || LayoutEngine.hasGlyph(node) else {
+            return LayoutEngine.normalized(node.text)
         }
         var glyphs = node.children.lazy.filter { $0.name == "mglyph" }.makeIterator()
         /// The next glyph's `alt`, counted against the node bound like any element that is read.
@@ -80,7 +70,7 @@ private struct Speaker {
         }
         while let alt = alt() { parts.append(alt) }
         // A glyph is a word of its own, whatever it touches in the markup.
-        return Self.collapsed(parts.joined(separator: " "))
+        return LayoutEngine.normalized(parts.joined(separator: " "))
     }
 
     private func symbol(_ text: String) -> String { words.symbols[text] ?? text }
@@ -124,7 +114,7 @@ private struct Speaker {
             let value = text(of: node)
             return ["\u{2061}", "\u{2062}", "\u{2063}", "\u{2064}"].contains(value) ? "" : symbol(value)
         case "mglyph":
-            return Self.collapsed(node.attributes["alt"] ?? "")
+            return LayoutEngine.normalized(node.attributes["alt"] ?? "")
         case "mfrac":
             let simple = children.count == 2 && isSimple(children[0]) && isSimple(children[1])
             return words.fraction(child(0), child(1), simple: simple)
