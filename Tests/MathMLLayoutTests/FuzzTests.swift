@@ -158,29 +158,8 @@ struct MathFuzzer {
                 result[attribute] = pick(Self.booleans)
             }
         }
-        if Self.sparesKnownTraps {
-            if let level = result["scriptlevel"]?.trimmingCharacters(in: .whitespaces), level.hasPrefix("+") || level.hasPrefix("-"),
-               let number = Int(level), number.magnitude > 1 << 32 { result["scriptlevel"] = nil }
-            if let selection = result["selection"], Int(selection.trimmingCharacters(in: .whitespaces)) == .min { result["selection"] = nil }
-            for lines in ["frame", "rowlines", "columnlines"] {
-                result[lines] = result[lines]?.replacingOccurrences(of: "dashed", with: "solid", options: .caseInsensitive)
-            }
-        }
         return result
     }
-
-    /// Three defects outside the files this fuzzer was written to guard, on values it would
-    /// otherwise make. Until they are fixed there the generator leaves those values out, or every
-    /// long run would stop at them; set this to false to see them.
-    ///
-    /// - `LayoutEngine.inherit` adds a signed `scriptlevel` to the current level unchecked, and
-    ///   traps: `scriptlevel="+9223372036854775807"` under any other level.
-    /// - `LayoutEngine.layout` subtracts 1 from an `maction`'s `selection` unchecked, and traps:
-    ///   `selection="-9223372036854775808"`.
-    /// - `LayoutEngine.table` makes every dash of a dashed `frame`, `rowlines` or `columnlines`
-    ///   as it lays out, sized by the table's own font: a table at `mathsize="0.001px"` around
-    ///   1,000 points of content takes 700 MB, and ten times that for each further zero.
-    static let sparesKnownTraps = true
 
     mutating func name(inStack: Bool) -> String {
         let roll = below(200)

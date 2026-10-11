@@ -144,8 +144,11 @@ without a MATH table still lays out, with built-in constants and drawn stretchy 
 
 Input is treated as untrusted. A formula deeper than 64 levels, larger than 20,000 nodes, longer
 than 50,000 UTF-16 units of text, more than 50,000 points in any dimension, or with more than
-100,000 drawing items throws `MathLayoutError.limitExceeded`. `MathMLNode.parse(xml:)` refuses
-document type declarations, so no entity expands and nothing external loads; it reads at most
+100,000 drawing items throws `MathLayoutError.limitExceeded`. So does one nested deeper than the
+calling thread's stack has room for, within those 64 levels: a thread other than the main one
+has 512 KB, which an unoptimized build spends in about twenty levels. Readings are bounded the
+same way and leave out what is past the bounds. `MathMLNode.parse(xml:)` refuses document type
+declarations in any encoding, so no entity expands and nothing external loads; it reads at most
 4 MiB.
 
 ## Limitations
@@ -156,6 +159,8 @@ document type declarations, so no entity expands and nothing external loads; it 
   whose tall content moved to another row stay tall. `indenttarget` must name a child of a row
   being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
   a table cell does not narrow, and `mtext` with a right-to-left run or an image does not wrap.
+  Where several wrapping units share a row (two radicals side by side), a row can still run a
+  few percent past `widestUnbreakableWidth`.
 - **`mglyph`.** MathML 2's `fontfamily` and `index` glyphs have no image and show their `alt`.
   An image has no scale of its own: size a 2x asset with `width` and `height`.
 - **Elementary math.** Columns run left to right only. `decimalpoint` names one character. An

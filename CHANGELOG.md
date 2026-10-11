@@ -29,6 +29,18 @@ Line breaking, `mglyph`, elementary math and localized readings
   it had two.
 - A token's trailing white space is trimmed: `<mi>x </mi>` was drawn upright with a space after
   it, and `<mo> + </mo>` was not found in the operator dictionary or read as "plus".
+- Hostile markup that 0.1.0 let through, found by fuzzing this release:
+  - `scriptlevel="+9223372036854775807"` and `maction selection="-9223372036854775808"`
+    overflowed an integer and stopped the process.
+  - A UTF-16 document hid its `<!DOCTYPE` from the check for one, so its entities and attribute
+    defaults expanded: 19 GB from 2 MB of markup.
+  - A dashed table frame or line made every dash at layout, without bound when the table's own
+    font was tiny beside its content. Dashes are now drawn, not stored.
+  - Nesting within the 64-level bound could still overflow the 512 KB stack of a secondary
+    thread. Layout now throws `limitExceeded`, and a reading leaves the rest out, before the
+    stack runs out.
+  - A row of thousands of stretchy operators took quadratic time, and a NaN font size gave a
+    NaN box.
 
 ### Changed
 
