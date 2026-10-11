@@ -247,8 +247,9 @@ final class LayoutEngine {
         case "mglyph":
             // MathML 2 listed `mglyph` among the tokens (3.1.6), so one may stand alone in a row.
             // It is laid out as the `mtext` it would now be in, not as an element of its own: the
-            // style it would hand down has no effect on an `mglyph` (MathML 3, 3.2.1.2.2).
-            return try layout(MathMLNode(name: "mtext", children: [node]), outer, depth: depth)
+            // style it would hand down has no effect on an `mglyph` (MathML 3, 3.2.1.2.2). That
+            // `mtext` is no node of the formula's, so it is not laid out as one, which would count it.
+            return try token(MathMLNode(name: "mtext", children: [node]), outer)
         case "mo":
             box = try operatorBox(node, context, embellishment)
         case "mspace":

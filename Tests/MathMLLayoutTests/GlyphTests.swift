@@ -853,6 +853,32 @@ final class GlyphTests: MathTestCase {
         assertColor(pixel(25, 42), [0, 0, 0, 0], "above it, where a height of the bound would reach")
     }
 
+    /// README: "A formula … larger than 20,000 nodes … throws `MathLayoutError.limitExceeded`."
+    /// A row-level `mglyph` is one of them, like the `mtext` it is laid out as.
+    func testRowLevelGlyphCountsAsOneNode() throws {
+        let images = provider(["g": quarters(2, 2)])
+        // The root and its children: `nodes` in all.
+        func row(_ nodes: Int, of child: MathMLNode) -> MathMLNode {
+            MathMLNode(name: "math", children: Array(repeating: child, count: nodes - 1))
+        }
+        let glyph = MathMLNode(name: "mglyph", attributes: ["src": "g", "alt": "g"])
+        let text = MathMLNode(name: "mtext", children: [glyph])
+        for provider in [images, nil] {
+            for child in [glyph, text] {
+                XCTAssertNoThrow(try box(row(MathLimits.nodes, of: child), images: provider, size: 1), child.name)
+                XCTAssertThrowsError(try box(row(MathLimits.nodes + 1, of: child), images: provider, size: 1), child.name) {
+                    XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+                }
+            }
+        }
+        // Once in a row of its own too: the root, and two nodes for each of these.
+        let nested = MathMLNode(name: "mrow", children: [glyph])
+        XCTAssertNoThrow(try box(row(MathLimits.nodes / 2, of: nested), images: nil, size: 1))
+        XCTAssertThrowsError(try box(row(MathLimits.nodes / 2 + 2, of: nested), images: nil, size: 1)) {
+            XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+        }
+    }
+
     func testHostileGlyphSizesAreBounded() throws {
         let extent = MathLimits.extent
         let images = provider(["g": quarters(30, 20), "wide": bitmap(60_000, 1).makeImage()!,
