@@ -129,7 +129,6 @@ final class TableTests: XCTestCase {
     }
 
     func testFrameSpacingOfZero() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/17 is fixed.
         let tight = try lines("frame=\"solid\" framespacing=\"0 0\"").box
         XCTAssertEqual(tight.width, 5.8 * em, accuracy: 0.01, "framespacing=\"0 0\" puts the frame against the cells")
         XCTAssertEqual(tight.height, 3 * em + ex, accuracy: 0.01)

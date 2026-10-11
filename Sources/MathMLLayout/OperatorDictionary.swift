@@ -25,6 +25,9 @@ struct OperatorProperties: Sendable {
     var isHorizontal: Bool
     /// A binary operator by the dictionary, which becomes unary where TeX's rule 5 says so.
     var isBinary = false
+    /// The `mo` says `form="infix"`, which its place in the row then does not change: rule 5
+    /// leaves it its spacing.
+    var isMarkedInfix = false
     /// The dictionary's spacing, in eighteenths of an em, before attributes or script level.
     var dictionarySpacing: (lspace: UInt8, rspace: UInt8) = (0, 0)
     /// Whether and how a line may break at the operator; nil when it was not laid out as an `mo`.

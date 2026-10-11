@@ -232,7 +232,6 @@ final class TokenTests: XCTestCase {
     }
 
     func testMathColorRejectsSignedHexDigits() {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/17 is fixed.
         // "+ff" and "-00" are not hexadecimal colours, though integer parsing accepts a sign.
         for invalid in ["#+ff", "#-00", "#+12345", "#-0000000"] { XCTAssertNil(MathColor.parse(invalid), "\"\(invalid)\"") }
     }
@@ -323,12 +322,14 @@ final class TokenTests: XCTestCase {
     }
 
     func testUnitlessZeroIsALengthWithoutAReference() {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/17 is fixed.
         // "0" is zero whatever it would be a multiple of; attributes with no reference value
         // (mspace, framespacing) must not read it as invalid.
         XCTAssertEqual(MathLength("0")?.resolve(em: 20, ex: 9), 0)
         XCTAssertEqual(MathLength("0.0")?.resolve(em: 20, ex: 9), 0)
         XCTAssertEqual(MathLength("0")?.resolve(em: 20, ex: 9, reference: 30), 0)
+        // Only the unitless zero: no percentage or pseudo-unit of nothing is a length, and nor is
+        // any other number without a unit.
+        for invalid in ["0%", "0width", "0height", "0depth", "2"] { XCTAssertNil(MathLength(invalid)?.resolve(em: 20, ex: 9), invalid) }
     }
 
     func testLengthsAreBounded() {

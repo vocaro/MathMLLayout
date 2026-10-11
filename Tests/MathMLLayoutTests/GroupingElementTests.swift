@@ -82,7 +82,6 @@ final class GroupingElementTests: XCTestCase {
     /// MathML Core 2.1.2 and 3.1: `display` and the other enumerated attributes match ASCII
     /// case-insensitively, as the engine already does for `displaystyle`, `form` and `columnalign`.
     func testEnumeratedAttributesIgnoreCaseAndSurroundingSpace() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/17 is fixed.
         func height(_ display: String) throws -> CGFloat {
             let layout = try MathLayout(MathMLNode(name: "math", attributes: ["display": display], children: [MathMLNode(name: "mfrac", children: [mi("a"), mi("b")])]),
                                         style: MathStyle(fontSize: em, color: black))
@@ -126,7 +125,6 @@ final class GroupingElementTests: XCTestCase {
     /// has the same effect as setting the attribute to zero … the effective bounding box of an
     /// mpadded element always has non-negative dimensions."
     func testPaddedDimensionsNeverGoNegative() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/10 is fixed.
         XCTAssertEqual(try padded("width=\"-25px\"").width, 0, accuracy: 0.01, "width decremented past zero")
         XCTAssertEqual(try padded("height=\"-25px\"").ascent, 0, accuracy: 0.01, "height decremented past zero")
         XCTAssertEqual(try padded("depth=\"-25px\"").descent, 0, accuracy: 0.01, "depth decremented past zero")

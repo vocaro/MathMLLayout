@@ -103,7 +103,7 @@ final class LayoutEngine {
         imageProvider = style.imageProvider
         let size = Self.fontSize(style)
         let context = LayoutContext(fontSize: size, unclampedSize: size, minSize: min(size, max(8, size * 0.6)),
-                                    display: style.isDisplay || root.attributes["display"] == "block",
+                                    display: style.isDisplay || root.attributes["display"]?.trimmingCharacters(in: .whitespaces).lowercased() == "block",
                                     color: style.color)
         // One unbroken row: `lines` breaks it, makes each row cover its ink and checks the result's size.
         return try layout(root, context, depth: 0)
@@ -400,13 +400,18 @@ final class LayoutEngine {
         }
     }
 
-    func operatorForm(_ node: MathMLNode, _ inferred: OperatorForm?) -> OperatorForm {
+    /// The form an `mo`'s own attribute names; nil without one, or with one that is not a form.
+    func explicitForm(_ node: MathMLNode) -> OperatorForm? {
         switch node.attributes["form"]?.trimmingCharacters(in: .whitespaces).lowercased() {
         case "prefix": .prefix
         case "postfix": .postfix
         case "infix": .infix
-        default: inferred ?? .infix
+        default: nil
         }
+    }
+
+    func operatorForm(_ node: MathMLNode, _ inferred: OperatorForm?) -> OperatorForm {
+        explicitForm(node) ?? inferred ?? .infix
     }
 
     func operatorFlags(_ core: MathMLNode, form: OperatorForm?) -> OperatorFlags {
@@ -434,6 +439,7 @@ final class LayoutEngine {
             && core.attributes["lspace"] == nil && core.attributes["rspace"] == nil
         return OperatorProperties(form: form, lspace: lspace, rspace: rspace, flags: flags,
                                   isHorizontal: OperatorDictionary.isHorizontal(text), isBinary: isBinary,
+                                  isMarkedInfix: explicitForm(core) == .infix,
                                   dictionarySpacing: (entry.lspace, entry.rspace),
                                   breakPoint: BreakPoint(operator: text, entry, form: form, flags: flags, context.lines))
     }
@@ -495,9 +501,11 @@ final class LayoutEngine {
         }
         // TeX's rule 5: a binary operator first, last, or after another operator or an opening
         // fence is unary and unspaced, as in "x = −3" or "(−3 + x)". Text counts among the atoms.
+        // An operator whose `form` attribute says infix is what its author says it is.
         var unary = Set<Int>()
         let atoms = children.indices.filter { texts[$0] || !isSpaceLike(children[$0]) }
-        for (position, index) in atoms.enumerated() where boxes[index].op?.isBinary == true && index != core {
+        for (position, index) in atoms.enumerated()
+        where boxes[index].op?.isBinary == true && boxes[index].op?.isMarkedInfix != true && index != core {
             let follows = position > 0 ? boxes[atoms[position - 1]].op.map(isOperatorLike) ?? false : true
             if follows || position == atoms.count - 1 { unary.insert(index) }
         }
@@ -770,7 +778,9 @@ enum MathColor {
         let text = value.trimmingCharacters(in: .whitespaces).lowercased()
         if text == "transparent" { return CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0) }
         if let rgb = names[text] { return color(rgb << 8 | 0xFF) }
-        guard text.hasPrefix("#"), let number = UInt32(text.dropFirst(), radix: 16) else { return nil }
+        // Digits only: an integer may have a sign, and a colour may not.
+        guard text.hasPrefix("#"), text.dropFirst().allSatisfy({ $0.isASCII && $0.isHexDigit }),
+              let number = UInt32(text.dropFirst(), radix: 16) else { return nil }
         switch text.count - 1 {
         case 3, 4:
             let digits = text.count - 1

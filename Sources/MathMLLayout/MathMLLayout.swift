@@ -119,8 +119,11 @@ public final class MathLayout: @unchecked Sendable {
         /// text lines. The row's baseline starts at `baselineOrigin`, in a context whose y axis
         /// points up.
         public func draw(in context: CGContext, baselineOrigin: CGPoint) {
+            // The text matrix is no part of the graphics state that is saved, so the host's is
+            // put back by hand.
+            let textMatrix = context.textMatrix
             context.saveGState()
-            defer { context.restoreGState() }
+            defer { context.restoreGState(); context.textMatrix = textMatrix }
             context.textMatrix = .identity
             box.draw(in: context, at: baselineOrigin)
         }

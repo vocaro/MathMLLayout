@@ -119,7 +119,6 @@ final class DrawingTests: XCTestCase {
     /// to draw glyphs changes it for the host. A host that set its own (a flip, for text drawn
     /// with CoreText in a y-down context) must find it unchanged after a formula is drawn.
     func testDrawingPreservesTheHostsTextMatrix() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/15 is fixed.
         let layout = try typeset("<mi>x</mi><mo>+</mo><mfrac><mn>1</mn><mn>2</mn></mfrac>")
         let context = try XCTUnwrap(CGContext(data: nil, width: 200, height: 100, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
                                               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
@@ -127,6 +126,9 @@ final class DrawingTests: XCTestCase {
         context.textMatrix = flipped
         layout.draw(in: context, baselineOrigin: CGPoint(x: 20, y: 40))
         XCTAssertEqual(context.textMatrix, flipped, "draw(in:baselineOrigin:) changed the context's text matrix")
+        // A host that places an inline formula's rows draws each row itself.
+        try XCTUnwrap(layout.rows.first).draw(in: context, baselineOrigin: CGPoint(x: 20, y: 40))
+        XCTAssertEqual(context.textMatrix, flipped, "Row.draw(in:baselineOrigin:) changed the context's text matrix")
     }
 
     func testAHostsTextMatrixDoesNotAffectTheDrawing() throws {
