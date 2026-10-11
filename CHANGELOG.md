@@ -40,6 +40,14 @@ Line breaking, `mglyph`, elementary math and localized readings
 - An operator marked `form="infix"` keeps its spacing where its place in the row would make it
   a sign: `<mo form="infix">+</mo><mi>a</mi>` was laid out as if it said `form="prefix"`
   ([#9](https://github.com/vocaro/MathMLLayout/issues/9)).
+- Three values that were misread ([#17](https://github.com/vocaro/MathMLLayout/issues/17)):
+  - A unitless `0` is zero where a length has nothing to be a multiple of, so
+    `framespacing="0 0"` puts the frame against the cells. It was taken as invalid and the
+    default spacing used.
+  - `display` on the root and `side` on `mtable` ignore case and surrounding space, like every
+    other enumerated attribute: `display="BLOCK"` gave text style.
+  - A colour with a sign among its hex digits, such as `#+ff`, is no colour. It was read as
+    `#0ff`.
 - Hostile markup that 0.1.0 let through, found by fuzzing this release:
   - `scriptlevel="+9223372036854775807"` and `maction selection="-9223372036854775808"`
     overflowed an integer and stopped the process.

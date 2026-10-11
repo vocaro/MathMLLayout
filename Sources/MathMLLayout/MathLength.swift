@@ -72,8 +72,10 @@ struct MathLength: Equatable {
 
     /// The length in points. `reference` resolves percentages and unitless multiples, and
     /// `content` (width, height, depth) resolves pseudo-units; without them those are nil.
+    /// Zero is zero whatever it would multiply: `framespacing="0 0"` has no reference value.
     func resolve(em: CGFloat, ex: CGFloat, reference: CGFloat? = nil,
                  content: (width: CGFloat, height: CGFloat, depth: CGFloat)? = nil) -> CGFloat? {
+        guard value != 0 else { return 0 }
         let points: CGFloat?
         switch unit {
         case .points: points = value

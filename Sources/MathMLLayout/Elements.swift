@@ -593,7 +593,7 @@ extension LayoutEngine {
             }
         }
         var box = MathBox()
-        let labelsLeft = attributes["side"]?.lowercased().hasPrefix("left") == true
+        let labelsLeft = attributes["side"]?.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("left") == true
         let gridX = labelsLeft ? labelWidth : 0
         for (rowIndex, row) in cells.enumerated() {
             let baseline = top - baselines[rowIndex]

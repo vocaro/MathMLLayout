@@ -103,7 +103,7 @@ final class LayoutEngine {
         imageProvider = style.imageProvider
         let size = Self.fontSize(style)
         let context = LayoutContext(fontSize: size, unclampedSize: size, minSize: min(size, max(8, size * 0.6)),
-                                    display: style.isDisplay || root.attributes["display"] == "block",
+                                    display: style.isDisplay || root.attributes["display"]?.trimmingCharacters(in: .whitespaces).lowercased() == "block",
                                     color: style.color)
         // One unbroken row: `lines` breaks it, makes each row cover its ink and checks the result's size.
         return try layout(root, context, depth: 0)
@@ -778,7 +778,9 @@ enum MathColor {
         let text = value.trimmingCharacters(in: .whitespaces).lowercased()
         if text == "transparent" { return CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0) }
         if let rgb = names[text] { return color(rgb << 8 | 0xFF) }
-        guard text.hasPrefix("#"), let number = UInt32(text.dropFirst(), radix: 16) else { return nil }
+        // Digits only: an integer may have a sign, and a colour may not.
+        guard text.hasPrefix("#"), text.dropFirst().allSatisfy({ $0.isASCII && $0.isHexDigit }),
+              let number = UInt32(text.dropFirst(), radix: 16) else { return nil }
         switch text.count - 1 {
         case 3, 4:
             let digits = text.count - 1

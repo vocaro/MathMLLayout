@@ -82,7 +82,6 @@ final class GroupingElementTests: XCTestCase {
     /// MathML Core 2.1.2 and 3.1: `display` and the other enumerated attributes match ASCII
     /// case-insensitively, as the engine already does for `displaystyle`, `form` and `columnalign`.
     func testEnumeratedAttributesIgnoreCaseAndSurroundingSpace() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/17 is fixed.
         func height(_ display: String) throws -> CGFloat {
             let layout = try MathLayout(MathMLNode(name: "math", attributes: ["display": display], children: [MathMLNode(name: "mfrac", children: [mi("a"), mi("b")])]),
                                         style: MathStyle(fontSize: em, color: black))
