@@ -352,10 +352,39 @@ final class TableTests: XCTestCase {
 
     /// A table's rules end at its edges: they must not stick out of the box, or through a frame.
     func testRowAndColumnLinesStayInsideTheBox() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/12 is fixed.
         for attributes in ["rowlines=\"solid\"", "columnlines=\"solid\"", "rowlines=\"dashed\" columnlines=\"dashed\"",
-                           "frame=\"solid\" rowlines=\"solid\" columnlines=\"solid\""] {
+                           "frame=\"solid\" rowlines=\"solid\" columnlines=\"solid\"", "frame=\"dashed\" framespacing=\"0 0\" rowlines=\"solid\" columnlines=\"dashed\"",
+                           "rowlines=\"solid\" columnlines=\"solid\" rowspacing=\"0\" columnspacing=\"0\" align=\"top 2\""] {
             try assertInkInsideBox(attributes)
+        }
+        // As they are drawn, too: a rule is as long as the table is wide or tall, and no longer.
+        let box = try innerBox(grid())
+        let row = try XCTUnwrap(try lines("rowlines=\"solid\"").ink), column = try XCTUnwrap(try lines("columnlines=\"solid\"").ink)
+        XCTAssertEqual(row.width, box.width, accuracy: pixel); XCTAssertEqual(column.height, box.height, accuracy: pixel)
+        XCTAssertLessThanOrEqual(try XCTUnwrap(try lines("rowlines=\"dashed\"").ink).width, box.width + pixel)
+        XCTAssertLessThanOrEqual(try XCTUnwrap(try lines("columnlines=\"dashed\"").ink).height, box.height + pixel)
+    }
+
+    /// A line in a gap of no width at the table's edge is drawn beside the edge, not along it, where
+    /// half of it would be outside. A table with no room for a line has none.
+    func testLinesOfATableWithEmptyRowsAndColumnsStayInsideTheBox() throws {
+        let empty = "<mtd/>", full = "<mtd><mspace width=\"1em\" height=\"1em\"/></mtd>", attributes = "rowlines=\"solid\" columnlines=\"dashed\" rowspacing=\"0\" columnspacing=\"0\""
+        for rows in ["<mtr>\(empty)\(empty)</mtr><mtr>\(empty)\(full)</mtr>", "<mtr>\(full)\(empty)</mtr><mtr>\(empty)\(empty)</mtr>",
+                     "<mtr>\(empty)\(full)\(empty)</mtr><mtr>\(empty)\(empty)\(empty)</mtr><mlabeledtr>\(full)\(empty)</mlabeledtr>"] {
+            for side in ["right", "left"] {
+                let box = try innerBox("<mtable \(attributes) side=\"\(side)\">\(rows)</mtable>"), label = "\(side): \(rows)"
+                let ink = try XCTUnwrap(box.inkBounds, label)
+                XCTAssertGreaterThanOrEqual(ink.minX, -0.01, "left, \(label)"); XCTAssertLessThanOrEqual(ink.maxX, box.width + 0.01, "right, \(label)")
+                XCTAssertLessThanOrEqual(ink.maxY, box.ascent + 0.01, "top, \(label)"); XCTAssertGreaterThanOrEqual(ink.minY, -box.descent - 0.01, "bottom, \(label)")
+            }
+        }
+        // The lines are still drawn: one across and one down a table of a single cell's size.
+        let drawn = try XCTUnwrap(try innerBox("<mtable \(attributes)><mtr>\(empty)\(empty)</mtr><mtr>\(empty)\(full)</mtr></mtable>").inkBounds)
+        XCTAssertEqual(drawn.width, em, accuracy: 0.01); XCTAssertEqual(drawn.height, em, accuracy: 0.01)
+        // Nothing to draw a line across, or along.
+        for body in ["<mtable rowlines=\"solid\"><mtr/><mtr/></mtable>", "<mtable columnlines=\"solid\"><mtr>\(empty)\(empty)</mtr></mtable>",
+                     "<mtable rowlines=\"solid\" columnlines=\"solid\" rowspacing=\"0\" columnspacing=\"0\"><mtr>\(empty)\(empty)</mtr><mtr>\(empty)\(empty)</mtr></mtable>"] {
+            XCTAssertNil(try innerBox(body).inkBounds, body)
         }
     }
 }

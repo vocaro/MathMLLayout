@@ -295,13 +295,51 @@ final class GroupingElementTests: XCTestCase {
     /// The arrowhead of `updiagonalarrow` is part of the enclosure: it must not be drawn outside
     /// the box, over whatever is next to it.
     func testTheDiagonalArrowStaysInsideItsBox() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/12 is fixed.
-        for content in ["<mspace width=\"3em\" height=\"0.5em\"/>", "<mspace width=\"0.5em\" height=\"3em\"/>", "<mi>x</mi>", "<mn>1234567</mn>"] {
-            let box = try innerBox("<menclose notation=\"updiagonalarrow\">\(content)</menclose>")
-            let ink = try XCTUnwrap(box.inkBounds)
-            XCTAssertLessThanOrEqual(ink.maxX, box.width + 0.01, "right: \(content)"); XCTAssertLessThanOrEqual(ink.maxY, box.ascent + 0.01, "top: \(content)")
-            XCTAssertGreaterThanOrEqual(ink.minX, -0.01, "left: \(content)"); XCTAssertGreaterThanOrEqual(ink.minY, -box.descent - 0.01, "bottom: \(content)")
+        // Content wide, tall and ordinary, and content smaller than the head: a period, a minus sign, a bar.
+        let contents = ["<mspace width=\"3em\" height=\"0.5em\"/>", "<mspace width=\"0.5em\" height=\"3em\"/>", "<mi>x</mi>", "<mn>1234567</mn>",
+                        "<mo>.</mo>", "<mo>−</mo>", "<mo>|</mo>"]
+        for notation in ["updiagonalarrow", "updiagonalstrike updiagonalarrow", "box updiagonalarrow", "circle updiagonalarrow"] {
+            for content in contents {
+                let box = try innerBox("<menclose notation=\"\(notation)\">\(content)</menclose>"), label = "\(notation) around \(content)"
+                let ink = try XCTUnwrap(box.inkBounds)
+                XCTAssertLessThanOrEqual(ink.maxX, box.width + 0.01, "right: \(label)"); XCTAssertLessThanOrEqual(ink.maxY, box.ascent + 0.01, "top: \(label)")
+                XCTAssertGreaterThanOrEqual(ink.minX, -0.01, "left: \(label)"); XCTAssertGreaterThanOrEqual(ink.minY, -box.descent - 0.01, "bottom: \(label)")
+            }
         }
+    }
+
+    /// The box makes room for the head where the head needs it, and the arrow is drawn as it was:
+    /// from corner to corner of the content, along the strike that converters write with it.
+    func testTheDiagonalArrowGrowsItsBoxByItsHead() throws {
+        let barb = 0.25 * em
+        func enclosure(_ notation: String, _ content: String) throws -> (box: MathBox, lines: CGRect) {
+            let body = "<menclose notation=\"\(notation)\">\(content)</menclose>"
+            return (try innerBox(body), try XCTUnwrap(try inks(body)[.black], body))
+        }
+        // Wide content: the upper barb passes the top, and nothing else moves.
+        let wide = "<mspace width=\"3em\" height=\"0.5em\"/>"
+        let over = try enclosure("updiagonalarrow", wide), strike = try enclosure("updiagonalstrike", wide)
+        XCTAssertEqual([over.box.width, over.box.descent], [3 * em, 0], "room above only")
+        XCTAssertGreaterThan(over.box.ascent, 0.5 * em + 1); XCTAssertLessThan(over.box.ascent, 0.5 * em + barb / 2, "less than half a barb")
+        XCTAssertEqual(over.box.ascent, try XCTUnwrap(over.box.inkBounds).maxY, accuracy: 0.01, "what the head needs and no more")
+        XCTAssertEqual(over.lines.minX, strike.lines.minX, accuracy: pixel); XCTAssertEqual(over.lines.minY, strike.lines.minY, accuracy: pixel)
+        XCTAssertEqual(over.lines.maxX, strike.lines.maxX, accuracy: pixel, "the tip is the strike's end")
+        // Tall content: the lower barb passes the right side.
+        let tall = "<mspace width=\"0.5em\" height=\"3em\"/>"
+        let beside = try enclosure("updiagonalarrow", tall), upright = try enclosure("updiagonalstrike", tall)
+        XCTAssertEqual([beside.box.ascent, beside.box.descent], [3 * em, 0], "room at the right only")
+        XCTAssertGreaterThan(beside.box.width, 0.5 * em + 1); XCTAssertLessThan(beside.box.width, 0.5 * em + barb / 2)
+        XCTAssertEqual(beside.box.width, try XCTUnwrap(beside.box.inkBounds).maxX, accuracy: 0.01)
+        XCTAssertEqual(beside.lines.minX, upright.lines.minX, accuracy: pixel); XCTAssertEqual(beside.lines.maxY, upright.lines.maxY, accuracy: pixel)
+        // With the strike the box is the arrow's, and with a frame the room is outside the frame.
+        try assertSameBox("<menclose notation=\"updiagonalstrike updiagonalarrow\">\(wide)</menclose>", "<menclose notation=\"updiagonalarrow\">\(wide)</menclose>")
+        let framed = try innerBox("<menclose notation=\"box\">\(wide)</menclose>"), both = try innerBox("<menclose notation=\"box updiagonalarrow\">\(wide)</menclose>")
+        XCTAssertEqual([both.width, both.descent], [framed.width, framed.descent]); XCTAssertGreaterThan(both.ascent, framed.ascent + 0.5)
+        // Content narrower than the head is long has a barb past its left side too, and moves along to make room.
+        let narrow = "<menclose notation=\"updiagonalarrow\"><mspace width=\"0.1em\" height=\"1em\" mathbackground=\"red\"/></menclose>"
+        let thin = try innerBox(narrow), content = try XCTUnwrap(try inks(narrow)[.red])
+        XCTAssertGreaterThan(content.minX, 1, "room at the left"); XCTAssertGreaterThan(thin.width, content.maxX + 1, "and at the right")
+        XCTAssertEqual([thin.ascent, thin.descent], [em, 0])
     }
 
     // MARK: merror, maction, semantics

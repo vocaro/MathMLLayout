@@ -424,9 +424,29 @@ extension LayoutEngine {
         }
         let width = left + content.width + right
         let ascent = content.ascent + top, descent = content.descent + bottom
-        var box = MathBox(width: width, ascent: ascent, descent: descent)
-        box.add(content, at: CGPoint(x: left, y: 0))
-        let inner = CGRect(x: stroke / 2, y: -descent + stroke / 2, width: width - stroke, height: ascent + descent - stroke)
+        var inner = CGRect(x: stroke / 2, y: -descent + stroke / 2, width: width - stroke, height: ascent + descent - stroke)
+        // An arrow's head is two barbs back from its tip, each 27° off the shaft. Where the shaft is
+        // within 27° of level or of upright, one barb passes the corner the arrow points at; where the
+        // content is smaller than the head, a barb passes the corner the arrow starts from. This
+        // notation has no padding to hold them, and the shaft is the up-diagonal strike's, which
+        // converters write with the arrow, so the tip cannot draw back: the box grows by what the head
+        // needs, as Gecko and MathJax make room for theirs. Wrapping content is not told of that room
+        // as it is of a circle's: it depends on how tall wrapping leaves the content, so what was set
+        // aside would not be what was taken, and a formula laid out again at the width it measured
+        // would wrap another way. `lines` narrows for it as for anything else beside what wraps.
+        var barbs: [CGPoint] = []
+        var room = (left: CGFloat(0), right: CGFloat(0), top: CGFloat(0), bottom: CGFloat(0))
+        if notations.contains("updiagonalarrow") {
+            let head = em * 0.25, angle = atan2(inner.height, inner.width)
+            for turn in [CGFloat.pi * 0.85, -CGFloat.pi * 0.85] {
+                let barb = CGPoint(x: head * cos(angle + turn), y: head * sin(angle + turn))
+                barbs.append(barb)
+                room = (max(room.left, -barb.x - inner.width), max(room.right, barb.x), max(room.top, barb.y), max(room.bottom, -barb.y - inner.height))
+            }
+            inner = inner.offsetBy(dx: room.left, dy: 0)
+        }
+        var box = MathBox(width: room.left + width + room.right, ascent: ascent + room.top, descent: descent + room.bottom)
+        box.add(content, at: CGPoint(x: room.left + left, y: 0))
         let path = CGMutablePath()
         func line(_ from: CGPoint, _ to: CGPoint) { path.move(to: from); path.addLine(to: to) }
         for notation in notations.sorted() {
@@ -450,11 +470,7 @@ extension LayoutEngine {
             case "updiagonalstrike", "updiagonalarrow":
                 line(CGPoint(x: inner.minX, y: inner.minY), CGPoint(x: inner.maxX, y: inner.maxY))
                 if notation == "updiagonalarrow" {
-                    let head = em * 0.25, angle = atan2(inner.height, inner.width)
-                    for turn in [CGFloat.pi * 0.85, -CGFloat.pi * 0.85] {
-                        line(CGPoint(x: inner.maxX, y: inner.maxY),
-                             CGPoint(x: inner.maxX + head * cos(angle + turn), y: inner.maxY + head * sin(angle + turn)))
-                    }
+                    for barb in barbs { line(CGPoint(x: inner.maxX, y: inner.maxY), CGPoint(x: inner.maxX + barb.x, y: inner.maxY + barb.y)) }
                 }
             case "downdiagonalstrike": line(CGPoint(x: inner.minX, y: inner.maxY), CGPoint(x: inner.maxX, y: inner.minY))
             case "longdiv":
@@ -618,25 +634,31 @@ extension LayoutEngine {
                 box.add(label, at: CGPoint(x: labelX, y: baseline))
             }
         }
-        // Lines, half-way through the gaps.
+        // Lines, half-way through the gaps. A stroke reaches half its thickness to either side of its
+        // path and, with round caps, as far past the path's ends. So a line's path is kept that far
+        // inside the table's edges, as the frame's is: the line ends at the edge, and the line of a gap
+        // of no width at the edge runs inside it, not half outside. A table too small to hold a line
+        // that way has none.
         let stroke = value(\.fractionRuleThickness, context)
         let solid = CGMutablePath(), dashed = CGMutablePath()
         let gridLeft = gridX, gridRight = gridX + gridWidth + 2 * frameX
+        let inside = (left: gridLeft + stroke / 2, right: gridRight - stroke / 2, top: top - stroke / 2, bottom: top - height + stroke / 2)
+        let hasRoom = inside.left <= inside.right && inside.bottom <= inside.top
         var lineY = top - frameY
         for index in rowGaps.indices {
             lineY -= ascents[index] + descents[index] + rowGaps[index] / 2
-            if let style = pick(rowLines, index), style != "none" {
-                let path = style == "dashed" ? dashed : solid
-                path.move(to: CGPoint(x: gridLeft, y: lineY)); path.addLine(to: CGPoint(x: gridRight, y: lineY))
+            if let style = pick(rowLines, index), style != "none", hasRoom {
+                let path = style == "dashed" ? dashed : solid, y = min(max(lineY, inside.bottom), inside.top)
+                path.move(to: CGPoint(x: inside.left, y: y)); path.addLine(to: CGPoint(x: inside.right, y: y))
             }
             lineY -= rowGaps[index] / 2
         }
         var lineX = gridX + frameX
         for index in columnGaps.indices {
             lineX += widths[index] + columnGaps[index] / 2
-            if let style = pick(columnLines, index), style != "none" {
-                let path = style == "dashed" ? dashed : solid
-                path.move(to: CGPoint(x: lineX, y: top)); path.addLine(to: CGPoint(x: lineX, y: top - height))
+            if let style = pick(columnLines, index), style != "none", hasRoom {
+                let path = style == "dashed" ? dashed : solid, x = min(max(lineX, inside.left), inside.right)
+                path.move(to: CGPoint(x: x, y: inside.top)); path.addLine(to: CGPoint(x: x, y: inside.bottom))
             }
             lineX += columnGaps[index] / 2
         }
