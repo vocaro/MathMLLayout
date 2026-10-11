@@ -28,7 +28,9 @@ extension LayoutEngine {
 
     /// An operator stretched to cover `ascent` and `descent`, centred on the math axis when
     /// symmetric. `minsize` and `maxsize` bound the size, relative to the natural size, and
-    /// where the two disagree `minsize` is the one that holds.
+    /// where the two disagree `minsize` is the one that holds. A row with nothing for the operator
+    /// to cover passes zero for both extents: the operator keeps its natural size unless
+    /// `minsize` is more, and then it is centred on the axis whether it is symmetric or not.
     func stretchVertically(_ node: MathMLNode, glyph: CGGlyph?, scalar: Unicode.Scalar?, natural: MathBox,
                            ascent: CGFloat, descent: CGFloat, symmetric: Bool, _ context: LayoutContext) -> MathBox? {
         let axis = value(\.axisHeight, context)
@@ -49,7 +51,9 @@ extension LayoutEngine {
         }
         target = min(target, 200 * context.fontSize)
         guard target > natural.height else { return nil }
-        let center = (top - bottom) / 2
+        // Nothing to cover is nothing to centre on. The size is then the `minsize`, and MathML
+        // Core 3.2.4.3 puts half of it each side of the axis, symmetric or not.
+        let center = top + bottom > 0 ? (top - bottom) / 2 : axis
         if let glyph, let box = stretchedGlyph(glyph, vertical: true, size: target, context) {
             return centered(box, on: center)
         }

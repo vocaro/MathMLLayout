@@ -476,6 +476,13 @@ final class LayoutEngine {
     /// neighbours itself, so "<mtext>a</mtext><mo>=</mo><mtext>b</mtext>" keeps its relation space.
     /// Text beside an operator is its operand (`isText`), so every operator of a word equation,
     /// "assets − liabilities = equity", is spaced as it is between identifiers.
+    ///
+    /// Being an operator is a matter of form and spacing. Stretching is another: the one operator
+    /// of such a row covers its space-like neighbours like any other (MathML 3, 3.2.5.8.2), so a
+    /// bar beside a strut of `mspace` is as tall as the strut, and it covers with them what the
+    /// enclosing row has the row cover. Operators with nothing at all to cover stretch to a size
+    /// of zero, as in MathML Core 3.3.1.2, and that is their natural size unless a `minsize` asks
+    /// for more: TeX's `\big(` is written `<mo minsize="1.2em" maxsize="1.2em">(</mo>`.
     func row(_ children: [MathMLNode], _ context: LayoutContext, _ embellishment: Embellishment = .none,
              depth: Int) throws -> MathBox {
         let inFlow = children.indices.filter { !isSpaceLike(children[$0]) }
@@ -494,22 +501,30 @@ final class LayoutEngine {
         var boxes = [MathBox](repeating: .empty(), count: children.count)
         var deferred: [Int] = []
         for (index, child) in children.enumerated() {
-            if index == core {
-                boxes[index] = try layout(child, context, embellishment, depth: depth + 1)
-            } else if isStretchy(child, form: forms[index], horizontal: false) {
+            // The core is where this row is, in the row around it; any other child where it is in this one.
+            let place = index == core ? embellishment : Embellishment(form: forms[index])
+            if isStretchy(child, form: place.form, horizontal: false) {
                 deferred.append(index)
             } else {
-                boxes[index] = try layout(child, context, Embellishment(form: forms[index]), depth: depth + 1)
+                boxes[index] = try layout(child, context, place, depth: depth + 1)
             }
         }
         if !deferred.isEmpty {
             // A set: a row may be ten thousand fences, and each child was looked for among them all.
             let stretched = Set(deferred)
             let others = boxes.indices.filter { !stretched.contains($0) }
-            let stretch: Embellishment.Stretch? = others.isEmpty ? nil
-                : .vertical(ascent: others.map { boxes[$0].ascent }.max()!, descent: others.map { boxes[$0].descent }.max()!)
+            var ascents = others.map { boxes[$0].ascent }, descents = others.map { boxes[$0].descent }
+            // The core covers its space-like neighbours, and with them what the row around this one
+            // has the whole row cover.
+            if let core, stretched.contains(core), case .vertical(let ascent, let descent) = embellishment.stretch {
+                ascents.append(ascent); descents.append(descent)
+            }
+            // With nothing to cover the size to stretch to is zero (MathML Core 3.3.1.2), which
+            // leaves an operator as it is unless it has a `minsize`.
+            let stretch = Embellishment.Stretch.vertical(ascent: ascents.max() ?? 0, descent: descents.max() ?? 0)
             for index in deferred {
-                boxes[index] = try layout(children[index], context, Embellishment(form: forms[index], stretch: stretch),
+                let form = index == core ? embellishment.form : forms[index]
+                boxes[index] = try layout(children[index], context, Embellishment(form: form, stretch: stretch),
                                           depth: depth + 1)
             }
         }

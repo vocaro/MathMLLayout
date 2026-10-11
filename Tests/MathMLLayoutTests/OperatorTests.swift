@@ -323,7 +323,6 @@ final class OperatorTests: XCTestCase {
     /// MathML 3, 3.2.5.8.2 and MathML Core 3.3.1.2: a stretchy operator covers the other
     /// children of its row, and a strut made of `mspace` is one of them.
     func testAStretchyOperatorCoversASpaceLikeStrut() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/8 is fixed.
         let strut = "<mspace width=\"1em\" height=\"3em\" depth=\"2em\"/>"
         for (op, body) in [("(", "<mo>(</mo>\(strut)"), (")", "\(strut)<mo>)</mo>"), ("|", "<mrow><mo>|</mo>\(strut)</mrow>"),
                            ("↑", "<mo>↑</mo>\(strut)"), ("[", "<mtext>&#xA0;</mtext><mo>[</mo>\(strut)")] {
@@ -332,6 +331,69 @@ final class OperatorTests: XCTestCase {
         }
         // The same strut already works once the row has a second operator or an identifier.
         XCTAssertGreaterThanOrEqual(try XCTUnwrap(try inks("<mo>(</mo>\(strut)<mo>)</mo>")[.black]).height, 4 * em)
+        // A strut wrapped in what is itself space-like, and an operator with a script of its own.
+        for body in ["<mo>|</mo><mpadded>\(strut)</mpadded>", "<mphantom>\(strut)</mphantom><mo>|</mo>", "<mstyle><mo>|</mo>\(strut)</mstyle>",
+                     "<msub><mo>|</mo><mn mathcolor=\"red\">0</mn></msub>\(strut)", "<mrow><mrow><mo>|</mo></mrow>\(strut)</mrow>"] {
+            XCTAssertGreaterThanOrEqual(try XCTUnwrap(try inks(body)[.black], body).height, 4 * em, body)
+        }
+    }
+
+    /// A row whose one child in flow is an operator is an operator to the row around it, which
+    /// has it cover what stands beside it there. Its operator covers that and its own neighbours.
+    func testTheOperatorOfARowCoversWhatIsBesideItAndBesideTheRow() throws {
+        let strut = "<mspace width=\"1em\" height=\"3em\" depth=\"2em\"/>", short = "<mspace width=\"1em\" height=\"1em\"/>"
+        let alone = try XCTUnwrap(try inks("<mo>|</mo>\(strut)")[.black])
+        for body in ["<mrow><mo>|</mo>\(short)</mrow>\(strut)", "<mrow><mo>|</mo>\(strut)</mrow>\(short)", "<mrow><mo>|</mo>\(strut)</mrow>\(strut)",
+                     "<mrow><mo>|</mo>\(short)</mrow><mfrac mathcolor=\"red\"><mi>a</mi><mi>b</mi></mfrac>\(strut)"] {
+            let ink = try XCTUnwrap(try inks(body)[.black], body)
+            XCTAssertEqual(ink.height, alone.height, accuracy: 0.5, body)
+            XCTAssertEqual(ink.midY, alone.midY, accuracy: 0.5, body)
+        }
+        // And no more than those: beside nothing taller, the short strut is all there is to cover.
+        let low = try XCTUnwrap(try inks("<mo>|</mo>\(short)")[.black])
+        XCTAssertLessThan(low.height, alone.height / 2)
+        XCTAssertEqual(try XCTUnwrap(try inks("<mrow><mo>|</mo>\(short)</mrow><mi mathcolor=\"red\">x</mi>")[.black]).height, low.height, accuracy: 0.5)
+    }
+
+    /// MathML Core 3.3.1.2 and 3.2.4.3, checked by WPT operators/mo-minsize-maxsize-001: stretchy
+    /// operators with nothing to cover stretch to a size of zero, which a `minsize` raises, half
+    /// each side of the axis. MathML 3 (3.2.5.8.4) would leave them at their natural size, and
+    /// with it TeX's `\big(`, which converters write as an `mo` whose two sizes are both 1.2em.
+    func testMinsizeSizesAnOperatorWithNothingToCover() throws {
+        let axis = constant(\.axisHeight)
+        let natural = try XCTUnwrap(try innerBox(math(mo("("))).inkBounds)
+        func ink(_ body: String) throws -> CGRect { try XCTUnwrap(try inks(body)[.red], body) }
+        let sized = "<mo mathcolor=\"red\" minsize=\"3em\">(</mo>"
+        let beside = try ink("\(sized)<mi>x</mi>")
+        XCTAssertGreaterThanOrEqual(beside.height, 3 * em - 1)
+        for body in [sized, "<mrow>\(sized)</mrow>", "<mrow><mstyle>\(sized)</mstyle></mrow>", "\(sized)<mo mathcolor=\"red\" minsize=\"3em\">)</mo>",
+                     "\(sized)<mspace width=\"1em\"/>", "<mtext>&#xA0;</mtext>\(sized)", "<msqrt>\(sized)</msqrt>", "<menclose notation=\"box\">\(sized)</menclose>",
+                     "<mtable><mtr><mtd>\(sized)</mtd></mtr></mtable>", "<msup>\(sized)<mn>2</mn></msup>"] {
+            let found = try ink(body)
+            XCTAssertEqual(found.height, beside.height, accuracy: 0.5, "\(body): as tall as beside an identifier")
+            XCTAssertEqual(found.midY, axis, accuracy: 1, "\(body): half above the axis and half below")
+        }
+        // An operator that is not symmetric has nothing but the axis to be centred on either.
+        let lopsided = "<mo mathcolor=\"red\" minsize=\"3em\" symmetric=\"false\">|</mo>"
+        for body in [lopsided, "<mo mathcolor=\"red\" minsize=\"3em\">↑</mo>", "\(lopsided)<mspace width=\"1em\"/>", "\(lopsided)<mspace width=\"1em\"/>\(lopsided)"] {
+            let found = try ink(body)
+            XCTAssertGreaterThanOrEqual(found.height, 3 * em - 1, body)
+            XCTAssertEqual(found.midY, axis, accuracy: 1, body)
+        }
+        // A bare number or a percentage is still of the natural size, and maxsize still bounds.
+        XCTAssertGreaterThanOrEqual(try ink("<mo mathcolor=\"red\" minsize=\"2\">(</mo>").height, 2 * natural.height - 1)
+        XCTAssertGreaterThanOrEqual(try ink("<mo mathcolor=\"red\" minsize=\"300%\">(</mo>").height, 3 * natural.height - 1)
+        XCTAssertEqual(try ink("<mo mathcolor=\"red\" maxsize=\"3em\">(</mo>").height, natural.height, accuracy: 0.5, "a maxsize alone asks for nothing")
+        // TeX's \big( and \Bigg(: the same alone as in a row with something in it.
+        for size in ["1.2em", "3em"] {
+            let big = "<mo mathcolor=\"red\" minsize=\"\(size)\" maxsize=\"\(size)\">(</mo>"
+            let alone = try ink(big), inRow = try ink("<mi>f</mi>\(big)<mi>x</mi>")
+            XCTAssertGreaterThan(alone.height, natural.height + 2, size)
+            XCTAssertEqual(alone.height, inRow.height, accuracy: 0.5, size)
+            XCTAssertEqual(alone.midY, inRow.midY, accuracy: 0.5, size)
+        }
+        // Only a row gives an operator a size to stretch to: a denominator has none, and no minsize.
+        XCTAssertEqual(try ink("<mfrac><mi>x</mi>\(sized)</mfrac>").height, try ink("<mfrac><mi>x</mi><mo mathcolor=\"red\">(</mo></mfrac>").height, accuracy: 0.5)
     }
 
     func testAnEmbellishedFenceStretchesWithItsScript() throws {
