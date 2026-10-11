@@ -27,7 +27,8 @@ extension LayoutEngine {
     }
 
     /// An operator stretched to cover `ascent` and `descent`, centred on the math axis when
-    /// symmetric. `minsize` and `maxsize` bound the size, relative to the natural size.
+    /// symmetric. `minsize` and `maxsize` bound the size, relative to the natural size, and
+    /// where the two disagree `minsize` is the one that holds.
     func stretchVertically(_ node: MathMLNode, glyph: CGGlyph?, scalar: Unicode.Scalar?, natural: MathBox,
                            ascent: CGFloat, descent: CGFloat, symmetric: Bool, _ context: LayoutContext) -> MathBox? {
         let axis = value(\.axisHeight, context)
@@ -39,10 +40,12 @@ extension LayoutEngine {
         // TeX's \delimiterfactor and \delimitershortfall: a fence may fall a little short of
         // its content, so f(x) keeps ordinary parentheses.
         var target = max((top + bottom) * 0.901, top + bottom - context.fontSize / 2)
-        if let minimum = length(node.attributes["minsize"], context, reference: natural.height) { target = max(target, minimum) }
+        // MathML Core 3.2.4.3: a negative `minsize` is zero, and a `maxsize` less than `minsize` is `minsize`.
+        let minimum = max(length(node.attributes["minsize"], context, reference: natural.height) ?? 0, 0)
+        target = max(target, minimum)
         if let maximum = node.attributes["maxsize"], maximum.trimmingCharacters(in: .whitespaces) != "infinity",
            let limit = length(maximum, context, reference: natural.height) {
-            target = min(target, limit)
+            target = min(target, max(limit, minimum))
         }
         target = min(target, 200 * context.fontSize)
         guard target > natural.height else { return nil }

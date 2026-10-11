@@ -282,8 +282,13 @@ final class OperatorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(try fenced("(", ")", content: small, attributes: "minsize=\"2\"").fences.height, 2 * natural - 1,
                                     "a bare number is a multiple of the natural size")
         XCTAssertGreaterThanOrEqual(try fenced("(", ")", content: small, attributes: "minsize=\"300%\"").fences.height, 3 * natural - 1)
-        // maxsize wins over minsize, as in MathML Core.
-        XCTAssertLessThanOrEqual(try fenced("(", ")", content: tall, attributes: "minsize=\"8em\" maxsize=\"2em\"").fences.height, 2.6 * em)
+        // minsize wins over a maxsize less than it: MathML Core 3.2.4.3 takes such a maxsize to be the minsize.
+        XCTAssertGreaterThanOrEqual(try fenced("(", ")", content: tall, attributes: "minsize=\"8em\" maxsize=\"2em\"").fences.height, 8 * em - 1)
+        XCTAssertGreaterThanOrEqual(try fenced("(", ")", content: small, attributes: "minsize=\"8em\" maxsize=\"2em\"").fences.height, 8 * em - 1)
+        // A negative minsize is zero: it bounds nothing, and is no minsize for a maxsize to be less than.
+        XCTAssertEqual(try fenced("(", ")", content: tall, attributes: "minsize=\"-10em\"").fences.height, free, accuracy: 0.5)
+        XCTAssertEqual(try fenced("(", ")", content: tall, attributes: "minsize=\"-10em\" maxsize=\"2em\"").fences.height, capped, accuracy: 0.5)
+        XCTAssertEqual(try fenced("(", ")", content: tall, attributes: "minsize=\"-10em\" maxsize=\"-20em\"").fences.height, natural, accuracy: 0.5)
     }
 
     func testOperatorsWithNothingToCoverKeepTheirSize() throws {
