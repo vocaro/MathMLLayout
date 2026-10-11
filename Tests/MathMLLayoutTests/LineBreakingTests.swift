@@ -589,6 +589,50 @@ final class LineBreakingTests: MathTestCase {
         XCTAssertEqual(edged.rows[0].width + edged.rows[1].width + medium, unbroken, accuracy: 0.01)
     }
 
+    func testRowsBesideASpaceThatIsTakenBackBreakAsTheyDid() throws {
+        let limit: CGFloat = 150
+        let wide = "<mspace width=\"500px\"/>", back = "<mspace width=\"-500px\"/>"
+        let plain = try broken(mi("y") + mo("=") + sum(names), width: limit)
+        XCTAssertEqual(plain.rows.count, 4)
+        // A space and the negative one that takes it back, side by side, are no space at all.
+        var layout = try broken(mi("y") + wide + back + mo("=") + sum(names), width: limit)
+        assertWidths(layout, plain.rows.map(\.width))
+        // With something between them, that is as far to the right as the space is wide, and the
+        // stretch that holds it is wider than the line. The rows after it are not: they were, each
+        // measured as reaching where that stretch had, so that every term was a row of its own.
+        for (body, stretches) in [
+            // Ink out there.
+            (mi("y") + wide + mi("x") + back + mo("=") + sum(names), 1),
+            // A place to break out there: the row before it ends beyond the line.
+            (mi("u") + wide + mo("+") + back + mi("y") + mo("=") + sum(names), 2),
+        ] {
+            layout = try broken(body, width: limit)
+            XCTAssertEqual(layout.rows.count, stretches + plain.rows.count, body)
+            for row in layout.rows.prefix(stretches) { XCTAssertGreaterThan(row.width, 450, body) }
+            for row in layout.rows.dropFirst(stretches) { XCTAssertLessThanOrEqual(row.origin.x + row.width, limit + 0.001, body) }
+            // What follows the relation breaks where it does in the plain formula.
+            for (row, expected) in zip(layout.rows.suffix(3), plain.rows.suffix(3)) {
+                XCTAssertEqual(row.width, expected.width, accuracy: 0.01, body)
+            }
+            XCTAssertEqual(layout.widestUnbreakableWidth, layout.rows.map(\.width).max()!, accuracy: 0.001, body)
+        }
+        // The other way about, a negative space first puts ink far to the left, and it was the rows
+        // before it that were each measured as starting there.
+        layout = try broken(mi("y") + mo("=") + sum(names) + back + mi("z") + wide, width: limit)
+        XCTAssertEqual(layout.rows.count, plain.rows.count + 1, "the last term with what is beside it, and the rest in as many rows as it was")
+        for row in layout.rows.dropLast() { XCTAssertLessThanOrEqual(row.origin.x + row.width, limit + 0.001) }
+        XCTAssertGreaterThan(layout.rows.last!.width, 450)
+        XCTAssertEqual(layout.widestUnbreakableWidth, layout.rows.last!.width, accuracy: 0.001)
+        // A repeated operator stands where the operator did: to the right of what follows it when a
+        // negative space sets that back, and counted in the row it starts all the same.
+        layout = try broken(mi("alpha") + red("−", "linebreak=\"newline\" linebreakstyle=\"duplicate\" rspace=\"-500px\"") + mi("beta"), width: limit)
+        XCTAssertEqual(layout.rows.count, 2)
+        let repeated = try XCTUnwrap(ink(layout.rows[1], .red, margin: 4)), all = try XCTUnwrap(ink(layout.rows[1], margin: 4))
+        XCTAssertGreaterThan(repeated.minX, all.minX + 450)
+        XCTAssertLessThanOrEqual(repeated.maxX, layout.rows[1].width + 0.5)
+        XCTAssertEqual(layout.widestUnbreakableWidth, layout.rows[1].width, accuracy: 0.001)
+    }
+
     // MARK: Indentation
 
     func testDefaultIndentation() throws {

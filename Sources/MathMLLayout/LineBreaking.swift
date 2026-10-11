@@ -599,10 +599,12 @@ struct Paragraph {
         /// What the stop adds to the rows it parts, as an index into `inserts`: at the start of the
         /// row after it a head, `headAdvance` wide to the unit that follows and overhanging its left
         /// edge by `headLeft`; at the end of the row before it a tail, `tailOffset` after the last
-        /// unit, ending `tailAdvance` after it and overhanging that by `tailRight`.
+        /// unit, ending `tailAdvance` after it and overhanging that by `tailRight`. The other edge
+        /// of each one's ink, from its own origin, is `headInk` and `tailInk`: a head is on the
+        /// right of its row, and a tail on the left, when what the row holds runs leftward.
         var insert: Int?
-        var headAdvance: CGFloat = 0, headLeft: CGFloat = 0
-        var tailOffset: CGFloat = 0, tailAdvance: CGFloat = 0, tailRight: CGFloat = 0
+        var headAdvance: CGFloat = 0, headLeft: CGFloat = 0, headInk = -CGFloat.infinity
+        var tailOffset: CGFloat = 0, tailAdvance: CGFloat = 0, tailRight: CGFloat = 0, tailInk = CGFloat.infinity
     }
 
     struct Row {
@@ -640,11 +642,18 @@ struct Paragraph {
     /// The attributes the formula starts with, those of the row its first unit is in: they place
     /// its first row.
     private var lead = BreakPoint(kind: .none, linebreak: .auto, style: LineStyle())
-    /// By stop: where a row starting there begins and one ending there ends in the unbroken row,
-    /// and the farthest end up to it.
-    private var starts: [CGFloat] = [], ends: [CGFloat] = [], far: [CGFloat] = []
+    /// By stop: where a row starting there begins and one ending there ends in the unbroken row.
+    private var starts: [CGFloat] = [], ends: [CGFloat] = []
     /// By unit boundary: the leftmost ink from there on and the rightmost before it, in the unbroken row.
     private var inkFrom: [CGFloat] = [], inkTo: [CGFloat] = []
+    /// Units run left to right, so the end of a row is the farthest it reaches, and the ink at its
+    /// edges is the leftmost from its start on and the rightmost up to its end. A negative space
+    /// undoes that: after `<mspace width="20em"/>`, an operator and `<mspace width="-20em"/>`, every
+    /// row was measured as reaching where the first space did, none fitted, and each stretch of the
+    /// rest of the formula was a row of its own. Where the ends of the stops, the right edges of the
+    /// units' ink or its left edges (negated here) do not rise from one to the next, these find the
+    /// greatest within a row instead; each is nil while the running extreme above is the row's own.
+    private var farthest: Maxima?, rightmost: Maxima?, leftmost: Maxima?
     /// The unbroken row, covering its ink: the one row when nothing breaks.
     private let unbroken: MathBox
     /// Its width, and how far its ink overhangs its left edge.
@@ -667,22 +676,53 @@ struct Paragraph {
         }
         if units.isEmpty { units = [Unit(box: box, x: 0, ink: box.inkBounds)] }
         stops = [Stop(at: 0, point: lead)] + stops + [Stop(at: units.count, point: lead)]
+        let lefts = units.map { unit in unit.ink.map { unit.x + $0.minX } ?? .infinity }
+        let rights = units.map { unit in unit.ink.map { unit.x + $0.maxX } ?? -.infinity }
         inkFrom = [CGFloat](repeating: .infinity, count: units.count + 1)
         inkTo = [CGFloat](repeating: -.infinity, count: units.count + 1)
-        for (index, unit) in units.enumerated() {
-            inkTo[index + 1] = max(inkTo[index], unit.ink.map { unit.x + $0.maxX } ?? -.infinity)
-        }
-        for (index, unit) in units.enumerated().reversed() {
-            inkFrom[index] = min(inkFrom[index + 1], unit.ink.map { unit.x + $0.minX } ?? .infinity)
-        }
+        for index in units.indices { inkTo[index + 1] = max(inkTo[index], rights[index]) }
+        for index in units.indices.reversed() { inkFrom[index] = min(inkFrom[index + 1], lefts[index]) }
         // The formula's own edges stay where the unbroken row has them. A row made by a break starts
         // at its first unit and ends with its last, without the space the operator there had outside.
         starts = stops.map { $0.at == 0 ? 0 : units[min($0.at, units.count - 1)].x }
         ends = stops.map { stop in
             stop.at == units.count ? box.width : stop.at == 0 ? 0 : units[stop.at - 1].x + units[stop.at - 1].box.width
         }
-        far = ends
-        for index in far.indices.dropFirst() { far[index] = max(far[index], far[index - 1]) }
+        /// Whether no value is less than the one before it; a unit without ink has none.
+        func rises(_ values: [CGFloat]) -> Bool {
+            var last = -CGFloat.infinity
+            for value in values where value.isFinite {
+                if value < last { return false }
+                last = value
+            }
+            return true
+        }
+        if !rises(ends) { farthest = Maxima(ends) }
+        if !rises(rights) { rightmost = Maxima(rights) }
+        if !rises(lefts) { leftmost = Maxima(lefts.map { -$0 }) }
+    }
+
+    /// The greatest of any stretch of a sequence, found in constant time: a table whose every level
+    /// holds the greatest of each stretch twice as long as those of the level before.
+    private struct Maxima {
+        private var levels: [[CGFloat]]
+
+        init(_ values: [CGFloat]) {
+            levels = [values]
+            var span = 1
+            while span * 2 <= values.count {
+                let below = levels[levels.count - 1]
+                levels.append((0...values.count - span * 2).map { max(below[$0], below[$0 + span]) })
+                span *= 2
+            }
+        }
+
+        /// The greatest of the values in `range`; of none, minus infinity.
+        func callAsFunction(_ range: Range<Int>) -> CGFloat {
+            guard !range.isEmpty else { return -.infinity }
+            let level = Int.bitWidth - 1 - range.count.leadingZeroBitCount
+            return max(levels[level][range.lowerBound], levels[level][range.upperBound - (1 << level)])
+        }
     }
 
     /// Rows nested in `row` become its units in turn. `depth` counts what a break there is nested
@@ -743,12 +783,14 @@ struct Paragraph {
             let tail = point.position == .before ? nil : visible
             if let head {
                 stop.headAdvance = visible.map { $0.width + ($0.op?.rspace ?? 0) } ?? units[at].x - units[index].x
-                stop.headLeft = max(0, -(head.inkBounds?.minX ?? 0))
+                let ink = head.inkBounds
+                stop.headLeft = max(0, -(ink?.minX ?? 0)); stop.headInk = ink?.maxX ?? -.infinity
             }
             if let tail {
+                let ink = tail.inkBounds
                 stop.tailOffset = tail.op?.lspace ?? 0
                 stop.tailAdvance = stop.tailOffset + tail.width
-                stop.tailRight = max(0, (tail.inkBounds?.maxX ?? 0) - tail.width)
+                stop.tailRight = max(0, (ink?.maxX ?? 0) - tail.width); stop.tailInk = ink?.minX ?? .infinity
             }
             hasForced = hasForced || isForced
             guard let last = stops.last, last.at == at else {
@@ -767,7 +809,8 @@ struct Paragraph {
             // form to show: that goes after the duplicate, next to the operator it stands for.
             var shared = !last.isForced && (isForced || stop.penalty < last.penalty) ? stop : last
             let first = last.insert.map { inserts[$0] }
-            shared.tailOffset = last.tailOffset; shared.tailAdvance = last.tailAdvance; shared.tailRight = last.tailRight
+            shared.tailOffset = last.tailOffset; shared.tailAdvance = last.tailAdvance
+            shared.tailRight = last.tailRight; shared.tailInk = last.tailInk
             shared.headAdvance = last.headAdvance + stop.headAdvance
             if let repeated = first?.head, let shown = head {
                 var both = MathBox(width: last.headAdvance + shown.width, ascent: max(repeated.ascent, shown.ascent),
@@ -778,7 +821,8 @@ struct Paragraph {
             } else {
                 head = first?.head ?? head
             }
-            shared.headLeft = max(0, -(head?.inkBounds?.minX ?? 0))
+            let ink = head?.inkBounds
+            shared.headLeft = max(0, -(ink?.minX ?? 0)); shared.headInk = ink?.maxX ?? -.infinity
             shared.insert = last.insert
             if let insert = last.insert {
                 inserts[insert] = (head, first?.tail)
@@ -828,8 +872,13 @@ struct Paragraph {
     private func extent(_ i: Int, _ j: Int) -> (width: CGFloat, left: CGFloat) {
         if i == 0, j == stops.count - 1 { return entire }
         let content = stops[i].headAdvance + ends[j] - starts[i] + stops[j].tailAdvance
-        let left = max(0, starts[i] - inkFrom[stops[i].at] - stops[i].headAdvance, stops[i].headLeft)
-        let right = max(0, inkTo[stops[j].at] - ends[j] - stops[j].tailAdvance, stops[j].tailRight)
+        // The running extremes take in what the stops add, a duplicate where the operator it repeats
+        // was and a tail where the next unit is. Those of the row alone do not.
+        let first = stops[i].at, end = stops[j].at
+        let from = leftmost.map { min(-$0(first..<end), ends[j] + stops[j].tailOffset + stops[j].tailInk) } ?? inkFrom[first]
+        let to = rightmost.map { max($0(first..<end), starts[i] - stops[i].headAdvance + stops[i].headInk) } ?? inkTo[end]
+        let left = max(0, starts[i] - from - stops[i].headAdvance, stops[i].headLeft)
+        let right = max(0, to - ends[j] - stops[j].tailAdvance, stops[j].tailRight)
         return (max(0, left + content + right), left)
     }
 
@@ -978,12 +1027,14 @@ struct Paragraph {
             }
             // Stops in order: the best way to each is known before rows from it are tried.
             for i in 0..<last where best[i].isFinite {
-                // The farthest stop the row from here can reach, its ink and tail aside.
+                // The farthest stop the row from here can reach, its ink and tail aside: the last before
+                // it has run past the line, wherever a negative space after that brings it back to.
                 let room = i == 0 ? first : limit
                 var low = i, high = forced[i]
                 while low < high {
                     let middle = (low + high + 1) / 2
-                    let fits = stops[i].headAdvance + far[middle] - starts[i] <= room + Self.slop
+                    let end = farthest.map { $0(i + 1..<middle + 1) } ?? ends[middle]
+                    let fits = stops[i].headAdvance + end - starts[i] <= room + Self.slop
                     if fits { low = middle } else { high = middle - 1 }
                 }
                 var reached = false
