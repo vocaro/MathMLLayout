@@ -31,7 +31,7 @@ extension LayoutEngine {
         guard !glyphs.isEmpty || token.text.unicodeScalars.contains(Self.glyphMarker) else {
             return (Self.normalized(token.text, trimming: trimming), [])
         }
-        // Each glyph adds to the text, which is bounded only once it is whole.
+        // Each glyph adds a marker or its `alt` to the text, which the caller bounds once it is whole.
         guard glyphs.count <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
         // Markers and glyphs are paired before whitespace collapses, so it collapses around
         // what is drawn.
@@ -47,6 +47,9 @@ extension LayoutEngine {
         paired.append(contentsOf: repeatElement(Self.glyphMarker, count: glyphs.count - markers))
         var text = String.UnicodeScalarView(), images: [MathBox] = []
         var remaining = glyphs[...]
+        // A host's tree may give every glyph the same long `alt`, so those are bounded as they are
+        // added: whole, they could be `MathLimits.nodes` times the longest.
+        var altLength = 0
         for scalar in Self.normalized(String(paired), trimming: trimming).unicodeScalars {
             guard scalar == Self.glyphMarker, let glyph = remaining.popFirst() else { text.append(scalar); continue }
             if let image = image(of: glyph) {
@@ -54,6 +57,8 @@ extension LayoutEngine {
                 images.append(imageBox(glyph, image, context))
             } else {
                 let alt = Self.normalized(Self.unmarked(glyph.attributes["alt"] ?? ""))
+                altLength += alt.utf16.count
+                guard altLength <= MathLimits.textLength else { throw MathLayoutError.limitExceeded }
                 text.append(contentsOf: (alt.isEmpty ? Self.missingGlyph : alt).unicodeScalars)
             }
         }

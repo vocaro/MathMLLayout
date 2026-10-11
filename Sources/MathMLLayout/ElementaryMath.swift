@@ -175,10 +175,16 @@ extension LayoutEngine {
         }
         let style = stackStyle(node, context)
         var lines: [StackLine] = []
-        try collect(node.children, position: 0, shift: 0, style, context, depth: depth + 1, into: &lines)
-        let stack = try arrange(lines, style)
+        try collect(node.children, position: 0, shift: 0, style, context, depth: depth + Self.stackDepth, into: &lines)
+        let stack = try arrange(lines, style, context)
         return aligned(stack.box, width: stack.width, height: stack.height, rows: stack.rows, node, context)
     }
+
+    /// How far down a stack's or a long division's children count. Depth is what bounds the
+    /// stack layout uses (`MathLimits.depth`), and a child here is reached through several frames
+    /// of this file where another element's is through one: about twice the stack a level, which
+    /// nested 45 deep overflowed a secondary thread's half megabyte. So they count as two levels.
+    private static let stackDepth = 2
 
     private static let uncounted = MathMLNode(name: "none")
 
@@ -398,7 +404,7 @@ extension LayoutEngine {
     /// them, though `charspacing`'s keywords space the columns to fit them. Rows are a strut
     /// high with leading above and below, so they are evenly spaced and a rule between two
     /// adds only its thickness.
-    private func arrange(_ lines: [StackLine], _ style: StackStyle) throws -> Stack {
+    private func arrange(_ lines: [StackLine], _ style: StackStyle, _ context: LayoutContext) throws -> Stack {
         var lines = lines
         // Carries annotate the line after them (3.6.5.1). Those that go above it stay on their
         // own line; the others, and every crossout, go with the line they annotate. With no row
@@ -415,11 +421,14 @@ extension LayoutEngine {
             }
         }
         // The columns any line reaches. `position`, `shift` and `length` cost an author nothing,
-        // so a stack may span no more columns than a formula may have nodes.
+        // so a stack may span no more columns than a formula may have nodes, and each column
+        // beyond its cells, which are nodes already, counts as one: or every stack of a formula
+        // could span that many, 200 million columns for 20,000 nodes.
         let spanning = lines.filter { $0.count > 0 }
         let first = spanning.map(\.start).min() ?? 0
         let columns = spanning.map { $0.start + $0.count - first }.max() ?? 0
         guard columns <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
+        for _ in 0..<max(0, columns - lines.reduce(0) { $0 + $1.cells.count }) { try visit(context, depth: 0) }
         // Digits size their columns. Anything else (an operator, say) sizes only a column that
         // holds no digit, and elsewhere overflows, so a sign beside one number leaves no gap in
         // another.
@@ -652,13 +661,13 @@ extension LayoutEngine {
         let em = context.fontSize, rule = value(\.fractionRuleThickness, context), pad = 0.2 * em, color = context.color
         func collected(_ children: [MathMLNode]) throws -> [StackLine] {
             var lines: [StackLine] = []
-            try collect(children, position: 0, shift: 0, style, context, depth: depth + 1, into: &lines)
+            try collect(children, position: 0, shift: 0, style, context, depth: depth + Self.stackDepth, into: &lines)
             return lines
         }
         /// The divisor or the result as a stack of its own; nil for `none`.
         func part(_ child: MathMLNode) throws -> Stack? {
             if child.name == "none" { try visit(context, depth: depth + 1); return nil }
-            return try arrange(collected([child]), style)
+            return try arrange(collected([child]), style, context)
         }
         let divisor = try part(node.children[0])
         var result: Stack?
@@ -693,7 +702,7 @@ extension LayoutEngine {
             lines.append(StackLine(kind: .digits, em: em, color: color))
             dividend = lines.count - 1
         }
-        let stack = try arrange(lines, style)
+        let stack = try arrange(lines, style, context)
         let row = stack.bands[dividend!]
 
         // Everything is placed y down from the top of the dividend's stack, then moved so that

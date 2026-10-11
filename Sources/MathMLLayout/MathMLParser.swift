@@ -4,8 +4,9 @@ extension MathMLNode {
     /// Parses a MathML document or fragment (`<math>…</math>`) with Foundation's `XMLParser`,
     /// for callers that have no DOM of their own. Namespaces are resolved and dropped, so a
     /// prefixed `<m:math>` reads the same. Only XML's predefined and numeric character
-    /// references are known. Document type declarations are refused, so no entity can expand
-    /// and nothing external loads; depth and node count are bounded. An `mglyph` in a token
+    /// references are known. Document type declarations are refused (in an encoding that hides
+    /// one from the search for it, whatever it declares is), so no entity can expand and
+    /// nothing external loads; depth and node count are bounded. An `mglyph` in a token
     /// becomes a child and one U+FFFC in the token's text, as `MathMLNode` describes.
     public static func parse(xml data: Data) throws -> MathMLNode {
         guard data.count <= 4 * 1024 * 1024 else { throw MathLayoutError.limitExceeded }
@@ -72,5 +73,36 @@ private final class TreeBuilder: NSObject, XMLParserDelegate {
         guard let last = stack.last, LayoutEngine.tokens.contains(last.name) else { return }
         // A U+FFFC typed in the text would pass for an `mglyph`'s marker, so only markers have one.
         stack[stack.count - 1].text += LayoutEngine.unmarked(string)
+    }
+
+    // `parse` searches the bytes for a document type declaration, and finds one only in an
+    // encoding that spells it in ASCII. A UTF-16 document's gets this far, so whatever it
+    // declares is refused here, in any encoding: an entity expands in attribute values, and an
+    // attribute's default lands on every element of that name, 19 GB of them from 2 MB of markup.
+
+    private func refuseDeclaration(_ parser: XMLParser) {
+        error = .invalidMarkup("DOCTYPE")
+        parser.abortParsing()
+    }
+
+    func parser(_ parser: XMLParser, foundInternalEntityDeclarationWithName name: String, value: String?) {
+        refuseDeclaration(parser)
+    }
+
+    func parser(_ parser: XMLParser, foundExternalEntityDeclarationWithName name: String, publicID: String?,
+                systemID: String?) { refuseDeclaration(parser) }
+
+    func parser(_ parser: XMLParser, foundUnparsedEntityDeclarationWithName name: String, publicID: String?,
+                systemID: String?, notationName: String?) { refuseDeclaration(parser) }
+
+    func parser(_ parser: XMLParser, foundAttributeDeclarationWithName attributeName: String, forElement elementName: String,
+                type: String?, defaultValue: String?) { refuseDeclaration(parser) }
+
+    func parser(_ parser: XMLParser, foundElementDeclarationWithName elementName: String, model: String) {
+        refuseDeclaration(parser)
+    }
+
+    func parser(_ parser: XMLParser, foundNotationDeclarationWithName name: String, publicID: String?, systemID: String?) {
+        refuseDeclaration(parser)
     }
 }
