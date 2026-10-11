@@ -30,6 +30,17 @@ final class GlyphTests: MathTestCase {
         return context.makeImage()!
     }
 
+    /// An image mask: a shape with no color of its own, which CoreGraphics fills with the context's.
+    /// Its left half is painted and its right half is not.
+    private func mask(_ width: Int, _ height: Int) -> CGImage {
+        var samples = [UInt8](repeating: 255, count: width * height)
+        for row in 0..<height {
+            for column in 0..<width / 2 { samples[row * width + column] = 0 }
+        }
+        return CGImage(maskWidth: width, height: height, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: width,
+                       provider: CGDataProvider(data: Data(samples) as CFData)!, decode: nil, shouldInterpolate: false)!
+    }
+
     private func provider(_ images: [String: CGImage]) -> MathImageProvider { MathImageProvider { images[$0] } }
 
     private func layout(_ body: String, images: MathImageProvider?, size: CGFloat = 20) throws -> MathLayout {
@@ -53,7 +64,7 @@ final class GlyphTests: MathTestCase {
     private func imageRects(_ box: MathBox, at origin: CGPoint = .zero) -> [CGRect] {
         box.items.flatMap { item -> [CGRect] in
             switch item {
-            case .image(_, let rect): [rect.offsetBy(dx: origin.x, dy: origin.y)]
+            case .image(_, let rect, _): [rect.offsetBy(dx: origin.x, dy: origin.y)]
             case .box(let inner, let point): imageRects(inner, at: CGPoint(x: origin.x + point.x, y: origin.y + point.y))
             default: []
             }
@@ -307,6 +318,48 @@ final class GlyphTests: MathTestCase {
             assertColor(render(drawn)(5, 5), [128, 0, 0, 128], body)
         }
         XCTAssertNil(ink(try layout(#"<mi><mglyph src="clear" alt="c"/></mi>"#, images: images)))
+    }
+
+    /// An image mask is drawn in its token's color, as the text beside it is: `mathcolor` is "the
+    /// foreground color to use when drawing ... the content for token elements" (MathML 3, 3.1.10).
+    func testAnImageMaskIsDrawnInItsTokensColor() throws {
+        let images = provider(["m": mask(10, 10), "g": quarters(10, 10)])
+        XCTAssertTrue(mask(10, 10).isMask)
+        let clear: [UInt8] = [0, 0, 0, 0]
+        /// The color where the mask paints and where it does not.
+        func halves(_ body: String, _ message: String = "") throws -> (painted: [UInt8], unpainted: [UInt8]) {
+            let x = try XCTUnwrap(imageRects(try box(body, images: images)).first?.minX, message)
+            let pixel = render(try layout(body, images: images))
+            return (pixel(x + 2.5, 5), pixel(x + 7.5, 5))
+        }
+        let glyph = #"<mglyph src="m" alt="m"/>"#
+        // The style's color, with nothing to say otherwise.
+        var drawn = try halves("<mi>\(glyph)</mi>")
+        assertColor(drawn.painted, opaqueBlack)
+        assertColor(drawn.unpainted, clear)
+        // Its token's mathcolor, in a token of any kind, and at row level the color of what it stands in.
+        for body in [##"<mi mathcolor="#ff0000">\##(glyph)</mi>"##, ##"<mo mathcolor="#ff0000">\##(glyph)</mo>"##,
+                     ##"<mtext mathcolor="#ff0000">a\##(glyph)b</mtext>"##, ##"<mstyle mathcolor="#ff0000">\##(glyph)</mstyle>"##] {
+            drawn = try halves(body, body)
+            assertColor(drawn.painted, red, body)
+            assertColor(drawn.unpainted, clear, body)
+        }
+        // Not the color of what happened to be drawn before it: other text, or its own background.
+        drawn = try halves(##"<mtext mathcolor="#0000ff">x</mtext><mtext mathcolor="#ff0000">\##(glyph)</mtext>"##)
+        assertColor(drawn.painted, red, "after blue text")
+        drawn = try halves(##"<mi mathcolor="#ff0000"><mglyph src="m" alt="m" mathbackground="#0000ff"/></mi>"##)
+        assertColor(drawn.painted, red, "on its background")
+        assertColor(drawn.unpainted, blue, "its background")
+        drawn = try halves(##"<mrow mathbackground="#00ff00"><mi>\##(glyph)</mi></mrow>"##)
+        assertColor(drawn.painted, opaqueBlack, "on a row's background")
+        // Nor its own mathcolor, which "has no effect" (3.2.1.2.2).
+        drawn = try halves(##"<mi mathcolor="#ff0000"><mglyph src="m" alt="m" mathcolor="#0000ff"/></mi>"##)
+        assertColor(drawn.painted, red, "its own mathcolor")
+        // An image with colors of its own keeps them, whatever its token's.
+        let pixel = render(try layout(##"<mi mathcolor="#ff0000"><mglyph src="g" alt="g"/></mi>"##, images: images))
+        assertColor(pixel(7.5, 7.5), green, "top right")
+        assertColor(pixel(2.5, 2.5), blue, "bottom left")
+        assertColor(pixel(7.5, 2.5), opaqueBlack, "bottom right")
     }
 
     /// MathML 3, 3.1.10: `mathbackground` fills "the bounding box of the element". Without its

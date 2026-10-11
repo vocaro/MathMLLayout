@@ -116,7 +116,9 @@ extension LayoutEngine {
     /// where one is missing, and its pixels as points where both are. `valign` raises the
     /// image's bottom edge above the baseline. A percentage or bare number is of the attribute's
     /// default (2.1.5.2): the image's own size, and for `valign` zero. `mathbackground` shows
-    /// through a transparent image; `mathcolor` has no effect.
+    /// through a transparent image; `mathcolor` has no effect. An image mask, which is a shape and
+    /// has no colour of its own, is filled with the token's as a character would be: that is "the
+    /// foreground color to use when drawing ... the content for token elements" (3.1.10).
     ///
     /// No dimension exceeds `MathLimits.extent`, whatever the image or the lengths, and an image
     /// with a size that is not positive is empty.
@@ -139,7 +141,7 @@ extension LayoutEngine {
         if let background = glyph.attributes["mathbackground"].flatMap(MathColor.parse) {
             box.items.append(.rect(rect, background))
         }
-        box.items.append(.image(image, rect))
+        box.items.append(.image(image, rect, context.color))
         return box
     }
 
