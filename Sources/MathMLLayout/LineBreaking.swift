@@ -725,21 +725,51 @@ struct Paragraph {
         }
     }
 
+    /// The fence a child of a row is, when it is one.
+    private static func fence(_ child: BreakableRow.Child) -> BreakPoint? {
+        child.box.op.flatMap { $0.has(.fence) ? $0.breakPoint : nil }
+    }
+
+    /// Whether `row` is a bracket pair and what it holds, as the row of an `mfenced` is: its first
+    /// child opens a fence, and its last closes that one.
+    private static func isPair(_ row: BreakableRow) -> Bool {
+        guard row.children.count > 1, fence(row.children[0])?.opens == true,
+              fence(row.children[row.children.count - 1])?.closes == true else { return false }
+        var open = 1
+        for child in row.children.dropFirst().dropLast() {
+            guard let fence = fence(child) else { continue }
+            if fence.closes { open -= 1 }
+            // Closed before the end: two pairs side by side, or more.
+            guard open > 0 else { return false }
+            if fence.opens { open += 1 }
+        }
+        return open == 1
+    }
+
     /// Rows nested in `row` become its units in turn. `depth` counts what a break there is nested
-    /// in: rows, and bracket pairs written flat in one row.
+    /// in: rows, and bracket pairs. A pair is one level however it is written: its fences flat in
+    /// a row among other things or in a row of their own, and what they hold in a row or not. It
+    /// was counted as each of those it had, so that the sum in `<mfenced><mrow>` was three levels
+    /// deep (the row of the fences, the pair, the row between them) where the same sum between
+    /// fences written flat was one, and a line broke anywhere outside such a bracket, leaving a
+    /// row all but empty, sooner than inside it.
     private mutating func flatten(_ row: BreakableRow, at x: CGFloat, depth: Int, isUnary: Bool, isAttached: Bool,
                                   level: Int, _ breaks: inout [Break]) {
         var fences = 0
         for (index, child) in row.children.enumerated() {
             // What holds a row to its neighbour holds the row's first unit.
             let isAttached = child.isAttached || index == 0 && isAttached
-            let fence = child.box.op.flatMap { $0.has(.fence) ? $0.breakPoint : nil }
+            let fence = Self.fence(child)
             if fence?.closes == true { fences = max(fences - 1, 0) }
             if let id = child.id, ids[id] == nil { ids[id] = units.count }
             if let inner = child.box.row, inner.itemCount == child.box.items.count, !inner.children.isEmpty,
                level < MathLimits.depth {
                 // A row that only wraps another, or is one operator, is no deeper than what it holds.
-                let deeper = inner.isOperator || row.children.count == 1 ? 0 : 1
+                // Nor is one that is a bracket pair with what it holds, or all that a pair here holds:
+                // the pair is the level.
+                let isHeld = index > 0 && index + 1 < row.children.count && Self.fence(row.children[index - 1])?.opens == true
+                    && Self.fence(row.children[index + 1])?.closes == true
+                let deeper = inner.isOperator || row.children.count == 1 || isHeld || Self.isPair(inner) ? 0 : 1
                 flatten(inner, at: x + child.x, depth: depth + fences + deeper, isUnary: isUnary || child.isUnary,
                         isAttached: isAttached, level: level + 1, &breaks)
             } else {

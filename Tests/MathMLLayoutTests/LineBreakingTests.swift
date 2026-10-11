@@ -276,6 +276,59 @@ final class LineBreakingTests: MathTestCase {
         XCTAssertTrue(starts(layout.rows[1], with: .red))
     }
 
+    func testABracketPairIsOneLevelHoweverItIsWritten() throws {
+        /// What a break costs at each place a line may break, in order.
+        func penalties(_ body: String) throws -> [CGFloat] {
+            let box = try LayoutEngine(fontName: nil).layoutRoot(node(body), style: MathStyle(fontSize: em, color: black))
+            return Paragraph(box, fontSize: em).stops.dropFirst().dropLast().map(\.penalty)
+        }
+        let plus = try XCTUnwrap(penalties(mi("x") + mo("+") + mi("y")).first), level = Paragraph.nesting
+        let comma = try XCTUnwrap(penalties(mi("x") + mo(",") + mi("y")).first)
+        let terms = mi("a") + mo("+") + mi("b")
+        // One pair: its fences flat in the row or in a row of their own, around a row or around the terms.
+        let writings = [
+            "<mfenced><mrow>INNER</mrow></mfenced>", "<mrow><mo>(</mo><mrow>INNER</mrow><mo>)</mo></mrow>",
+            "<mrow><mo>(</mo>INNER<mo>)</mo></mrow>", "<mo>(</mo><mrow>INNER</mrow><mo>)</mo>", "<mo>(</mo>INNER<mo>)</mo>",
+        ]
+        func bracketed(_ writing: String, _ inner: String) -> String { writing.replacingOccurrences(of: "INNER", with: inner) }
+        let lead = mi("x") + mo("+")
+        for writing in writings {
+            let one: String = lead + bracketed(writing, terms) + mo("+") + mi("y")
+            XCTAssertEqual(try penalties(one), [plus, plus + level, plus], writing)
+            // A pair in a pair is two, and what the inner one holds is no deeper for being the outer one's row.
+            for outer in writings {
+                let two: String = lead + bracketed(outer, bracketed(writing, terms))
+                XCTAssertEqual(try penalties(two), [plus, plus + 2 * level], outer + writing)
+            }
+        }
+        // A row among other things is still a level, in a bracket or out of one: each sum in a list,
+        // and two pairs side by side in a row of their own.
+        let list: String = mi("f") + mo("\u{2061}") + "<mfenced><mrow>\(terms)</mrow><mrow>\(terms)</mrow></mfenced>"
+        XCTAssertEqual(try penalties(list), [plus + 2 * level, comma + level, plus + 2 * level])
+        let pairs: String = lead + "<mrow><mo>(</mo>\(terms)<mo>)</mo><mo>(</mo>\(terms)<mo>)</mo></mrow>"
+        XCTAssertEqual(try penalties(pairs), [plus, plus + 2 * level, plus + 2 * level])
+        let row: String = lead + "<mrow>\(terms)</mrow>"
+        XCTAssertEqual(try penalties(row), [plus, plus + level])
+
+        // So the sum in a bracket breaks where it would fill its rows, rather than leave the left-hand
+        // side alone on the first: three rows of `y = k(a/b + x² + sin θ − (c+d)/e + 12345 × z) + 1`
+        // where there were four, the first of them `y`.
+        let sum = "<mfrac><mi>a</mi><mi>b</mi></mfrac><mo>+</mo><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><mi>sin</mi><mo>\u{2061}</mo><mi>θ</mi>"
+            + "<mo>−</mo><mfrac><mrow><mi>c</mi><mo>+</mo><mi>d</mi></mrow><mi>e</mi></mfrac><mo>+</mo><mn>12345</mn><mo>×</mo><mi>z</mi>"
+        var rows: [[CGFloat]] = []
+        for writing in writings {
+            let body: String = mi("y") + mo("=") + mi("k") + bracketed(writing, sum) + mo("+") + "<mn>1</mn>"
+            let layout = try MathLayout(node(body), style: MathStyle(fontSize: 18, color: black), maximumWidth: 150)
+            XCTAssertEqual(layout.rows.count, 3, writing)
+            XCTAssertGreaterThan(layout.rows[0].width, 75, writing)
+            for row in layout.rows { XCTAssertLessThanOrEqual(row.origin.x + row.width, 150.001, writing) }
+            rows.append(layout.rows.map { $0.width })
+        }
+        for widths in rows.dropFirst() {
+            for (width, expected) in zip(widths, rows[0]) { XCTAssertEqual(width, expected, accuracy: 0.01) }
+        }
+    }
+
     func testNeverBreaksWhereAnOperatorHoldsItsOperand() throws {
         // On a line of no width every break that is allowed is made, and these are not:
         // before a sign, between a function and its argument, after an opening fence, before a
