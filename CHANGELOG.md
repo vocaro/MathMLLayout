@@ -29,6 +29,9 @@ Line breaking, `mglyph`, elementary math and localized readings
   it had two.
 - A token's trailing white space is trimmed: `<mi>x </mi>` was drawn upright with a space after
   it, and `<mo> + </mo>` was not found in the operator dictionary or read as "plus".
+- Drawing leaves the context's text matrix as the host set it. `draw(in:baselineOrigin:)` left
+  it at identity, so text a host drew afterwards lost its flip
+  ([#15](https://github.com/vocaro/MathMLLayout/issues/15)).
 - Hostile markup that 0.1.0 let through, found by fuzzing this release:
   - `scriptlevel="+9223372036854775807"` and `maction selection="-9223372036854775808"`
     overflowed an integer and stopped the process.
