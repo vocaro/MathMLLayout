@@ -56,6 +56,9 @@ final class LayoutEngine {
     let constants: MathConstants
     private var nodeCount = 0
     private var textLength = 0
+    /// `MathStyle.imageProvider`, and what it has returned for each `src` it was asked for.
+    var imageProvider: MathImageProvider? { didSet { if imageProvider != oldValue { imageCache = [:] } } }
+    var imageCache: [String: CGImage?] = [:]
 
     init(fontName: String?) {
         font = MathFont.named(fontName)
@@ -63,6 +66,7 @@ final class LayoutEngine {
     }
 
     func layoutRoot(_ root: MathMLNode, style: MathStyle) throws -> MathBox {
+        imageProvider = style.imageProvider
         let size = min(max(style.fontSize, 1), 1000)
         let context = LayoutContext(fontSize: size, unclampedSize: size, minSize: min(size, max(8, size * 0.6)),
                                     display: style.isDisplay || root.attributes["display"] == "block",
@@ -187,6 +191,11 @@ final class LayoutEngine {
             box = try row(children, context, embellishment, depth: depth)
         case "mi", "mn", "mtext", "ms":
             box = try token(node, context)
+        case "mglyph":
+            // MathML 2 listed `mglyph` among the tokens (3.1.6), so one may stand alone in a row.
+            // It is laid out as the `mtext` it would now be in, not as an element of its own: the
+            // style it would hand down has no effect on an `mglyph` (MathML 3, 3.2.1.2.2).
+            return try layout(MathMLNode(name: "mtext", children: [node]), outer, depth: depth)
         case "mo":
             box = try operatorBox(node, context, embellishment)
         case "mspace":
@@ -263,10 +272,11 @@ final class LayoutEngine {
     }
 
     /// Space-like elements (MathML Core 3.2.5) do not count when inferring an operator's form.
+    /// An `mglyph` outside a token is the `mtext` it is laid out as.
     func isSpaceLike(_ node: MathMLNode, depth: Int = 0) -> Bool {
         guard depth < MathLimits.depth else { return false }
         switch node.name {
-        case "mtext", "mspace", "maligngroup", "malignmark": return true
+        case "mtext", "mspace", "maligngroup", "malignmark", "mglyph": return true
         case "mrow", "mstyle", "mphantom", "mpadded": return node.children.allSatisfy { isSpaceLike($0, depth: depth + 1) }
         case "maction", "semantics": return node.children.first.map { isSpaceLike($0, depth: depth + 1) } ?? false
         default: return false
@@ -274,9 +284,10 @@ final class LayoutEngine {
     }
 
     /// An `mo`'s text as drawn: hyphen-minus and apostrophe become the minus sign and prime,
-    /// as browsers draw them.
+    /// as browsers draw them. An `mglyph` is no part of it: an image names no operator, so the
+    /// dictionary sees the text alone, and an `mo` of only an image is an unknown operator.
     func operatorText(_ node: MathMLNode) -> String {
-        let text = Self.normalized(node.text)
+        let text = Self.normalized(Self.unmarked(node.text))
         switch text {
         case "-": return "\u{2212}"
         case "'": return "\u{2032}"
@@ -461,7 +472,7 @@ final class LayoutEngine {
             if pendingSpace { result.append(" "); pendingSpace = false }
             result.append(scalar)
         }
-        if pendingSpace { result.append(" ") }
+        if pendingSpace, !trimming { result.append(" ") }
         return String(result)
     }
 
@@ -475,17 +486,19 @@ final class LayoutEngine {
     }
 
     /// `mi`, `mn`, `mtext` and `ms`. A single-character `mi` is italic unless a `mathvariant`
-    /// says otherwise, and its width includes its italic correction (TeX's rule 17).
+    /// says otherwise, and its width includes its italic correction (TeX's rule 17). An `mglyph`
+    /// is not a character, so an `mi` of one stays upright even when its `alt` is drawn instead.
     private func token(_ node: MathMLNode, _ context: LayoutContext) throws -> MathBox {
-        if node.children.contains(where: { $0.name == "mglyph" }) { throw MathLayoutError.unsupported("mglyph") }
-        var text = Self.normalized(node.text, trimming: node.name != "mtext" && node.name != "ms")
+        var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", context)
         if node.name == "ms" {
-            text = (node.attributes["lquote"] ?? "\"") + text + (node.attributes["rquote"] ?? "\"")
+            // The quotes are text, whatever they hold: only `mglyph`s have markers.
+            text = Self.unmarked(node.attributes["lquote"] ?? "\"") + text + Self.unmarked(node.attributes["rquote"] ?? "\"")
         }
         try countText(text)
         var variant = context.variant
-        if node.name == "mi", variant == nil, text.unicodeScalars.count == 1 { variant = .italic }
+        if node.name == "mi", variant == nil, text.unicodeScalars.count == 1, !Self.hasGlyph(node) { variant = .italic }
         if let variant { text = variant.apply(to: text) }
+        guard images.isEmpty else { return textBox(text, images: images, context) }
         var box = textBox(text, context)
         if let glyph = singleGlyph(box), let table = font.table {
             let size = context.fontSize
@@ -562,11 +575,18 @@ final class LayoutEngine {
     private static let invisible: Set<String> = ["\u{2061}", "\u{2062}", "\u{2063}", "\u{2064}", ""]
 
     /// An `mo`: dictionary properties, the display size of large operators, and stretching.
+    /// One with an `mglyph` is drawn as its author sized it, neither enlarged nor stretched.
     private func operatorBox(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment) throws -> MathBox {
-        if node.children.contains(where: { $0.name == "mglyph" }) { throw MathLayoutError.unsupported("mglyph") }
         var text = operatorText(node)
-        try countText(text)
         let properties = properties(node, form: embellishment.form, context)
+        if Self.hasGlyph(node) {
+            let content = try glyphContent(of: node, context)
+            try countText(content.text)
+            var box = textBox(context.variant?.apply(to: content.text) ?? content.text, images: content.images, context)
+            box.op = properties
+            return box
+        }
+        try countText(text)
         guard !Self.invisible.contains(text) else {
             var box = MathBox.empty()
             box.op = properties

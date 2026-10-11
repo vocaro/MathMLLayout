@@ -5,7 +5,8 @@ extension MathMLNode {
     /// for callers that have no DOM of their own. Namespaces are resolved and dropped, so a
     /// prefixed `<m:math>` reads the same. Only XML's predefined and numeric character
     /// references are known. Document type declarations are refused, so no entity can expand
-    /// and nothing external loads; depth and node count are bounded.
+    /// and nothing external loads; depth and node count are bounded. An `mglyph` in a token
+    /// becomes a child and one U+FFFC in the token's text, as `MathMLNode` describes.
     public static func parse(xml data: Data) throws -> MathMLNode {
         guard data.count <= 4 * 1024 * 1024 else { throw MathLayoutError.limitExceeded }
         if data.range(of: Data("<!DOCTYPE".utf8)) != nil || data.range(of: Data("<!ENTITY".utf8)) != nil {
@@ -41,16 +42,20 @@ private final class TreeBuilder: NSObject, XMLParserDelegate {
             parser.abortParsing()
             return
         }
-        if tokenDepth > 0 || stack.last.map({ LayoutEngine.tokens.contains($0.name) }) == true {
-            if tokenDepth == 0 { stack[stack.count - 1].children.append(MathMLNode(name: name)) }
-            tokenDepth += 1
-            return
-        }
+        if tokenDepth > 0 { tokenDepth += 1; return }
         var local: [String: String] = [:]
         for (key, value) in attributes where !key.hasPrefix("xmlns") {
             local[String(key.split(separator: ":").last ?? Substring(key))] = value
         }
-        stack.append(MathMLNode(name: name, attributes: local))
+        let node = MathMLNode(name: name, attributes: local)
+        guard let token = stack.indices.last, LayoutEngine.tokens.contains(stack[token].name) else {
+            stack.append(node)
+            return
+        }
+        // A token keeps its element children, and an `mglyph` marks where in the text it stands.
+        stack[token].children.append(node)
+        if name == "mglyph" { stack[token].text.unicodeScalars.append(LayoutEngine.glyphMarker) }
+        tokenDepth = 1
     }
 
     func parser(_ parser: XMLParser, didEndElement name: String, namespaceURI: String?, qualifiedName: String?) {
@@ -65,6 +70,7 @@ private final class TreeBuilder: NSObject, XMLParserDelegate {
 
     private func append(_ string: String) {
         guard let last = stack.last, LayoutEngine.tokens.contains(last.name) else { return }
-        stack[stack.count - 1].text += string
+        // A U+FFFC typed in the text would pass for an `mglyph`'s marker, so only markers have one.
+        stack[stack.count - 1].text += LayoutEngine.unmarked(string)
     }
 }

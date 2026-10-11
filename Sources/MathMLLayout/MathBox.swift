@@ -37,7 +37,7 @@ struct MathBox {
         for item in items {
             switch item {
             case .glyphs(let run): if !run.ink.isNull { merge(run.ink) }
-            case .rect(let rect, _): merge(rect)
+            case .rect(let rect, _), .image(_, let rect): merge(rect)
             case .path(let path, let lineWidth, _, _):
                 merge(path.boundingBoxOfPath.insetBy(dx: -lineWidth / 2, dy: -lineWidth / 2))
             case .box(let box, let point):
@@ -79,6 +79,9 @@ struct MathBox {
                     context.strokePath()
                 }
                 context.restoreGState()
+            case .image(let image, let rect):
+                // Upright as it is: CoreGraphics puts an image's top row at the rect's greater y.
+                context.draw(image, in: rect.offsetBy(dx: origin.x, dy: origin.y))
             case .box(let box, let point):
                 box.draw(in: context, at: CGPoint(x: origin.x + point.x, y: origin.y + point.y))
             }
@@ -101,5 +104,7 @@ enum MathItem {
     case rect(CGRect, CGColor)
     /// Stroked with `lineWidth`, or filled when the flag is set.
     case path(CGPath, lineWidth: CGFloat, color: CGColor, fill: Bool)
+    /// An `mglyph`'s image, scaled to fill the rect.
+    case image(CGImage, CGRect)
     case box(MathBox, at: CGPoint)
 }
