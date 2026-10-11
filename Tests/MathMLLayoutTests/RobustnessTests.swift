@@ -219,7 +219,6 @@ final class RobustnessTests: XCTestCase {
     /// README: "A formula … larger than 20,000 nodes … throws `MathLayoutError.limitExceeded`."
     /// Table rows are nodes too.
     func testTableRowsCountTowardTheNodeBound() {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/14 is fixed.
         let rows = MathMLNode(name: "mtable", attributes: ["rowspacing": "0"], children: Array(repeating: MathMLNode(name: "mtr"), count: 5 * MathLimits.nodes))
         XCTAssertEqual(survive(MathMLNode(name: "math", children: [rows]), "100,000 empty table rows"), .threw(.limitExceeded))
         let labeled = MathMLNode(name: "mtable", attributes: ["rowspacing": "0"],

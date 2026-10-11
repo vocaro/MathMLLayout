@@ -188,9 +188,10 @@ extension LayoutEngine {
 
     private static let uncounted = MathMLNode(name: "none")
 
-    /// Counts an element this file walks itself (a group, a row, a rule, a `none`) against the
-    /// node and depth limits. Only `layout` keeps that count, so it lays out an empty element.
-    private func visit(_ context: LayoutContext, depth: Int) throws {
+    /// Counts an element that is walked without `layout` (a group, a row, a rule or a `none`
+    /// here, and a table's row) against the node and depth limits. Only `layout` keeps that
+    /// count, so it lays out an empty element.
+    func visit(_ context: LayoutContext, depth: Int) throws {
         _ = try layout(Self.uncounted, context, depth: depth)
     }
 

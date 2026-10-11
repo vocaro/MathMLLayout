@@ -35,6 +35,8 @@ Line breaking, `mglyph`, elementary math and localized readings
 - An `mpadded` whose `width`, `height` or `depth` is decremented past zero has none, as MathML 3
   asks. It had a negative one, and with a negative width what followed was drawn before the box
   began ([#10](https://github.com/vocaro/MathMLLayout/issues/10)).
+- A table's rows count toward the 20,000-node bound. A hand-built table of 100,000 empty rows
+  with no row spacing was laid out ([#14](https://github.com/vocaro/MathMLLayout/issues/14)).
 - Hostile markup that 0.1.0 let through, found by fuzzing this release:
   - `scriptlevel="+9223372036854775807"` and `maction selection="-9223372036854775808"`
     overflowed an integer and stopped the process.

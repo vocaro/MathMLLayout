@@ -507,6 +507,8 @@ extension LayoutEngine {
             var label: MathMLNode?
             switch rowNode.name {
             case "mtr", "mlabeledtr":
+                // A row is a node as its cells are, though only they are laid out.
+                try visit(cellContext, depth: depth + 1)
                 rowContext = inherit(rowNode, cellContext)
                 cellNodes = rowNode.children
                 if rowNode.name == "mlabeledtr", !cellNodes.isEmpty { label = cellNodes.removeFirst() }
