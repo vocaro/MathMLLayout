@@ -21,7 +21,8 @@ extension LayoutEngine {
 
     /// A token's normalized text with its `mglyph` children resolved: a marker for each one that
     /// has an image, in step with `images`, and for each of the others its `alt`, which is so
-    /// drawn as the token's own text is, or U+25AF when it has none.
+    /// drawn as the token's own text is, or U+25AF when it has none. An `alt` with a
+    /// `mathbackground` is a box among `images` too, and has a marker: see `altBox`.
     ///
     /// The nth marker is the nth `mglyph`. A tree that a host built may lack markers, so
     /// `mglyph`s beyond them follow the text; a marker beyond the `mglyph`s is dropped.
@@ -59,10 +60,29 @@ extension LayoutEngine {
                 let alt = Self.normalized(Self.unmarked(glyph.attributes["alt"] ?? ""))
                 altLength += alt.utf16.count
                 guard altLength <= MathLimits.textLength else { throw MathLayoutError.limitExceeded }
-                text.append(contentsOf: (alt.isEmpty ? Self.missingGlyph : alt).unicodeScalars)
+                let shown = alt.isEmpty ? Self.missingGlyph : alt
+                // "transparent" is the default, and no more a background than none: the `alt` stays in the text.
+                if let background = glyph.attributes["mathbackground"].flatMap(MathColor.parse), background.alpha > 0 {
+                    // It leaves the text the caller bounds, and is shaped here: so it is counted here.
+                    try countText(shown)
+                    text.append(scalar)
+                    images.append(altBox(shown, on: background, context))
+                } else {
+                    text.append(contentsOf: shown.unicodeScalars)
+                }
             }
         }
         return (String(text), images)
+    }
+
+    /// An `alt` on its `mglyph`'s `mathbackground`, which fills "the bounding box of the element"
+    /// (3.1.10): the image's when there is one, and without one the box of what is drawn instead.
+    /// So this `alt` is a box of its own among the token's text, where any other is part of that
+    /// text. It is drawn as that text is, in the token's variant, size and colour.
+    private func altBox(_ alt: String, on background: CGColor, _ context: LayoutContext) -> MathBox {
+        var box = textBox(context.variant?.apply(to: alt) ?? alt, context)
+        box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), background), at: 0)
+        return box
     }
 
     /// The provider's image for an `mglyph`, asked once for each `src` however often a formula
@@ -105,7 +125,7 @@ extension LayoutEngine {
         return box
     }
 
-    /// Text with an image at each marker, side by side on the baseline.
+    /// Text with an image, or an `alt` on its background, at each marker, side by side on the baseline.
     func textBox(_ text: String, images: [MathBox], _ context: LayoutContext) -> MathBox {
         var parts: [MathBox] = []
         var remaining = images[...]

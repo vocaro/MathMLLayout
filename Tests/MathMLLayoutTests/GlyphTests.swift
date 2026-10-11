@@ -60,6 +60,17 @@ final class GlyphTests: MathTestCase {
         }
     }
 
+    /// The rectangles `box` fills, which are its backgrounds, relative to its baseline origin, in drawing order.
+    private func fills(_ box: MathBox, at origin: CGPoint = .zero) -> [(rect: CGRect, color: CGColor)] {
+        box.items.flatMap { item -> [(rect: CGRect, color: CGColor)] in
+            switch item {
+            case .rect(let rect, let color): [(rect.offsetBy(dx: origin.x, dy: origin.y), color)]
+            case .box(let inner, let point): fills(inner, at: CGPoint(x: origin.x + point.x, y: origin.y + point.y))
+            default: []
+            }
+        }
+    }
+
     private func glyphRuns(_ box: MathBox) -> [GlyphRun] {
         box.items.flatMap { item -> [GlyphRun] in
             switch item {
@@ -287,6 +298,81 @@ final class GlyphTests: MathTestCase {
             assertColor(render(drawn)(5, 5), [128, 0, 0, 128], body)
         }
         XCTAssertNil(ink(try layout(#"<mi><mglyph src="clear" alt="c"/></mi>"#, images: images)))
+    }
+
+    /// MathML 3, 3.1.10: `mathbackground` fills "the bounding box of the element". Without its
+    /// image that is the box of the `alt` drawn for it.
+    func testBackgroundIsPaintedBehindTheAltText() throws {
+        let half = CGColor(srgbRed: 1, green: 0, blue: 0, alpha: 128.0 / 255)
+        let glyph = ##"<mglyph src="s" alt="L" mathbackground="#ff000080"/>"##
+        let alt = try box("<mtext>L</mtext>", images: nil)
+        // In a token, in an operator, and at row level where the element itself must not paint it a second time.
+        for body in ["<mi>\(glyph)</mi>", "<mo>\(glyph)</mo>", glyph] {
+            for images in [nil, MathImageProvider { _ in nil }] {
+                let fallback = try box(body, images: images)
+                XCTAssertEqual(fallback.width, alt.width, body)
+                XCTAssertEqual(fills(fallback).map(\.color), [half], body)
+                assertRect(fills(fallback).first?.rect, CGRect(x: 0, y: -alt.descent, width: alt.width, height: alt.height))
+                let drawn = try layout(body, images: images)
+                let pixel = render(drawn)
+                // An L leaves the top right of its box empty, and nothing is painted above the box.
+                assertColor(pixel(alt.width - 1.5, alt.ascent - 1.5), [128, 0, 0, 128], body)
+                assertColor(pixel(alt.width - 1.5, alt.ascent + 1.5), [0, 0, 0, 0], body)
+                // The letter is drawn over the background, not under it.
+                let row = stride(from: CGFloat(0.5), to: alt.width, by: 1).map { pixel($0, alt.ascent / 2) }
+                XCTAssertTrue(row.contains { $0[0] < 64 && $0[3] > 200 }, body)
+            }
+        }
+        XCTAssertTrue(fills(try box(#"<mi><mglyph src="s" alt="L"/></mi>"#, images: nil)).isEmpty)
+
+        // Among text, behind the alt alone, and the text keeps its place.
+        func part(_ body: String) throws -> MathBox { try box(body, images: nil) }
+        let a = try part("<mtext>a</mtext>"), braid = try part("<mtext>braid</mtext>"), b = try part("<mtext>b</mtext>")
+        let among = try part(##"<mtext>a<mglyph src="s" alt="braid" mathbackground="#00ff00"/>b</mtext>"##)
+        XCTAssertEqual(among.width, a.width + braid.width + b.width, accuracy: 0.001)
+        XCTAssertEqual(fills(among).count, 1)
+        assertRect(fills(among).first?.rect, CGRect(x: a.width, y: -braid.descent, width: braid.width, height: braid.height))
+        XCTAssertEqual(glyphRuns(among).count, 3)
+        // Behind U+25AF when there is no alt.
+        let missing = try part("<mtext>\u{25AF}</mtext>")
+        for attributes in ["", #"alt="""#, #"alt="  ""#] {
+            let empty = try part("<mi><mglyph \(attributes) mathbackground=\"#00ff00\"/></mi>")
+            XCTAssertEqual(empty.width, missing.width, attributes)
+            assertRect(fills(empty).first?.rect, CGRect(x: 0, y: -missing.descent, width: missing.width, height: missing.height))
+        }
+        // The alt is still drawn as its token's text is: in its variant, size and color.
+        let styled = ##"<mtext mathvariant="bold" mathsize="2em" mathcolor="#0000ff">@</mtext>"##
+        let plain = try part(styled.replacingOccurrences(of: "@", with: "b"))
+        let onGreen = try part(styled.replacingOccurrences(of: "@", with: ##"<mglyph alt="b" mathbackground="#00ff00"/>"##))
+        XCTAssertEqual(onGreen.width, plain.width)
+        XCTAssertEqual(glyphRuns(onGreen).map(\.glyphs), glyphRuns(plain).map(\.glyphs))
+        XCTAssertEqual(glyphRuns(onGreen).map(\.color), [CGColor(srgbRed: 0, green: 0, blue: 1, alpha: 1)])
+        assertRect(fills(onGreen).first?.rect, CGRect(x: 0, y: -plain.descent, width: plain.width, height: plain.height))
+        // The token's own background is behind all of it, and painted first.
+        let both = try part(##"<mtext mathbackground="#0000ff">a<mglyph alt="braid" mathbackground="#00ff00"/></mtext>"##)
+        XCTAssertEqual(fills(both).map(\.color), [CGColor(srgbRed: 0, green: 0, blue: 1, alpha: 1),
+                                                  CGColor(srgbRed: 0, green: 1, blue: 0, alpha: 1)])
+        XCTAssertEqual(fills(both).first?.rect.width ?? 0, a.width + braid.width, accuracy: 0.001)
+        XCTAssertEqual(fills(both).last?.rect.minX ?? 0, a.width, accuracy: 0.001)
+        // A color that does not parse is no background, nor is the default: the alt stays part of the text.
+        for color in ["greenish", "transparent", "#00ff0000"] {
+            let none = try part("<mtext>a<mglyph alt=\"braid\" mathbackground=\"\(color)\"/>b</mtext>")
+            XCTAssertTrue(fills(none).isEmpty, color)
+            XCTAssertEqual(glyphRuns(none).count, 1, color)
+            XCTAssertEqual(none.width, try part("<mtext>abraidb</mtext>").width, color)
+        }
+
+        // An alt on a background counts against the text bound like any other, across tokens.
+        func long(_ units: Int) -> MathMLNode {
+            MathMLNode(name: "mi", children: [MathMLNode(name: "mglyph", attributes: [
+                "alt": String(repeating: "a", count: units), "mathbackground": "red",
+            ])])
+        }
+        XCTAssertNoThrow(try box(MathMLNode(name: "mrow", children: [long(100), long(100)]), images: nil))
+        let each = MathLimits.textLength / 2 + 1
+        XCTAssertThrowsError(try box(MathMLNode(name: "mrow", children: [long(each), long(each)]), images: nil)) {
+            XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+        }
     }
 
     // MARK: The provider

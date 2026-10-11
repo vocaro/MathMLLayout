@@ -619,7 +619,7 @@ final class LayoutEngine {
         scalar == " " || scalar == "\t" || scalar == "\n" || scalar == "\r"
     }
 
-    private func countText(_ text: String) throws {
+    func countText(_ text: String) throws {
         textLength += text.utf16.count
         guard textLength <= MathLimits.textLength else { throw MathLayoutError.limitExceeded }
     }
