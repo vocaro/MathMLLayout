@@ -739,7 +739,7 @@ struct Paragraph {
                             point: point)
             // `linebreakstyle="duplicate"` repeats the operator at the start of the new row, and
             // `linebreakmultchar` shows an invisible times wherever the style puts the operator.
-            let head = point.position == .after ? nil : visible ?? (point.position == .duplicate ? units[index].box : nil)
+            var head = point.position == .after ? nil : visible ?? (point.position == .duplicate ? units[index].box : nil)
             let tail = point.position == .before ? nil : visible
             if let head {
                 stop.headAdvance = visible.map { $0.width + ($0.op?.rspace ?? 0) } ?? units[at].x - units[index].x
@@ -750,18 +750,43 @@ struct Paragraph {
                 stop.tailAdvance = stop.tailOffset + tail.width
                 stop.tailRight = max(0, (tail.inkBounds?.maxX ?? 0) - tail.width)
             }
-            if head != nil || tail != nil {
-                stop.insert = inserts.count
-                inserts.append((head, tail))
-            }
             hasForced = hasForced || isForced
-            // An operator that breaks after it and the next that breaks before it share a stop.
-            if let last = stops.last, last.at == at {
-                guard !last.isForced, isForced || stop.penalty < last.penalty else { continue }
-                stops[stops.count - 1] = stop
-            } else {
+            guard let last = stops.last, last.at == at else {
+                if head != nil || tail != nil {
+                    stop.insert = inserts.count
+                    inserts.append((head, tail))
+                }
                 stops.append(stop)
+                continue
             }
+            // An operator that breaks after it and the next that breaks before it share a stop: a line
+            // that breaks there breaks at both. The better of the two says what the break costs and
+            // how the row after it is placed, and each still adds to the rows what it adds wherever a
+            // line breaks at it. `last` is the stop of the operator before the break, which may leave
+            // a tail and its duplicate, and `stop` that of the one after, which has only its visible
+            // form to show: that goes after the duplicate, next to the operator it stands for.
+            var shared = !last.isForced && (isForced || stop.penalty < last.penalty) ? stop : last
+            let first = last.insert.map { inserts[$0] }
+            shared.tailOffset = last.tailOffset; shared.tailAdvance = last.tailAdvance; shared.tailRight = last.tailRight
+            shared.headAdvance = last.headAdvance + stop.headAdvance
+            if let repeated = first?.head, let shown = head {
+                var both = MathBox(width: last.headAdvance + shown.width, ascent: max(repeated.ascent, shown.ascent),
+                                   descent: max(repeated.descent, shown.descent))
+                both.add(repeated, at: .zero)
+                both.add(shown, at: CGPoint(x: last.headAdvance, y: 0))
+                head = both
+            } else {
+                head = first?.head ?? head
+            }
+            shared.headLeft = max(0, -(head?.inkBounds?.minX ?? 0))
+            shared.insert = last.insert
+            if let insert = last.insert {
+                inserts[insert] = (head, first?.tail)
+            } else if head != nil {
+                shared.insert = inserts.count
+                inserts.append((head, nil))
+            }
+            stops[stops.count - 1] = shared
         }
     }
 

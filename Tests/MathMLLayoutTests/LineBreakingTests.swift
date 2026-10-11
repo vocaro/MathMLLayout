@@ -457,6 +457,46 @@ final class LineBreakingTests: MathTestCase {
         XCTAssertEqual(layout.rows[1].width, try width(mo("+")) + medium + beta, accuracy: 0.01)
     }
 
+    func testOperatorsThatShareABreakEachShowWhatTheyShowThere() throws {
+        let alpha = try width(mi("alpha")), beta = try width(mi("beta")), times = try width(mo("×")), dot = try width(mo("⋅"))
+        XCTAssertNotEqual(times, dot, accuracy: 1)
+        // An operator that breaks after it and the next that breaks before it are one place to break.
+        // Here each is an invisible times with a character of its own: one ends the row, the other
+        // starts the next, whichever of the two the break is counted as.
+        for (first, second) in [("", ""), ("linebreak=\"newline\"", ""), ("", "linebreak=\"newline\""), ("linebreak=\"badbreak\"", "")] {
+            let layout = try broken(mi("alpha") + mo("\u{2062}", "linebreakstyle=\"after\" linebreakmultchar=\"×\" \(first)")
+                + mo("\u{2062}", "linebreakmultchar=\"⋅\" \(second)") + mi("beta"), width: 0)
+            assertWidths(layout, [alpha + medium + times, dot + medium + beta], "\(first) \(second)")
+        }
+        // A comma breaks after it and is the better place than the times that follows, which shows its
+        // character all the same.
+        var layout = try broken(mi("alpha") + mo(",") + mo("\u{2062}", "linebreakmultchar=\"×\"") + mi("beta"), width: 0)
+        assertWidths(layout, [alpha + (try width(mo(","))), times + medium + beta])
+        // So does a times that breaks after it before a relation, the better place again.
+        layout = try broken(mi("alpha") + mo("\u{2062}", "linebreakstyle=\"after\" linebreakmultchar=\"×\"") + red("=", "form=\"infix\"")
+            + mi("beta"), width: 0)
+        assertWidths(layout, [alpha + medium + times, (try width(mo("="))) + thick + beta])
+        XCTAssertTrue(starts(layout.rows[1], with: .red))
+        // A repeated operator starts the new row, and the character of the times it shares the break
+        // with comes after it, next to the operand it multiplies.
+        let repeated = "linebreak=\"newline\" linebreakstyle=\"duplicate\""
+        let plain = try broken(mi("alpha") + mo("=", repeated) + mo("\u{2062}") + mi("beta"))
+        layout = try broken(mi("alpha") + red("=", repeated) + mo("\u{2062}", "linebreakmultchar=\"×\"") + mi("beta"))
+        assertWidths(layout, [plain.rows[0].width, plain.rows[1].width + times + medium])
+        XCTAssertTrue(ends(layout.rows[0], with: .red))
+        XCTAssertTrue(starts(layout.rows[1], with: .red))
+        let black = try XCTUnwrap(ink(layout.rows[1])), equals = try XCTUnwrap(ink(layout.rows[1], .red))
+        XCTAssertGreaterThan(black.width, equals.width + times + beta, "the repeated sign, the character and the operand")
+        // Automatic breaks count what both add: every row still fits, and holds both characters.
+        let pair = mo("\u{2062}", "linebreakstyle=\"after\" linebreakmultchar=\"×\"") + mo("\u{2062}", "linebreakmultchar=\"⋅\"")
+        let long = names.map(mi).joined(separator: pair)
+        layout = try broken(long, width: 100)
+        XCTAssertGreaterThan(layout.rows.count, 2)
+        for row in layout.rows { XCTAssertLessThanOrEqual(row.origin.x + row.width, 100.001) }
+        XCTAssertEqual(layout.rows.reduce(0) { $0 + $1.width },
+                       try width(long) + CGFloat(layout.rows.count - 1) * (times + dot + 2 * medium), accuracy: 0.01)
+    }
+
     func testBreaksInsideFencesKeepOneBracketSize() throws {
         let tall = "<mfrac><mfrac><mi>a</mi><mi>b</mi></mfrac><mfrac><mi>c</mi><mi>d</mi></mfrac></mfrac>"
         let inner = "<mstyle mathcolor=\"black\">" + tall + mo("+") + mi("beta") + mo("+") + mi("gamma") + mo("+") + mi("delta") + "</mstyle>"
