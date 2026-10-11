@@ -1053,4 +1053,23 @@ final class ElementaryMathTests: MathTestCase {
         let alone = try layout(bodies[0]).width, x = try layout("<mi>x</mi>").width
         equal(try layout("<mi>x</mi>\(bodies[0])<mi>x</mi>").width, alone + 2 * x)
     }
+
+    /// `decimalpoint` is `mstyle`'s attribute (3.3.4.2): a stack inherits it from any ancestor.
+    func testDecimalPointIsInherited() throws {
+        // German numbers: "." groups the thousands and "," is the decimal point.
+        let rows = "<mn>1.234,5</mn><mn>12,75</mn>"
+        let own = "<mstack decimalpoint=\",\">\(rows)</mstack>", plain = "<mstack>\(rows)</mstack>"
+        func drawn(_ body: String) throws -> CGRect? { try ink(layout(body)) }
+        XCTAssertNotEqual(try drawn(own), try drawn(plain), "aligned on the comma, the rows sit differently")
+        XCTAssertEqual(try drawn("<mstyle decimalpoint=\",\">\(plain)</mstyle>"), try drawn(own))
+        XCTAssertEqual(try drawn("<mstyle decimalpoint=\",\"><mfrac>\(plain)<mn>2</mn></mfrac></mstyle>"),
+                       try drawn("<mfrac>\(own)<mn>2</mn></mfrac>"), "through any number of ancestors")
+        // On the `math` element too.
+        var root = try node(plain)
+        root.attributes["decimalpoint"] = ","
+        XCTAssertEqual(try ink(MathLayout(root, style: MathStyle(fontSize: 20, color: black))), try drawn(own))
+        // The stack's own wins over an ancestor's, and an empty one sets nothing.
+        XCTAssertEqual(try drawn("<mstyle decimalpoint=\"x\">\(own)</mstyle>"), try drawn(own))
+        XCTAssertEqual(try drawn("<mstyle decimalpoint=\" \">\(plain)</mstyle>"), try drawn(plain))
+    }
 }

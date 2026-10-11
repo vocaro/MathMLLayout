@@ -207,16 +207,15 @@ extension LayoutEngine {
         node.attributes["decimalpoint"].map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 }
     }
 
-    /// The attributes of the stack itself. `decimalpoint` is `mstyle`'s to set, and the layout
-    /// context does not carry it, so one set outside the stack is not seen: only the stack's
-    /// own, and that of an `mstyle` in a row.
+    /// The attributes of the stack itself. `decimalpoint` is `mstyle`'s to set (3.3.4.2), so it
+    /// comes down the context; one on the stack, or on an `mstyle` in a row, takes its place.
     private func stackStyle(_ node: MathMLNode, _ context: LayoutContext) -> StackStyle {
         func keyword(_ name: String) -> String? { node.attributes[name]?.trimmingCharacters(in: .whitespaces).lowercased() }
         let em = context.fontSize
         let zero = textBox("0", context).width
         // `charspacing`'s keywords are this engine's: digits that touch, a tenth or a quarter
         // of an em apart, each widened by what the widest carry needs. A length is used as is.
-        var style = StackStyle(gap: 0.1 * em, decimalPoint: Self.decimalPoint(node), zeroWidth: zero,
+        var style = StackStyle(gap: 0.1 * em, decimalPoint: Self.decimalPoint(node) ?? context.decimalPoint, zeroWidth: zero,
                                digitAscent: textBox("0123456789", context).ascent / em)
         switch keyword("charspacing") {
         case nil, "medium": break

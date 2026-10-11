@@ -85,7 +85,7 @@ public enum MathLayoutError: Error, Equatable, Sendable {
 /// to either.
 public final class MathLayout: @unchecked Sendable {
     // Unchecked: the box trees are never mutated after init, and the CoreText fonts and
-    // CoreGraphics paths they hold are immutable and thread-safe.
+    // CoreGraphics paths and images they hold are immutable and thread-safe.
 
     /// Width, and height above (`ascent`) and below (`descent`) the baseline, in points. The
     /// baseline is the first row's: `descent` reaches down through the last row.

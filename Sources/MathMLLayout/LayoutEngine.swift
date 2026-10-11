@@ -11,7 +11,7 @@ enum MathLimits {
     static let textLength = 50_000
     /// Points, any dimension of the result.
     static let extent: CGFloat = 50_000
-    /// Drawing items (glyph runs, rules, paths, nested boxes) in one formula.
+    /// Drawing items (glyph runs, rules, paths, images, nested boxes) in one formula.
     static let items = 100_000
 }
 
@@ -33,6 +33,8 @@ struct LayoutContext {
     var color: CGColor
     /// MathML 3's line-breaking and indentation attributes, which `mo` and `mspace` read.
     var lines = LineStyle()
+    /// `decimalpoint`: the character a stack's rows align on (`stackalign="decimalpoint"`); nil is ".".
+    var decimalPoint: String?
 }
 
 /// What an embellished operator learns from where it sits: its form from its position in a
@@ -137,6 +139,10 @@ final class LayoutEngine {
             if let minimum = length(attributes["scriptminsize"], context, reference: context.fontSize) {
                 context.minSize = max(1, minimum)
             }
+        }
+        if node.name == "mstyle" || node.name == "math",
+           let point = attributes["decimalpoint"]?.trimmingCharacters(in: .whitespaces), !point.isEmpty {
+            context.decimalPoint = point
         }
         if let display = attributes.flag("displaystyle") { context.display = display }
         if let level = attributes["scriptlevel"]?.trimmingCharacters(in: .whitespaces), let number = Int(level) {
@@ -291,6 +297,22 @@ final class LayoutEngine {
         }
     }
 
+    /// A space-like child that says something: an `mtext` with text or an `mglyph` in it, or what
+    /// wraps one. MathML leaves it out when an operator takes its form from its place in the row,
+    /// but beside an operator it is an operand, as TeX's `\text` is an ordinary atom: the `×` of
+    /// "<mtext>principal</mtext><mo>×</mo><mtext>rate</mtext>" multiplies, it is not a sign.
+    func isText(_ node: MathMLNode, depth: Int = 0) -> Bool {
+        guard depth < MathLimits.depth else { return false }
+        switch node.name {
+        case "mtext": return Self.hasGlyph(node) || node.text.unicodeScalars.contains { !$0.properties.isWhitespace }
+        case "mglyph": return true
+        case "mrow", "mstyle", "mpadded":
+            return isSpaceLike(node, depth: depth) && node.children.contains { isText($0, depth: depth + 1) }
+        case "maction", "semantics": return node.children.first.map { isText($0, depth: depth + 1) } ?? false
+        default: return false
+        }
+    }
+
     /// An `mo`'s text as drawn: hyphen-minus and apostrophe become the minus sign and prime,
     /// as browsers draw them. An `mglyph` is no part of it: an image names no operator, so the
     /// dictionary sees the text alone, and an `mo` of only an image is an unknown operator.
@@ -357,6 +379,8 @@ final class LayoutEngine {
     /// and passes `embellishment` down to it. An enclosing row then spaces it as a whole; with
     /// none (the root, a table cell, a radicand) it spaces the operator from its space-like
     /// neighbours itself, so "<mtext>a</mtext><mo>=</mo><mtext>b</mtext>" keeps its relation space.
+    /// Text beside an operator is its operand (`isText`), so every operator of a word equation,
+    /// "assets − liabilities = equity", is spaced as it is between identifiers.
     func row(_ children: [MathMLNode], _ context: LayoutContext, _ embellishment: Embellishment = .none,
              depth: Int) throws -> MathBox {
         let inFlow = children.indices.filter { !isSpaceLike(children[$0]) }
@@ -364,9 +388,13 @@ final class LayoutEngine {
         // A row gives each child a form, so a form here means an enclosing row applies the spacing.
         let spacedByParent = embellishment.form != nil
         var forms = [OperatorForm](repeating: .infix, count: children.count)
+        let texts = children.map { isText($0) }
         if inFlow.count > 1 {
-            forms[inFlow[0]] = .prefix
-            forms[inFlow[inFlow.count - 1]] = .postfix
+            // Between two texts an operator is infix, though it is the first or last in-flow child.
+            for (index, form) in [(inFlow[0], OperatorForm.prefix), (inFlow[inFlow.count - 1], .postfix)]
+            where !(index > 0 && index + 1 < children.count && texts[index - 1] && texts[index + 1]) {
+                forms[index] = form
+            }
         }
         var boxes = [MathBox](repeating: .empty(), count: children.count)
         var deferred: [Int] = []
@@ -389,11 +417,12 @@ final class LayoutEngine {
             }
         }
         // TeX's rule 5: a binary operator first, last, or after another operator or an opening
-        // fence is unary and unspaced, as in "x = −3" or "(−3 + x)".
+        // fence is unary and unspaced, as in "x = −3" or "(−3 + x)". Text counts among the atoms.
         var unary = Set<Int>()
-        for (position, index) in inFlow.enumerated() where boxes[index].op?.isBinary == true && index != core {
-            let follows = position > 0 ? boxes[inFlow[position - 1]].op.map(isOperatorLike) ?? false : true
-            if follows || position == inFlow.count - 1 { unary.insert(index) }
+        let atoms = children.indices.filter { texts[$0] || !isSpaceLike(children[$0]) }
+        for (position, index) in atoms.enumerated() where boxes[index].op?.isBinary == true && index != core {
+            let follows = position > 0 ? boxes[atoms[position - 1]].op.map(isOperatorLike) ?? false : true
+            if follows || position == atoms.count - 1 { unary.insert(index) }
         }
         // The sides of the core operator this row spaces itself: those with something beside it.
         var spacesCore = (left: false, right: false)

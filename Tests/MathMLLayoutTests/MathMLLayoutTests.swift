@@ -193,6 +193,41 @@ final class MathMLLayoutTests: MathTestCase {
         XCTAssertEqual(try added { "<msub><mi>x</mi><mrow>\(between($0))</mrow></msub>" }, 0, accuracy: 0.01)
     }
 
+    /// With two operators the row is no embellished operator, and each takes its form from its
+    /// place among the in-flow children, which the texts are not. They are operands all the same.
+    func testEveryOperatorOfAWordEquationIsSpaced() throws {
+        let medium: CGFloat = 2 * 20 * 4 / 18, thick: CGFloat = 2 * 20 * 5 / 18
+        /// The space `symbol` gets in `body`, where `OP` marks it: the width it adds over an unspaced one.
+        func added(_ symbol: String, in body: String) throws -> CGFloat {
+            try layout(body.replacingOccurrences(of: "OP", with: "<mo>\(symbol)</mo>")).width
+                - layout(body.replacingOccurrences(of: "OP", with: "<mo lspace=\"0\" rspace=\"0\">\(symbol)</mo>")).width
+        }
+        let value = "<mtext>future value</mtext>", principal = "<mtext>principal</mtext>", rate = "<mtext>rate</mtext>"
+        // A product after a relation, a sum before one, and a relation last among the operators.
+        XCTAssertEqual(try added("×", in: "\(value)<mo>=</mo>\(principal)OP\(rate)"), medium, accuracy: 0.01)
+        XCTAssertEqual(try added("=", in: "\(value)OP\(principal)<mo>×</mo>\(rate)"), thick, accuracy: 0.01)
+        XCTAssertEqual(try added("−", in: "\(value)OP\(principal)<mo>=</mo>\(rate)"), medium, accuracy: 0.01)
+        XCTAssertEqual(try added("+", in: "\(value)OP\(principal)<mo>=</mo>\(rate)"), medium, accuracy: 0.01)
+        XCTAssertEqual(try added("=", in: "\(value)<mo>−</mo>\(principal)OP\(rate)"), thick, accuracy: 0.01)
+        // Text on one side is operand enough for a product, whatever is on the other.
+        XCTAssertEqual(try added("×", in: "\(value)<mo>=</mo>\(principal)OP<msup><mrow><mo>(</mo><mn>1</mn><mo>+</mo><mi>r</mi><mo>)</mo></mrow><mi>n</mi></msup>"),
+                       medium, accuracy: 0.01)
+        XCTAssertEqual(try added("×", in: "\(value)OP<mi>b</mi><mo>=</mo><mi>c</mi>"), medium, accuracy: 0.01)
+        XCTAssertEqual(try added("+", in: "<mn>5</mn><mtext> apples </mtext>OP<mn>3</mn><mtext> pears</mtext>"), medium, accuracy: 0.01)
+        // Wrapped text is text; an image glyph and its alt are too.
+        XCTAssertEqual(try added("×", in: "<mi>y</mi><mo>=</mo><mstyle mathcolor=\"red\">\(principal)</mstyle>OP<mrow>\(rate)</mrow>"),
+                       medium, accuracy: 0.01)
+        XCTAssertEqual(try added("×", in: "<mi>y</mi><mo>=</mo><mglyph alt=\"principal\"/>OP<mi>r</mi>"), medium, accuracy: 0.01)
+        // A sign stays a sign: before a number or an identifier MathML's forms decide, text or no text,
+        // and white space is not an operand.
+        XCTAssertEqual(try added("−", in: "<mtext>if </mtext>OP<mi>x</mi><mo>&gt;</mo><mn>0</mn>"), 0, accuracy: 0.01)
+        XCTAssertEqual(try added("−", in: "<mtext>Total: </mtext>OP<mn>5</mn>"), 0, accuracy: 0.01)
+        XCTAssertEqual(try added("−", in: "<mi>x</mi><mo>=</mo><mtext> </mtext>OP<mn>3</mn>"), 0, accuracy: 0.01)
+        XCTAssertEqual(try added("−", in: "<mi>x</mi><mo>=</mo><mspace width=\"1em\"/>OP<mn>3</mn>"), 0, accuracy: 0.01)
+        XCTAssertEqual(try added("−", in: "<mi>x</mi><mo>=</mo>OP<mtext>rate</mtext>"), 0, accuracy: 0.01)
+        XCTAssertEqual(try added("+", in: "<mi>x</mi>OP"), 0, accuracy: 0.01)
+    }
+
     func testMathVariants() {
         XCTAssertEqual(MathVariant.italic.apply(to: "x"), "𝑥")
         XCTAssertEqual(MathVariant.italic.apply(to: "h"), "ℎ")
