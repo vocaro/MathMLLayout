@@ -334,11 +334,15 @@ final class LayoutEngine {
     /// An `mrow` or inferred row: operators take their form from their position, vertical
     /// stretchy operators grow to cover the other children, and embellished operators get
     /// their spacing. A row whose only in-flow child is an embellished operator is one itself
-    /// and passes `embellishment` down to it.
+    /// and passes `embellishment` down to it. An enclosing row then spaces it as a whole; with
+    /// none (the root, a table cell, a radicand) it spaces the operator from its space-like
+    /// neighbours itself, so "<mtext>a</mtext><mo>=</mo><mtext>b</mtext>" keeps its relation space.
     func row(_ children: [MathMLNode], _ context: LayoutContext, _ embellishment: Embellishment = .none,
              depth: Int) throws -> MathBox {
         let inFlow = children.indices.filter { !isSpaceLike(children[$0]) }
         let core = inFlow.count == 1 && embellishedCore(children[inFlow[0]]) != nil ? inFlow[0] : nil
+        // A row gives each child a form, so a form here means an enclosing row applies the spacing.
+        let spacedByParent = embellishment.form != nil
         var forms = [OperatorForm](repeating: .infix, count: children.count)
         if inFlow.count > 1 {
             forms[inFlow[0]] = .prefix
@@ -371,12 +375,19 @@ final class LayoutEngine {
             let follows = position > 0 ? boxes[inFlow[position - 1]].op.map(isOperatorLike) ?? false : true
             if follows || position == inFlow.count - 1 { unary.insert(index) }
         }
+        // The sides of the core operator this row spaces itself: those with something beside it.
+        var spacesCore = (left: false, right: false)
+        if let core, !spacedByParent {
+            spacesCore = (boxes[..<core].contains { $0.width > 0 }, boxes[(core + 1)...].contains { $0.width > 0 })
+        }
         var box = MathBox()
         var x: CGFloat = 0
         for (index, child) in boxes.enumerated() {
             var lspace = child.op?.lspace ?? 0, rspace = child.op?.rspace ?? 0
-            // The enclosing row spaces an embellished row as a whole.
-            if index == core || unary.contains(index) { lspace = 0; rspace = 0 }
+            if index == core {
+                if !spacesCore.left { lspace = 0 }
+                if !spacesCore.right { rspace = 0 }
+            } else if unary.contains(index) { lspace = 0; rspace = 0 }
             if children[index].name == "mo", operatorText(children[index]) == "\u{2061}", context.scriptLevel == 0,
                index > 0, index + 1 < children.count, !startsWithFence(children[index + 1]) {
                 rspace = context.fontSize * 3 / 18 // A thin space after a function name, as TeX's \sin x.
@@ -392,7 +403,12 @@ final class LayoutEngine {
             box.italicCorrection = boxes[0].italicCorrection
             box.topAccentAttachment = boxes[0].topAccentAttachment
         }
-        if let core { box.op = boxes[core].op }
+        if let core {
+            box.op = boxes[core].op
+            // Spacing applied here is spent; the rest is for whoever lays this row out.
+            if spacesCore.left { box.op?.lspace = 0 }
+            if spacesCore.right { box.op?.rspace = 0 }
+        }
         return box
     }
 
