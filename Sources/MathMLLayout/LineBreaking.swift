@@ -158,6 +158,9 @@ final class BreakableRow {
     let isOperator: Bool
     /// Whether a `linebreak="newline"` is somewhere in the row: it then breaks whatever the width.
     let hasForced: Bool
+    /// Whether the row is more than one thing, itself or the one row it wraps: only then may a line
+    /// break in it.
+    let isSeveral: Bool
     let fontSize: CGFloat
     let display: Bool
     let style: LineStyle
@@ -166,6 +169,7 @@ final class BreakableRow {
          _ context: LayoutContext) {
         self.children = children; self.visible = visible; self.itemCount = itemCount; self.isOperator = isOperator
         hasForced = children.contains { $0.point?.linebreak == .newline || $0.box.row?.hasForced == true }
+        isSeveral = children.count > 1 || children.first?.box.row?.isSeveral == true
         fontSize = context.fontSize; display = context.display; style = context.lines
     }
 }
@@ -306,13 +310,31 @@ extension LayoutEngine {
     /// attachment image) never cuts an italic overhang or a glyph that leans past the left edge.
     static func lines(_ root: MathMLNode, style: MathStyle, maximumWidth: CGFloat,
                       firstRowMaximumWidth: CGFloat?) throws -> MathLines {
-        let limit = maximumWidth.isNaN ? .infinity : max(maximumWidth, 0)
-        let first = firstRowMaximumWidth.map { $0.isNaN ? limit : max($0, 0) } ?? limit
-        let size = min(max(style.fontSize, 1), 1000)
+        // A line wider than any formula may be is no limit: `.greatestFiniteMagnitude` is how a host
+        // says so as often as `.infinity`. Taken as a width, a row centred in it, or indented by a
+        // tenth of it, was placed past the bound on extent and the formula refused, and a share of
+        // 1e308 points overflowed to infinity and from there to rows of no width.
+        func bound(_ width: CGFloat) -> CGFloat { width.isNaN || width > MathLimits.extent ? .infinity : max(width, 0) }
+        let limit = bound(maximumWidth)
+        let first = firstRowMaximumWidth.map { $0.isNaN ? limit : bound($0) } ?? limit
+        let size = fontSize(style)
         // One engine, so whatever it keeps for the formula is kept across a second pass.
         let engine = LayoutEngine(fontName: style.fontName)
         engine.lineWidth = limit; engine.wrapWidth = limit
-        var paragraph = Paragraph(try engine.layoutRoot(root, style: style), fontSize: size)
+        /// The formula laid out again, what wraps in it wrapping to `wrap`.
+        func pass(_ wrap: CGFloat) throws -> Paragraph {
+            engine.restart()
+            engine.wrapWidth = wrap
+            return Paragraph(try engine.layoutRoot(root, style: style), fontSize: size)
+        }
+        /// The wrap width that made the pass just made what it is: `wrap`, or the width of the widest
+        /// thing in it that wraps when that is less, since any wrap width beyond that leaves it whole.
+        func reach(_ wrap: CGFloat) -> CGFloat { engine.loosest > 0 ? min(wrap, engine.loosest) : wrap }
+        var paragraph = try pass(limit)
+        // The wrap width of the layout that is kept and its widest stretch, and those of the layout
+        // wrapped least far beyond it in which a row overflowed.
+        var kept = (wrap: reach(limit), widest: paragraph.widest)
+        var over: (wrap: CGFloat, widest: CGFloat)?
         // A table (or a fraction, radical or enclosure) wraps its content to fit the line, but takes
         // no account of what stands beside it. So it narrows further, as far as the stretch it cannot
         // break from needs. A table that is most of its row narrows to keep the row whole instead:
@@ -320,18 +342,58 @@ extension LayoutEngine {
         // as what they hold grows taller, so a third pass settles what the second left over.
         for _ in 0..<2 {
             guard limit.isFinite, let wrapping = engine.narrowable else { break }
-            let whole = paragraph.entire.width, widest = paragraph.widest
+            let whole = paragraph.entire.width
             let keepsOneRow = wrapping.isTable && whole - wrapping.width <= first / 2
                 && wrapping.width - (whole - first) >= wrapping.minimum
-            let excess = keepsOneRow ? whole - first : widest - limit
+            let excess = keepsOneRow ? whole - first : kept.widest - limit
             let narrowed = wrapping.width - excess
-            guard excess > Paragraph.slop, narrowed > 0, narrowed < engine.wrapWidth else { break }
-            engine.restart()
-            engine.wrapWidth = narrowed
-            let narrower = Paragraph(try engine.layoutRoot(root, style: style), fontSize: size)
+            guard excess > Paragraph.slop, narrowed > 0, narrowed < kept.wrap else { break }
+            let narrower = try pass(narrowed)
             // No better: it was not what was too wide.
-            guard keepsOneRow ? narrower.entire.width < whole : narrower.widest < widest else { break }
+            guard keepsOneRow ? narrower.entire.width < whole : narrower.widest < kept.widest else { break }
+            // A table narrowed to keep its row whole is as narrow as that takes, whatever room is left.
+            over = keepsOneRow || kept.widest <= limit + Paragraph.slop ? nil : kept
             paragraph = narrower
+            kept = (reach(narrowed), narrower.widest)
+        }
+        // Those passes narrow by one measure: that of the widest thing that wraps and is most of the
+        // line. Two fractions side by side are one stretch, each half the line when it is theirs alone:
+        // the excess is more than either can lose, so both stayed whole and the stretch overflowed; on a
+        // line twice as wide both wrapped to that, and overflowed again. A host that scaled the formula
+        // to `widestUnbreakable` and laid it out at that width found a row wider still.
+        //
+        // So when a row would still overflow, everything wraps as far as it goes. That is the layout
+        // when it fits, and when it overflows all the same but by an eighth less: less for a host to
+        // scale, and the same layout at the width it asks for. Any less than that is not worth every
+        // fraction of the formula in a column of terms.
+        if limit.isFinite, engine.mayNarrow, kept.wrap > 0, kept.widest > limit + Paragraph.slop {
+            let narrowest = try pass(0)
+            if narrowest.widest <= limit + Paragraph.slop || narrowest.widest < kept.widest * 7 / 8 {
+                over = kept
+                paragraph = narrowest
+                kept = (0, narrowest.widest)
+            }
+        }
+        // And a layout that fits where one wrapped less far overflowed may have wrapped much further
+        // than the line asked: every term of those fractions on a line of its own. The wrap width is
+        // raised again, twice, and whichever layout fits is kept: first to where a stretch that grows
+        // evenly between the two would fill the line, and when that overflows, since a stretch grows a
+        // term at a time, to half way. Six passes at most, then, of a bounded layout.
+        if var over, limit.isFinite {
+            var missed = false
+            for _ in 0..<2 where kept.widest < limit * 7 / 8 && over.widest > kept.widest {
+                let even = kept.wrap + (limit - kept.widest) * (over.wrap - kept.wrap) / (over.widest - kept.widest)
+                let wrap = missed ? (kept.wrap + over.wrap) / 2 : even
+                guard wrap > kept.wrap + 1, wrap < over.wrap else { break }
+                let between = try pass(wrap)
+                if between.widest <= limit + Paragraph.slop {
+                    paragraph = between
+                    kept = (reach(wrap), between.widest)
+                } else {
+                    over = (reach(wrap), between.widest)
+                    missed = true
+                }
+            }
         }
         let rows = paragraph.rows(limit: limit, first: first, auto: (.left, paragraph.display ? paragraph.em : 0))
         var lines = MathLines(rows: engine.stack(rows, em: paragraph.em), widestUnbreakable: paragraph.widest,
@@ -381,6 +443,12 @@ extension LayoutEngine {
         return box
     }
 
+    /// Counts something that wraps and is `width` wide, which is more than the least it can be.
+    private func loose(_ width: CGFloat) {
+        mayNarrow = true
+        loosest = max(loosest, width)
+    }
+
     /// Counts something wrapped as what `lines` may narrow further: the widest that is most of the line.
     private func note(width: CGFloat, minimum: CGFloat, isTable: Bool = false) {
         guard lineWidth.isFinite, width > lineWidth / 2, width > minimum + Paragraph.slop,
@@ -393,11 +461,16 @@ extension LayoutEngine {
     /// is. MathML 3 (3.1.7.1) requires no breaks inside these and allows them, forced ones too.
     func wrapped(_ box: MathBox, beside fixed: CGFloat, align: IndentAlign = .center) -> MathBox? {
         let isForced = box.row?.hasForced == true
-        guard isForced || lineWidth.isFinite && box.width + fixed > min(wrapWidth, lineWidth / 2) else { return nil }
+        guard isForced || lineWidth.isFinite && box.width + fixed > min(wrapWidth, lineWidth / 2) else {
+            // Left whole and unmeasured: a row of more than one thing might wrap in a narrower line.
+            if box.row?.isSeveral == true { loose(box.width + fixed) }
+            return nil
+        }
         let paragraph = Paragraph(box)
         let least = min(paragraph.widest, box.width)
         var result = wrapped(paragraph, width: max(least, wrapWidth - fixed), align: align)
         result?.op = box.op
+        if (result ?? box).width > least + Paragraph.slop { loose((result ?? box).width + fixed) }
         note(width: (result ?? box).width + fixed, minimum: least + fixed)
         return result
     }
@@ -413,6 +486,8 @@ extension LayoutEngine {
             return name == "left" ? .left : name == "right" ? .right : .center
         }
         var paragraphs: [[Paragraph?]] = cells.map { [Paragraph?](repeating: nil, count: $0.count) }
+        // Asked before a forced break stacks a cell, which is then a box and no row.
+        let isSeveral = cells.contains { $0.contains { $0.box.row?.isSeveral == true } }
         for row in cells.indices {
             for column in cells[row].indices where cells[row][column].box.row?.hasForced == true {
                 let paragraph = Paragraph(cells[row][column].box)
@@ -431,7 +506,10 @@ extension LayoutEngine {
         }
         var width = total()
         // Smaller tables are left alone, and unmeasured: a row breaks around them.
-        guard lineWidth.isFinite, width > min(wrapWidth, lineWidth / 2) else { return }
+        guard lineWidth.isFinite, width > min(wrapWidth, lineWidth / 2) else {
+            if isSeveral { loose(width) }
+            return
+        }
         for row in cells.indices {
             for column in cells[row].indices {
                 let paragraph = paragraphs[row][column] ?? Paragraph(cells[row][column].box)
@@ -459,6 +537,7 @@ extension LayoutEngine {
             }
             width = total()
         }
+        if width > least.reduce(0, +) + fixed + Paragraph.slop { loose(width) }
         note(width: width, minimum: least.reduce(0, +) + fixed, isTable: true)
     }
 }

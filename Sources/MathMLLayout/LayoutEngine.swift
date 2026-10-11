@@ -13,6 +13,30 @@ enum MathLimits {
     static let extent: CGFloat = 50_000
     /// Drawing items (glyph runs, rules, paths, images, nested boxes) in one formula.
     static let items = 100_000
+    /// Bytes of stack that must be left when an element starts to lay out or to be read. `depth`
+    /// counts levels, and a level is as large as the build makes it: unoptimized, 63 levels of
+    /// `munderover` use 1.7 MB, and optimized 600 KB, where a thread that is not the main one has
+    /// 512 KB. The margin is for what an element does before it reaches another: its own frames
+    /// (27 KB at most, unoptimized), CoreText shaping its text (some 45 KB), and the host's image
+    /// provider.
+    static let stackMargin = 128 << 10
+
+    /// The lowest address the calling thread's stack may reach and leave `stackMargin`; zero, which
+    /// no stack reaches, when this is not running on the thread's own stack and nothing is known.
+    static func stackFloor() -> UInt {
+        let thread = pthread_self()
+        let top = UInt(bitPattern: pthread_get_stackaddr_np(thread)), size = UInt(pthread_get_stacksize_np(thread))
+        var marker = 0
+        let here = withUnsafeMutablePointer(to: &marker) { UInt(bitPattern: $0) }
+        guard here <= top, top - here <= size, size <= top else { return 0 }
+        return (top - size) &+ UInt(stackMargin)
+    }
+
+    /// Whether the stack has grown down past `floor`: one comparison, so every element can ask.
+    @inline(__always) static func isStackSpent(_ floor: UInt) -> Bool {
+        var marker = 0
+        return withUnsafeMutablePointer(to: &marker) { UInt(bitPattern: $0) } < floor
+    }
 }
 
 /// The inherited state of layout at one element: MathML's `displaystyle`, `scriptlevel`,
@@ -60,6 +84,8 @@ final class LayoutEngine {
     let constants: MathConstants
     private var nodeCount = 0
     private var textLength = 0
+    /// `MathLimits.stackFloor` of the thread that lays out, found as the root starts.
+    private var stackFloor: UInt = 0
     /// `MathStyle.imageProvider`, and what it has returned for each `src` it was asked for.
     var imageProvider: MathImageProvider? { didSet { if imageProvider != oldValue { imageCache = [:] } } }
     var imageCache: [String: CGImage?] = [:]
@@ -69,9 +95,13 @@ final class LayoutEngine {
         constants = font.constants
     }
 
+    /// The style's font size as layout takes it: between 1 and 1000 points, and 1 when it is no
+    /// number at all, which `min` and `max` would hand on to every measure of the formula.
+    static func fontSize(_ style: MathStyle) -> CGFloat { style.fontSize.isNaN ? 1 : min(max(style.fontSize, 1), 1000) }
+
     func layoutRoot(_ root: MathMLNode, style: MathStyle) throws -> MathBox {
         imageProvider = style.imageProvider
-        let size = min(max(style.fontSize, 1), 1000)
+        let size = Self.fontSize(style)
         let context = LayoutContext(fontSize: size, unclampedSize: size, minSize: min(size, max(8, size * 0.6)),
                                     display: style.isDisplay || root.attributes["display"] == "block",
                                     color: style.color)
@@ -145,7 +175,10 @@ final class LayoutEngine {
             context.decimalPoint = point
         }
         if let display = attributes.flag("displaystyle") { context.display = display }
-        if let level = attributes["scriptlevel"]?.trimmingCharacters(in: .whitespaces), let number = Int(level) {
+        if let level = attributes["scriptlevel"]?.trimmingCharacters(in: .whitespaces), let parsed = Int(level) {
+            // Levels stay within -8...16, so a change of 24 reaches either end from the other, and a
+            // number bounded so cannot overflow the sum: "+9223372036854775807" is markup too.
+            let number = min(max(parsed, -24), 24)
             setScriptLevel(&context, level.hasPrefix("+") || level.hasPrefix("-") ? context.scriptLevel + number : number)
         }
         if let size = attributes["mathsize"] ?? attributes["fontsize"] {
@@ -179,6 +212,9 @@ final class LayoutEngine {
     func layout(_ node: MathMLNode, _ outer: LayoutContext, _ embellishment: Embellishment = .none,
                 depth: Int) throws -> MathBox {
         guard depth < MathLimits.depth else { throw MathLayoutError.limitExceeded }
+        // The depth bound counts levels, not bytes, and a thread's stack may be spent well within it.
+        if depth == 0 { stackFloor = MathLimits.stackFloor() }
+        guard !MathLimits.isStackSpent(stackFloor) else { throw MathLayoutError.limitExceeded }
         nodeCount += 1
         guard nodeCount <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
         let context = inherit(node, outer)
@@ -234,7 +270,8 @@ final class LayoutEngine {
             box = try shown.map { try layout($0, context, embellishment, depth: depth + 1) } ?? .empty()
         case "maction":
             let selection = node.attributes["selection"].flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } ?? 1
-            let shown = children.indices.contains(selection - 1) ? children[selection - 1] : children.first
+            // Compared, not subtracted from first: a `selection` of `Int.min` has no number before it.
+            let shown = selection >= 1 && selection <= children.count ? children[selection - 1] : children.first
             box = try shown.map { try layout($0, context, embellishment, depth: depth + 1) } ?? .empty()
         case "merror":
             box = try errorBox(node, context, depth: depth)
@@ -259,58 +296,96 @@ final class LayoutEngine {
     var lineWidth = CGFloat.infinity, wrapWidth = CGFloat.infinity
     /// The widest of those that could be narrower still, the least it can be, and whether it is a table.
     var narrowable: (width: CGFloat, minimum: CGFloat, isTable: Bool)?
+    /// Whether anything that wraps (a table, a fraction's part, a radicand, an enclosure's content)
+    /// is wider than the least it can be, in any pass: a narrower `wrapWidth` may then narrow the
+    /// formula. And the widest such thing in this pass: no `wrapWidth` beyond it changes anything.
+    var mayNarrow = false
+    var loosest: CGFloat = 0
 
     /// Starts the counts of untrusted input again, to lay the same formula out once more.
     func restart() {
         nodeCount = 0
         textLength = 0
         narrowable = nil
+        loosest = 0
     }
 
     // MARK: Embellished operators
 
+    // These three look down a subtree before it is laid out, which may be deeper than layout will
+    // go. They are loops, not recursions: nothing stands between them and the end of the stack but
+    // the margin `layout` asks for, and 64 levels of their frames were most of that.
+
     /// The core `mo` of an embellished operator (MathML Core 3.2.4), or nil.
     func embellishedCore(_ node: MathMLNode, depth: Int = 0) -> MathMLNode? {
-        guard depth < MathLimits.depth else { return nil }
-        switch node.name {
-        case "mo": return node
-        case "msub", "msup", "msubsup", "munder", "mover", "munderover", "mmultiscripts", "mfrac", "semantics":
-            return node.children.first.flatMap { embellishedCore($0, depth: depth + 1) }
-        case "maction":
-            return node.children.first.flatMap { embellishedCore($0, depth: depth + 1) }
-        case "mrow", "mstyle", "mphantom", "mpadded":
-            let inFlow = node.children.filter { !isSpaceLike($0, depth: depth + 1) }
-            return inFlow.count == 1 ? embellishedCore(inFlow[0], depth: depth + 1) : nil
-        default: return nil
+        var node = node
+        for depth in depth..<MathLimits.depth {
+            switch node.name {
+            case "mo": return node
+            case "msub", "msup", "msubsup", "munder", "mover", "munderover", "mmultiscripts", "mfrac", "semantics", "maction":
+                guard let first = node.children.first else { return nil }
+                node = first
+            case "mrow", "mstyle", "mphantom", "mpadded":
+                // Its one child in flow, when it has exactly one.
+                var only: MathMLNode?
+                for child in node.children where !isSpaceLike(child, depth: depth + 1) {
+                    guard only == nil else { return nil }
+                    only = child
+                }
+                guard let only else { return nil }
+                node = only
+            default: return nil
+            }
         }
+        return nil
     }
 
     /// Space-like elements (MathML Core 3.2.5) do not count when inferring an operator's form.
     /// An `mglyph` outside a token is the `mtext` it is laid out as.
-    func isSpaceLike(_ node: MathMLNode, depth: Int = 0) -> Bool {
-        guard depth < MathLimits.depth else { return false }
-        switch node.name {
-        case "mtext", "mspace", "maligngroup", "malignmark", "mglyph": return true
-        case "mrow", "mstyle", "mphantom", "mpadded": return node.children.allSatisfy { isSpaceLike($0, depth: depth + 1) }
-        case "maction", "semantics": return node.children.first.map { isSpaceLike($0, depth: depth + 1) } ?? false
-        default: return false
-        }
-    }
+    func isSpaceLike(_ node: MathMLNode, depth: Int = 0) -> Bool { spaceLike(node, depth: depth) != nil }
 
     /// A space-like child that says something: an `mtext` with text or an `mglyph` in it, or what
     /// wraps one. MathML leaves it out when an operator takes its form from its place in the row,
     /// but beside an operator it is an operand, as TeX's `\text` is an ordinary atom: the `×` of
     /// "<mtext>principal</mtext><mo>×</mo><mtext>rate</mtext>" multiplies, it is not a sign.
-    func isText(_ node: MathMLNode, depth: Int = 0) -> Bool {
-        guard depth < MathLimits.depth else { return false }
+    /// What an `mphantom` hides says nothing.
+    func isText(_ node: MathMLNode, depth: Int = 0) -> Bool { spaceLike(node, depth: depth) == true }
+
+    /// nil when `node` is not space-like, else whether it says something (see `isText`). One walk
+    /// of the subtree answers both, from a list of what is still to visit at each level: a row's
+    /// children left to right, so the first that is not space-like ends the walk as early as it can end.
+    private func spaceLike(_ node: MathMLNode, depth: Int) -> Bool? {
+        guard depth < MathLimits.depth else { return nil }
+        // Most children of a row are tokens: no list for those.
         switch node.name {
         case "mtext": return Self.hasGlyph(node) || node.text.unicodeScalars.contains { !$0.properties.isWhitespace }
         case "mglyph": return true
-        case "mrow", "mstyle", "mpadded":
-            return isSpaceLike(node, depth: depth) && node.children.contains { isText($0, depth: depth + 1) }
-        case "maction", "semantics": return node.children.first.map { isText($0, depth: depth + 1) } ?? false
-        default: return false
+        case "mspace", "maligngroup", "malignmark": return false
+        case "mrow", "mstyle", "mphantom", "mpadded", "maction", "semantics": break
+        default: return nil
         }
+        var says = false
+        // The nodes still to visit at each level, and whether text there is shown.
+        var pending: [(rest: ArraySlice<MathMLNode>, depth: Int, shows: Bool)] = [([node][...], depth, true)]
+        while var level = pending.popLast() {
+            guard let node = level.rest.popFirst() else { continue }
+            pending.append(level)
+            guard level.depth < MathLimits.depth else { return nil }
+            switch node.name {
+            case "mtext":
+                if level.shows, !says { says = Self.hasGlyph(node) || node.text.unicodeScalars.contains { !$0.properties.isWhitespace } }
+            case "mglyph": says = says || level.shows
+            case "mspace", "maligngroup", "malignmark": break
+            case "mrow", "mstyle", "mphantom", "mpadded":
+                pending.append((node.children[...], level.depth + 1, level.shows && node.name != "mphantom"))
+            case "maction", "semantics":
+                // Only what is shown, which here is the first child.
+                guard !node.children.isEmpty else { return nil }
+                pending.append((node.children.prefix(1), level.depth + 1, level.shows))
+            default: return nil
+            }
+        }
+        return says
     }
 
     /// An `mo`'s text as drawn: hyphen-minus and apostrophe become the minus sign and prime,
@@ -408,7 +483,9 @@ final class LayoutEngine {
             }
         }
         if !deferred.isEmpty {
-            let others = boxes.indices.filter { !deferred.contains($0) }
+            // A set: a row may be ten thousand fences, and each child was looked for among them all.
+            let stretched = Set(deferred)
+            let others = boxes.indices.filter { !stretched.contains($0) }
             let stretch: Embellishment.Stretch? = others.isEmpty ? nil
                 : .vertical(ascent: others.map { boxes[$0].ascent }.max()!, descent: others.map { boxes[$0].descent }.max()!)
             for index in deferred {

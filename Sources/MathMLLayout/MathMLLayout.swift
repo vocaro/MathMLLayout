@@ -101,7 +101,8 @@ public final class MathLayout: @unchecked Sendable {
     /// The width of the widest unit that cannot break: the narrowest `maximumWidth` at which no row
     /// overflows. When it is more than the `maximumWidth` given, a row is wider than that, and a
     /// host scales the formula. Tables, fractions, radicals and enclosures count as they were laid
-    /// out: wrapped as far as the width given asked, and no further.
+    /// out: wrapped as far as the width given asked, and where a row overflows all the same, as far
+    /// as they go, so that a formula laid out again at this width fits it.
     public let widestUnbreakableWidth: CGFloat
 
     /// One line of a formula.

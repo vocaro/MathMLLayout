@@ -616,9 +616,9 @@ extension LayoutEngine {
             (frame == "dashed" ? dashed : solid).addRect(rect)
         }
         if !solid.isEmpty { box.items.append(.path(solid, lineWidth: stroke, color: context.color, fill: false)) }
+        // Dashed when it is drawn, never here: see `MathItem.dashes`.
         if !dashed.isEmpty {
-            box.items.append(.path(dashed.copy(dashingWithPhase: 0, lengths: [stroke * 4, stroke * 3]),
-                                   lineWidth: stroke, color: context.color, fill: false))
+            box.items.append(.dashes(dashed, lineWidth: stroke, color: context.color, lengths: [stroke * 4, stroke * 3]))
         }
         box.width = gridWidth + 2 * frameX + labelWidth
         box.ascent = top

@@ -42,6 +42,11 @@ private struct Speaker {
     private var count = 0
     /// UTF-16 units of text read so far, bounded as layout bounds a formula's (`MathLimits.textLength`).
     private var textLength = 0
+    /// Where the stack of the thread that reads is as good as spent (`MathLimits.stackFloor`). The
+    /// reading recurses a level for each of the markup's, and the bound on depth counts levels, not
+    /// the bytes they take: what lies deeper than the stack allows is left out, as what lies past
+    /// the other bounds is.
+    private let stackFloor = MathLimits.stackFloor()
 
     init(words: any MathVocabulary.Type) { self.words = words }
 
@@ -123,7 +128,7 @@ private struct Speaker {
 
     mutating func reading(of node: MathMLNode, depth: Int) -> String {
         count += 1
-        guard depth < MathLimits.depth, count <= MathLimits.nodes else { return "" }
+        guard depth < MathLimits.depth, count <= MathLimits.nodes, !MathLimits.isStackSpent(stackFloor) else { return "" }
         let children = node.children
         func child(_ index: Int) -> String {
             children.indices.contains(index) ? reading(of: children[index], depth: depth + 1) : ""
@@ -229,7 +234,7 @@ private struct Speaker {
         for node in nodes where rows.count < MathLimits.nodes {
             guard node.name == "msgroup" else { rows.append((node, depth)); continue }
             count += 1
-            guard depth < MathLimits.depth, count <= MathLimits.nodes else { continue }
+            guard depth < MathLimits.depth, count <= MathLimits.nodes, !MathLimits.isStackSpent(stackFloor) else { continue }
             gather(node.children, depth: depth + 1, into: &rows)
         }
     }
