@@ -27,8 +27,15 @@ struct OperatorProperties: Sendable {
     var isBinary = false
     /// The dictionary's spacing, in eighteenths of an em, before attributes or script level.
     var dictionarySpacing: (lspace: UInt8, rspace: UInt8) = (0, 0)
+    /// Whether and how a line may break at the operator; nil when it was not laid out as an `mo`.
+    var breakPoint: BreakPoint?
     func has(_ flag: OperatorFlags) -> Bool { flags.contains(flag) }
 }
+
+/// How willingly a line breaks at an operator, best first (MathML 3, 3.1.7.2, and The TeXbook's
+/// chapter 18: after relations in preference to binary operations). `none` never breaks unless
+/// its `mo` says so, and `glue` also holds its neighbours together: a function and its argument.
+enum BreakClass: UInt8, Sendable { case none, relation, separator, space, additive, multiplicative, glue }
 
 /// The operator dictionary: default spacing and properties of common operators by form.
 ///
@@ -36,24 +43,32 @@ struct OperatorProperties: Sendable {
 /// arrows get a thick space (5/18 em) each side, binary operators a medium one (4/18 em) and
 /// lose it as prefixes (unary minus), punctuation a thin space after, large operators a thin
 /// space each side, fences none. An operator not listed gets thick spaces, as in MathML Core.
+///
+/// The same classes rank line breaks: at a relation first, then at a sum, then at a product. An
+/// operator not listed is spaced as a relation, and between two operands breaks as one.
 enum OperatorDictionary {
     struct Entry: Sendable, Equatable {
         /// Eighteenths of an em.
         var lspace: UInt8
         var rspace: UInt8
         var flags: OperatorFlags
+        var breakClass = BreakClass.none
     }
-    static let unknown = Entry(lspace: 5, rspace: 5, flags: [])
+    static let unknown = Entry(lspace: 5, rspace: 5, flags: [], breakClass: .relation)
 
     private struct Key: Hashable { let text: String; let form: OperatorForm }
 
     /// The entry for `text` in `form`; a missing form falls back to infix, postfix, then prefix.
     static func entry(_ text: String, form: OperatorForm) -> Entry {
-        if let entry = table[Key(text: text, form: form)] { return entry }
-        for other in [OperatorForm.infix, .postfix, .prefix] where other != form {
-            if let entry = table[Key(text: text, form: other)] { return entry }
-        }
-        return unknown
+        if let listed = listedForm(text, form: form), let entry = table[Key(text: text, form: listed)] { return entry }
+        return form == .infix ? unknown : Entry(lspace: unknown.lspace, rspace: unknown.rspace, flags: unknown.flags)
+    }
+
+    /// The form of the entry that `entry` finds, nil for an operator not listed: what the operator
+    /// is, where its position says otherwise. A "(" in the middle of a row is still an opening
+    /// fence, and an "=" that starts one is still a relation.
+    static func listedForm(_ text: String, form: OperatorForm) -> OperatorForm? {
+        [form, .infix, .postfix, .prefix].first { table[Key(text: text, form: $0)] != nil }
     }
 
     /// Whether an operator stretches horizontally rather than vertically.
@@ -68,9 +83,11 @@ enum OperatorDictionary {
 
     private static let table: [Key: Entry] = {
         var table: [Key: Entry] = [:]
-        func add(_ characters: String, _ form: OperatorForm, _ lspace: UInt8, _ rspace: UInt8, _ flags: OperatorFlags = []) {
+        func add(_ characters: String, _ form: OperatorForm, _ lspace: UInt8, _ rspace: UInt8, _ flags: OperatorFlags = [],
+                 _ breakClass: BreakClass = .none) {
             for scalar in characters.unicodeScalars {
-                table[Key(text: String(scalar), form: form)] = Entry(lspace: lspace, rspace: rspace, flags: flags)
+                table[Key(text: String(scalar), form: form)] = Entry(lspace: lspace, rspace: rspace, flags: flags,
+                                                                     breakClass: breakClass)
             }
         }
         func addWords(_ words: [String], _ form: OperatorForm, _ lspace: UInt8, _ rspace: UInt8, _ flags: OperatorFlags = []) {
@@ -79,19 +96,23 @@ enum OperatorDictionary {
         let relations = "=≠<>≤≥≦≧≨≩≪≫≮≯≰≱≈≉≊≋≃≄≅≆≇≡≢≣∼≁≍≎≏≐≑≒≓≔≕≖≗≘≙≚≛≜≝≞≟∝∈∉∊∋∌∍"
             + "⊂⊃⊄⊅⊆⊇⊈⊉⊊⊋⊏⊐⊑⊒≺≻≼≽≾≿⊀⊁⊢⊣⊥⊨⊩⊪⊫⊬⊭∣∤∥∦≬⋈⋍⋐⋑⋘⋙⋚⋛⋞⋟⋠⋡⋢⋣⋤⋥⋦⋧⋨⋩⋪⋫⋬⋭"
             + "∴∵∷∶:⩽⩾⪅⪆⪇⪈⪉⪊⪋⪌⪯⪰⊸⟂≺"
-        add(relations, .infix, 5, 5)
-        add("↖↗↘↙↰↱↲↳↶↷↺↻", .infix, 5, 5)
-        add(horizontalArrows, .infix, 5, 5, .stretchy)
-        add(verticalArrows, .infix, 5, 5, .stretchy)
-        let binary = "+−±∓×÷·∙∗∘⋅⊕⊖⊗⊘⊙⊚⊛⊝∪∩⊎⊔⊓∧∨∖⋆⋄◇△▽◁▷⊲⊳⊴⊵≀⨯⨿⊞⊟⊠⊡⋋⋌⋎⋏⋒⋓†‡*\\"
-        add(binary, .infix, 4, 4)
+        add(relations, .infix, 5, 5, [], .relation)
+        add("↖↗↘↙↰↱↲↳↶↷↺↻", .infix, 5, 5, [], .relation)
+        add(horizontalArrows, .infix, 5, 5, .stretchy, .relation)
+        add(verticalArrows, .infix, 5, 5, .stretchy, .relation)
+        // Binary operators, split by how tightly they bind: a line breaks at a sum before a product.
+        add("+−±∓⊕⊖⊝∪⊎⊔∨∖⊞⊟⋎⋓\\", .infix, 4, 4, [], .additive)
+        add("×÷·∙∗∘⋅⊗⊘⊙⊚⊛∩⊓∧⋆⋄◇△▽◁▷⊲⊳⊴⊵≀⨯⨿⊠⊡⋋⋌⋏⋒†‡*", .infix, 4, 4, [], .multiplicative)
         add("+−±∓¬∁", .prefix, 0, 0)
         add("∀∃∄∂∇∆√∛∜", .prefix, 0, 0)
         add("/", .infix, 0, 0)
         add("!′″‴⁗‵‶‷'%°", .postfix, 0, 0)
-        add(",;", .infix, 0, 3, .separator)
+        add(",;", .infix, 0, 3, .separator, .separator)
         add("\u{2063}", .infix, 0, 0, .separator)
-        add("\u{2061}\u{2062}\u{2064}.…⋯⋮⋰⋱", .infix, 0, 0)
+        // Invisible times is a product. Function application and invisible plus (a mixed number) never part.
+        add("\u{2062}", .infix, 0, 0, [], .multiplicative)
+        add("\u{2061}\u{2064}", .infix, 0, 0, [], .glue)
+        add(".…⋯⋮⋰⋱", .infix, 0, 0)
         let fence: OperatorFlags = [.stretchy, .symmetric, .fence]
         add("([{⟨⟦⟪⟬⟮⦃⦅⦇⦉⦋⦍⦏⦑⦓⦕⦗⌈⌊〈❲⁅", .prefix, 0, 0, fence)
         add(")]}⟩⟧⟫⟭⟯⦄⦆⦈⦊⦌⦎⦐⦒⦔⦖⦘⌉⌋〉❳⁆", .postfix, 0, 0, fence)

@@ -4,44 +4,7 @@ import Foundation
 @testable import MathMLLayout
 import XCTest
 
-final class MathMLLayoutTests: XCTestCase {
-    private let black = CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1)
-
-    private func node(_ body: String, display: Bool = false) throws -> MathMLNode {
-        let attribute = display ? " display=\"block\"" : ""
-        return try MathMLNode.parse(xml: Data("<math xmlns=\"http://www.w3.org/1998/Math/MathML\"\(attribute)>\(body)</math>".utf8))
-    }
-
-    private func layout(_ body: String, size: CGFloat = 20, display: Bool = false, font: String? = nil) throws -> MathLayout {
-        try MathLayout(node(body, display: display), style: MathStyle(fontSize: size, color: black, fontName: font))
-    }
-
-    private func height(_ layout: MathLayout) -> CGFloat { layout.ascent + layout.descent }
-
-    /// Draws `layout` into a bitmap with a margin and returns the bounds of its ink, in
-    /// points relative to the baseline origin (y up).
-    private func ink(_ layout: MathLayout, margin: CGFloat = 20) -> CGRect? {
-        let scale: CGFloat = 2
-        let width = Int((layout.width + 2 * margin) * scale), height = Int((self.height(layout) + 2 * margin) * scale)
-        let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
-                                space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        context.scaleBy(x: scale, y: scale)
-        layout.draw(in: context, baselineOrigin: CGPoint(x: margin, y: margin + layout.descent))
-        let pixels = context.data!.bindMemory(to: UInt8.self, capacity: width * height * 4)
-        var minX = Int.max, minY = Int.max, maxX = -1, maxY = -1
-        for row in 0..<height {
-            for column in 0..<width where pixels[(row * width + column) * 4 + 3] > 24 {
-                minX = min(minX, column); maxX = max(maxX, column); minY = min(minY, row); maxY = max(maxY, row)
-            }
-        }
-        guard maxX >= 0 else { return nil }
-        // Bitmap rows run top-down.
-        let top = CGFloat(height - minY) / scale, bottom = CGFloat(height - maxY - 1) / scale
-        return CGRect(x: CGFloat(minX) / scale - margin, y: bottom - margin - layout.descent,
-                      width: CGFloat(maxX - minX + 1) / scale, height: top - bottom)
-    }
-
+final class MathMLLayoutTests: MathTestCase {
     func testUsesThePlatformMathFont() {
         let font = MathFont.named(nil)
         XCTAssertEqual(CTFontCopyPostScriptName(font.base) as String, "STIXTwoMath-Regular")
@@ -191,6 +154,80 @@ final class MathMLLayoutTests: XCTestCase {
         XCTAssertEqual(try layout("<mo>-</mo>").width, minus, accuracy: 0.01, "hyphen-minus draws as the minus sign")
     }
 
+    /// `mtext` is space-like, so an operator between two is its row's only in-flow child: the
+    /// row is an embellished operator, and with no enclosing row it must space the operator itself.
+    func testOperatorBetweenTextOperandsKeepsItsSpacing() throws {
+        let relation: CGFloat = 2 * 20 * 5 / 18
+        /// The laid-out width less the widths of the parts laid out alone, as the report measured.
+        func space(_ parts: [String], wrap: (String) -> String = { $0 }) throws -> CGFloat {
+            try layout(wrap(parts.joined())).width - parts.reduce(0) { try $0 + layout(wrap($1)).width }
+        }
+        let identifiers = try space(["<mi>a</mi>", "<mo>=</mo>", "<mi>b</mi>"])
+        let texts = ["<mtext>future value</mtext>", "<mo>=</mo>", "<mtext>principal</mtext>"]
+        XCTAssertEqual(identifiers, relation, accuracy: 0.5)
+        XCTAssertEqual(try space(texts), relation, accuracy: 0.01)
+        XCTAssertEqual(try space(["<mtext>future value</mtext>", "<mo>=</mo>", "<mi>b</mi>"]), identifiers, accuracy: 0.5)
+        XCTAssertEqual(try space(texts, wrap: { "<mtable><mtr><mtd>\($0)</mtd></mtr></mtable>" }), relation, accuracy: 0.01)
+        // A binary operator between texts is spaced as one, not drawn as a sign.
+        XCTAssertEqual(try space(["<mtext>a</mtext>", "<mo>+</mo>", "<mtext>b</mtext>"]), 2 * 20 * 4 / 18, accuracy: 0.01)
+
+        /// The space an `=` gets where `wrap` puts it: the width it adds over an unspaced one.
+        func added(_ wrap: (String) -> String) throws -> CGFloat {
+            try layout(wrap("<mo>=</mo>")).width - layout(wrap("<mo lspace=\"0\" rspace=\"0\">=</mo>")).width
+        }
+        let between = { (operator: String) in "<mtext>a</mtext>\(`operator`)<mtext>b</mtext>" }
+        // Wrapped in an mrow, in a cell, as a radicand: still no enclosing row to space it.
+        XCTAssertEqual(try added { "<mrow>\(between($0))</mrow>" }, relation, accuracy: 0.01)
+        XCTAssertEqual(try added { "<mtable><mtr><mtd><mrow>\(between($0))</mrow></mtd></mtr></mtable>" }, relation, accuracy: 0.01)
+        XCTAssertEqual(try added { "<msqrt>\(between($0))</msqrt>" }, relation, accuracy: 0.01)
+        XCTAssertEqual(try added { "<msqrt><mrow>\(between($0))</mrow></msqrt>" }, relation, accuracy: 0.01)
+        // Split across rows, each side is still spaced exactly once.
+        XCTAssertEqual(try added { "<mtext>a</mtext><mrow>\($0)<mtext>b</mtext></mrow>" }, relation, accuracy: 0.01)
+        // An enclosing row spaces an embellished row as a whole, once.
+        XCTAssertEqual(try added { "<mi>x</mi><mrow>\(between($0))</mrow><mi>y</mi>" }, relation, accuracy: 0.01)
+        // Space only towards a neighbour: an operator alone, or at an edge, is not padded there.
+        XCTAssertEqual(try added { $0 }, 0, accuracy: 0.01)
+        XCTAssertEqual(try added { "<mrow>\($0)</mrow>" }, 0, accuracy: 0.01)
+        XCTAssertEqual(try added { "<mtext>a</mtext>\($0)" }, relation / 2, accuracy: 0.01)
+        // Scripts drop relation spacing, as before.
+        XCTAssertEqual(try added { "<msub><mi>x</mi><mrow>\(between($0))</mrow></msub>" }, 0, accuracy: 0.01)
+    }
+
+    /// With two operators the row is no embellished operator, and each takes its form from its
+    /// place among the in-flow children, which the texts are not. They are operands all the same.
+    func testEveryOperatorOfAWordEquationIsSpaced() throws {
+        let medium: CGFloat = 2 * 20 * 4 / 18, thick: CGFloat = 2 * 20 * 5 / 18
+        /// The space `symbol` gets in `body`, where `OP` marks it: the width it adds over an unspaced one.
+        func added(_ symbol: String, in body: String) throws -> CGFloat {
+            try layout(body.replacingOccurrences(of: "OP", with: "<mo>\(symbol)</mo>")).width
+                - layout(body.replacingOccurrences(of: "OP", with: "<mo lspace=\"0\" rspace=\"0\">\(symbol)</mo>")).width
+        }
+        let value = "<mtext>future value</mtext>", principal = "<mtext>principal</mtext>", rate = "<mtext>rate</mtext>"
+        // A product after a relation, a sum before one, and a relation last among the operators.
+        XCTAssertEqual(try added("×", in: "\(value)<mo>=</mo>\(principal)OP\(rate)"), medium, accuracy: 0.01)
+        XCTAssertEqual(try added("=", in: "\(value)OP\(principal)<mo>×</mo>\(rate)"), thick, accuracy: 0.01)
+        XCTAssertEqual(try added("−", in: "\(value)OP\(principal)<mo>=</mo>\(rate)"), medium, accuracy: 0.01)
+        XCTAssertEqual(try added("+", in: "\(value)OP\(principal)<mo>=</mo>\(rate)"), medium, accuracy: 0.01)
+        XCTAssertEqual(try added("=", in: "\(value)<mo>−</mo>\(principal)OP\(rate)"), thick, accuracy: 0.01)
+        // Text on one side is operand enough for a product, whatever is on the other.
+        XCTAssertEqual(try added("×", in: "\(value)<mo>=</mo>\(principal)OP<msup><mrow><mo>(</mo><mn>1</mn><mo>+</mo><mi>r</mi><mo>)</mo></mrow><mi>n</mi></msup>"),
+                       medium, accuracy: 0.01)
+        XCTAssertEqual(try added("×", in: "\(value)OP<mi>b</mi><mo>=</mo><mi>c</mi>"), medium, accuracy: 0.01)
+        XCTAssertEqual(try added("+", in: "<mn>5</mn><mtext> apples </mtext>OP<mn>3</mn><mtext> pears</mtext>"), medium, accuracy: 0.01)
+        // Wrapped text is text; an image glyph and its alt are too.
+        XCTAssertEqual(try added("×", in: "<mi>y</mi><mo>=</mo><mstyle mathcolor=\"red\">\(principal)</mstyle>OP<mrow>\(rate)</mrow>"),
+                       medium, accuracy: 0.01)
+        XCTAssertEqual(try added("×", in: "<mi>y</mi><mo>=</mo><mglyph alt=\"principal\"/>OP<mi>r</mi>"), medium, accuracy: 0.01)
+        // A sign stays a sign: before a number or an identifier MathML's forms decide, text or no text,
+        // and white space is not an operand.
+        XCTAssertEqual(try added("−", in: "<mtext>if </mtext>OP<mi>x</mi><mo>&gt;</mo><mn>0</mn>"), 0, accuracy: 0.01)
+        XCTAssertEqual(try added("−", in: "<mtext>Total: </mtext>OP<mn>5</mn>"), 0, accuracy: 0.01)
+        XCTAssertEqual(try added("−", in: "<mi>x</mi><mo>=</mo><mtext> </mtext>OP<mn>3</mn>"), 0, accuracy: 0.01)
+        XCTAssertEqual(try added("−", in: "<mi>x</mi><mo>=</mo><mspace width=\"1em\"/>OP<mn>3</mn>"), 0, accuracy: 0.01)
+        XCTAssertEqual(try added("−", in: "<mi>x</mi><mo>=</mo>OP<mtext>rate</mtext>"), 0, accuracy: 0.01)
+        XCTAssertEqual(try added("+", in: "<mi>x</mi>OP"), 0, accuracy: 0.01)
+    }
+
     func testMathVariants() {
         XCTAssertEqual(MathVariant.italic.apply(to: "x"), "𝑥")
         XCTAssertEqual(MathVariant.italic.apply(to: "h"), "ℎ")
@@ -246,14 +283,8 @@ final class MathMLLayoutTests: XCTestCase {
     }
 
     func testUnsupportedAndInvalidMarkupThrow() throws {
-        XCTAssertThrowsError(try layout("<mlongdiv><mn>1</mn><mn>2</mn></mlongdiv>")) {
-            XCTAssertEqual($0 as? MathLayoutError, .unsupported("mlongdiv"))
-        }
-        XCTAssertThrowsError(try layout("<mrow><mi>x</mi><mstack/></mrow>")) {
-            XCTAssertEqual($0 as? MathLayoutError, .unsupported("mstack"))
-        }
-        XCTAssertThrowsError(try layout("<mi><mglyph src=\"a.png\" alt=\"a\"/></mi>")) {
-            XCTAssertEqual($0 as? MathLayoutError, .unsupported("mglyph"))
+        XCTAssertThrowsError(try layout("<mrow><mi>x</mi><mnosuch/></mrow>")) {
+            XCTAssertEqual($0 as? MathLayoutError, .unsupported("mnosuch"))
         }
         XCTAssertThrowsError(try layout("<mfrac><mi>x</mi></mfrac>")) {
             XCTAssertEqual($0 as? MathLayoutError, .invalidMarkup("mfrac"))
@@ -376,6 +407,49 @@ final class MathMLLayoutTests: XCTestCase {
         XCTAssertGreaterThan(layout.ascent, 0)
         XCTAssertGreaterThan(layout.descent, 0)
         XCTAssertEqual(formula.accessibilityDescription, "start fraction a over b squared end fraction")
+    }
+
+    /// The README's line-breaking, image and reading examples, verbatim, for the same reason.
+    func testReadmeFeatureExamples() throws {
+        func drawBroken(_ formula: MathMLNode, style: MathStyle, in context: CGContext) throws {
+            // A display formula in a 320-point column: every row, stacked under the first row's baseline.
+            let block = try MathLayout(formula, style: style, maximumWidth: 320)
+            block.draw(in: context, baselineOrigin: CGPoint(x: 0, y: block.descent))
+
+            // An inline formula that starts where 90 points are left on its text line. Each row is a
+            // fragment with its own box: place one on each following text line and draw it there.
+            let inline = try MathLayout(formula, style: style, maximumWidth: 320, firstRowMaximumWidth: 90)
+            var baseline = CGPoint(x: 230, y: 400)
+            for row in inline.rows {
+                row.draw(in: context, baselineOrigin: baseline)
+                baseline = CGPoint(x: 0, y: baseline.y - 24)
+            }
+        }
+
+        func style(images: [String: CGImage]) -> MathStyle {
+            let provider = MathImageProvider { source in images[source] }
+            return MathStyle(fontSize: 17, color: CGColor(gray: 0, alpha: 1), imageProvider: provider)
+        }
+
+        func reading(of formula: MathMLNode) -> String {
+            let reading = formula.accessibilityDescription(locale: Locale(identifier: "fr-CA"))
+            // reading.language is "fr": speak reading.text with a French voice.
+            return reading.text // "début de fraction a sur b au carré fin de fraction"
+        }
+
+        let context = try XCTUnwrap(CGContext(data: nil, width: 400, height: 500, bitsPerComponent: 8, bytesPerRow: 0,
+                                              space: CGColorSpaceCreateDeviceRGB(),
+                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        let image = try XCTUnwrap(context.makeImage())
+        let sum = (1...16).map { "<mi>term\($0)</mi>" }.joined(separator: "<mo>+</mo>") + "<mo>+</mo><mi><mglyph src=\"a.png\" alt=\"a\"/></mi>"
+        let long = try node("<mi>y</mi><mo>=</mo>" + sum)
+        try drawBroken(long, style: style(images: ["a.png": image]), in: context)
+        let inline = try MathLayout(long, style: style(images: [:]), maximumWidth: 320, firstRowMaximumWidth: 90)
+        XCTAssertGreaterThan(inline.rows.count, 2)
+        XCTAssertLessThanOrEqual(inline.rows[0].width, 90)
+        let markup = #"<math display="block"><mfrac><mi>a</mi><msup><mi>b</mi><mn>2</mn></msup></mfrac></math>"#
+        XCTAssertEqual(reading(of: try MathMLNode.parse(xml: Data(markup.utf8))), "début de fraction a sur b au carré fin de fraction")
+        XCTAssertEqual(MathReading.languages, ["en", "fr", "de", "es", "it"])
     }
 }
 

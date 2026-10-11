@@ -14,6 +14,8 @@ struct MathBox {
     var topAccentAttachment: CGFloat?
     /// Set when the box is an embellished operator: the core `mo`'s resolved properties.
     var op: OperatorProperties?
+    /// Set when the box is a row a line may break inside: its children, kept apart.
+    var row: BreakableRow?
     var items: [MathItem] = []
 
     var height: CGFloat { ascent + descent }
@@ -27,6 +29,9 @@ struct MathBox {
     mutating func add(_ box: MathBox, at point: CGPoint) {
         guard !box.items.isEmpty else { return }
         if point == .zero, box.items.count == 1, case .box = box.items[0] { items.append(box.items[0]); return }
+        // What is drawn keeps no row structure: that is for whoever may still break the row.
+        var box = box
+        box.row = nil
         items.append(.box(box, at: point))
     }
 
@@ -37,8 +42,8 @@ struct MathBox {
         for item in items {
             switch item {
             case .glyphs(let run): if !run.ink.isNull { merge(run.ink) }
-            case .rect(let rect, _): merge(rect)
-            case .path(let path, let lineWidth, _, _):
+            case .rect(let rect, _), .image(_, let rect): merge(rect)
+            case .path(let path, let lineWidth, _, _), .dashes(let path, let lineWidth, _, _):
                 merge(path.boundingBoxOfPath.insetBy(dx: -lineWidth / 2, dy: -lineWidth / 2))
             case .box(let box, let point):
                 if let ink = box.inkBounds { merge(ink.offsetBy(dx: point.x, dy: point.y)) }
@@ -79,6 +84,21 @@ struct MathBox {
                     context.strokePath()
                 }
                 context.restoreGState()
+            case .dashes(let path, let lineWidth, let color, let lengths):
+                context.saveGState()
+                context.translateBy(x: origin.x, y: origin.y)
+                context.addPath(path)
+                context.setStrokeColor(color)
+                context.setLineWidth(lineWidth)
+                context.setLineCap(.round)
+                context.setLineJoin(.round)
+                // A pattern CoreGraphics would refuse (a rule of no thickness has dashes of no length) is no pattern.
+                if lengths.allSatisfy({ $0.isFinite && $0 > 0 }) { context.setLineDash(phase: 0, lengths: lengths) }
+                context.strokePath()
+                context.restoreGState()
+            case .image(let image, let rect):
+                // Upright as it is: CoreGraphics puts an image's top row at the rect's greater y.
+                context.draw(image, in: rect.offsetBy(dx: origin.x, dy: origin.y))
             case .box(let box, let point):
                 box.draw(in: context, at: CGPoint(x: origin.x + point.x, y: origin.y + point.y))
             }
@@ -101,5 +121,12 @@ enum MathItem {
     case rect(CGRect, CGColor)
     /// Stroked with `lineWidth`, or filled when the flag is set.
     case path(CGPath, lineWidth: CGFloat, color: CGColor, fill: Bool)
+    /// Stroked with `lineWidth` in dashes of `lengths`, drawn and skipped in turn. The path is whole
+    /// and the context dashes it as it draws: a path dashed when it is laid out has as many pieces as
+    /// its length holds dashes, and markup sets the two apart (a table's rule is as thick as its own
+    /// font is large, and as long as its content is wide), so that was millions of dashes nobody drew.
+    case dashes(CGPath, lineWidth: CGFloat, color: CGColor, lengths: [CGFloat])
+    /// An `mglyph`'s image, scaled to fill the rect.
+    case image(CGImage, CGRect)
     case box(MathBox, at: CGPoint)
 }
