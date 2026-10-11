@@ -573,15 +573,25 @@ extension LayoutEngine {
         }
         stack.height = y
 
-        /// The ends of the columns that `cells` of line `index` are in.
-        func ends(of cells: Range<Int>, on index: Int) -> (left: CGFloat, right: CGFloat) {
-            let from = lines[index].start - first + cells.lowerBound, to = lines[index].start - first + cells.upperBound - 1
+        /// The ends of the columns that the cells `range` of line `index` are in.
+        func ends(ofColumns range: Range<Int>, on index: Int) -> (left: CGFloat, right: CGFloat) {
+            let from = lines[index].start - first + range.lowerBound, to = lines[index].start - first + range.upperBound - 1
             return (lefts[from], lefts[to] + widths[to])
+        }
+        /// How far the cells `range` of line `index` reach: the ends of their columns, or of a
+        /// cell that overflows them. A background is behind all of what it is the background of.
+        func ends(of range: Range<Int>, on index: Int) -> (left: CGFloat, right: CGFloat) {
+            var (left, right) = ends(ofColumns: range, on: index)
+            for offset in range {
+                guard let cell = lines[index].cells[offset] else { continue }
+                left = min(left, origins[index][offset]); right = max(right, origins[index][offset] + cell.width)
+            }
+            return (left, right)
         }
         /// The ends of the rule that is line `index`, with its overhangs.
         func ends(ofRule index: Int) -> (left: CGFloat, right: CGFloat) {
             let line = lines[index]
-            let (left, right) = line.count > 0 ? ends(of: 0..<line.count, on: index) : (0, width)
+            let (left, right) = line.count > 0 ? ends(ofColumns: 0..<line.count, on: index) : (0, width)
             return (left - line.overhang.left, right + line.overhang.right)
         }
         var backgrounds: [MathItem] = [], groups: [MathItem] = []

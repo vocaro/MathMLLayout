@@ -1022,6 +1022,47 @@ final class ElementaryMathTests: MathTestCase {
         XCTAssertEqual(try drawing("<msline length='2' mathbackground='yellow'/>").rules.map(\.color), [yellow, black])
     }
 
+    /// A sign wider than the digits it shares a column with overflows the column (3.6.1.2). The
+    /// background of what it is in goes as far as it does, not to the edge of the column.
+    func testBackgroundsCoverWhatOverflowsAColumn() throws {
+        let yellow = try XCTUnwrap(MathColor.parse("yellow"))
+        func background(_ body: String, file: StaticString = #filePath, line: UInt = #line) throws -> (rect: CGRect, drawn: Drawing) {
+            let drawn = try drawing(body)
+            XCTAssertEqual(drawn.rules.map(\.color), [yellow], body, file: file, line: line)
+            try assertCoversInk(body, file: file, line: line)
+            return (try XCTUnwrap(drawn.rules.first, body, file: file, line: line).rect, drawn)
+        }
+        // A leading sign overflows the hundreds to the left, and its row's background with it.
+        var (rect, sum) = try background("<mstack><mn>99</mn><msrow mathbackground='yellow'><mo>+</mo><mn>11</mn></msrow><mn>110</mn></mstack>")
+        var plus = try sum.glyph("plus")
+        XCTAssertLessThan(plus.origin.x, sum.row(2)[0].origin.x - 1, "the sign does overflow")
+        equal(rect.minX, plus.origin.x); equal(rect.maxX, sum.row(1)[2].right)
+        XCTAssertTrue(rect.contains(plus.ink))
+        // A trailing one, to the right.
+        (rect, sum) = try background("<mstack stackalign='right'><mn>123</mn><msrow mathbackground='yellow'><mn>456</mn><mo>+</mo></msrow></mstack>")
+        plus = try sum.glyph("plus")
+        XCTAssertGreaterThan(plus.right, try sum.glyph("three").right + 1)
+        equal(rect.minX, try sum.glyph("four").origin.x); equal(rect.maxX, plus.right)
+        XCTAssertTrue(rect.contains(plus.ink))
+        // An mstyle's around the sign alone is the sign's box, and a number's beside it is still its digits'.
+        (rect, sum) = try background("<mstack><mn>99</mn><msrow><mstyle mathbackground='yellow'><mo>+</mo></mstyle><mn>11</mn></msrow>"
+            + "<mn>110</mn></mstack>")
+        equal(rect.minX, try sum.glyph("plus").origin.x); equal(rect.maxX, try sum.glyph("plus").right)
+        (rect, sum) = try background("<mstack><mn>99</mn><msrow><mo>+</mo><mn mathbackground='yellow'>11</mn></msrow><mn>110</mn></mstack>")
+        equal(rect.minX, sum.row(1)[1].origin.x); equal(rect.maxX, sum.row(1)[2].right)
+        // A group's follows its rows.
+        (rect, sum) = try background("<mstack><msgroup mathbackground='yellow'><mn>99</mn><msrow><mo>+</mo><mn>11</mn></msrow></msgroup>"
+            + "<mn>110</mn></mstack>")
+        equal(rect.minX, try sum.glyph("plus").origin.x); equal(rect.maxX, sum.row(1)[2].right)
+        // Carries wider than their column, where the spacing is a length and makes no room for them.
+        (rect, sum) = try background("<mstack charspacing='0'><mscarries mathbackground='yellow'><mn>123</mn></mscarries><mn>4</mn></mstack>")
+        XCTAssertLessThan(try sum.glyph("one").origin.x, try sum.glyph("four").origin.x - 1)
+        equal(rect.minX, try sum.glyph("one").origin.x); equal(rect.maxX, try sum.glyph("three").right)
+        // What is narrower than its column changes nothing: the column is still covered.
+        (rect, sum) = try background("<mstack><msrow mathbackground='yellow'><mn>1,5</mn></msrow><mn>345</mn></mstack>")
+        equal(rect.minX, try sum.glyph("three").origin.x); equal(rect.maxX, sum.box.width)
+    }
+
     // MARK: Robustness
 
     func testInnerElementsOutsideAStackLayOut() throws {
