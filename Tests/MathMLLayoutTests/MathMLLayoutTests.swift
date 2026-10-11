@@ -408,6 +408,49 @@ final class MathMLLayoutTests: MathTestCase {
         XCTAssertGreaterThan(layout.descent, 0)
         XCTAssertEqual(formula.accessibilityDescription, "start fraction a over b squared end fraction")
     }
+
+    /// The README's line-breaking, image and reading examples, verbatim, for the same reason.
+    func testReadmeFeatureExamples() throws {
+        func drawBroken(_ formula: MathMLNode, style: MathStyle, in context: CGContext) throws {
+            // A display formula in a 320-point column: every row, stacked under the first row's baseline.
+            let block = try MathLayout(formula, style: style, maximumWidth: 320)
+            block.draw(in: context, baselineOrigin: CGPoint(x: 0, y: block.descent))
+
+            // An inline formula that starts where 90 points are left on its text line. Each row is a
+            // fragment with its own box: place one on each following text line and draw it there.
+            let inline = try MathLayout(formula, style: style, maximumWidth: 320, firstRowMaximumWidth: 90)
+            var baseline = CGPoint(x: 230, y: 400)
+            for row in inline.rows {
+                row.draw(in: context, baselineOrigin: baseline)
+                baseline = CGPoint(x: 0, y: baseline.y - 24)
+            }
+        }
+
+        func style(images: [String: CGImage]) -> MathStyle {
+            let provider = MathImageProvider { source in images[source] }
+            return MathStyle(fontSize: 17, color: CGColor(gray: 0, alpha: 1), imageProvider: provider)
+        }
+
+        func reading(of formula: MathMLNode) -> String {
+            let reading = formula.accessibilityDescription(locale: Locale(identifier: "fr-CA"))
+            // reading.language is "fr": speak reading.text with a French voice.
+            return reading.text // "début de fraction a sur b au carré fin de fraction"
+        }
+
+        let context = try XCTUnwrap(CGContext(data: nil, width: 400, height: 500, bitsPerComponent: 8, bytesPerRow: 0,
+                                              space: CGColorSpaceCreateDeviceRGB(),
+                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        let image = try XCTUnwrap(context.makeImage())
+        let sum = (1...16).map { "<mi>term\($0)</mi>" }.joined(separator: "<mo>+</mo>") + "<mo>+</mo><mi><mglyph src=\"a.png\" alt=\"a\"/></mi>"
+        let long = try node("<mi>y</mi><mo>=</mo>" + sum)
+        try drawBroken(long, style: style(images: ["a.png": image]), in: context)
+        let inline = try MathLayout(long, style: style(images: [:]), maximumWidth: 320, firstRowMaximumWidth: 90)
+        XCTAssertGreaterThan(inline.rows.count, 2)
+        XCTAssertLessThanOrEqual(inline.rows[0].width, 90)
+        let markup = #"<math display="block"><mfrac><mi>a</mi><msup><mi>b</mi><mn>2</mn></msup></mfrac></math>"#
+        XCTAssertEqual(reading(of: try MathMLNode.parse(xml: Data(markup.utf8))), "début de fraction a sur b au carré fin de fraction")
+        XCTAssertEqual(MathReading.languages, ["en", "fr", "de", "es", "it"])
+    }
 }
 
 private struct SendableBuffer: @unchecked Sendable {

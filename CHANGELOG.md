@@ -1,5 +1,64 @@
 # Release notes
 
+## 0.2.0
+
+Line breaking, `mglyph`, elementary math and localized readings
+([#1](https://github.com/vocaro/MathMLLayout/issues/1)). The 0.1.0 API still compiles.
+
+### Added
+
+- **Line breaking.** `MathLayout(_:style:maximumWidth:firstRowMaximumWidth:)` breaks a formula
+  into `rows` that fit a line, each with its `origin` and box, and each drawable alone, so an
+  inline formula can continue on the next text lines. Breaks follow MathML 3 §3.1.7: authored
+  `linebreak`, `linebreakstyle`, `linebreakmultchar`, `lineleading` and the `indent*` attributes,
+  and otherwise the operator dictionary's ranking. They reach inside nested rows, `mfenced` and
+  script bases; `mtext`, table cells, fraction parts, radicands and enclosures wrap.
+  `widestUnbreakableWidth` and `axisHeight` are public.
+- **`mglyph`.** `MathStyle.imageProvider` supplies each `src`'s image, sized by `width`, `height`
+  and `valign`. Without an image the `alt` text is drawn and read; nothing throws.
+- **Elementary math.** `mstack`, `mlongdiv`, `msgroup`, `msrow`, `mscarries`, `mscarry` and
+  `msline` are laid out natively, with every `longdivstyle`, and read row by row.
+- **Localized readings.** `accessibilityDescription(locale:)` returns a `MathReading`: the text,
+  in English, French, German, Spanish or Italian, and the language it is actually in (`"en"`
+  when the locale has no vocabulary).
+
+### Fixed
+
+- An operator among `mtext` operands keeps its spacing: `future value = principal × rate` was
+  drawn as "future value=principal" when it had one operator, and with the `×` as a sign when
+  it had two.
+- A token's trailing white space is trimmed: `<mi>x </mi>` was drawn upright with a space after
+  it, and `<mo> + </mo>` was not found in the operator dictionary or read as "plus".
+
+### Changed
+
+- A `linebreak="newline"` now breaks the row even when no `maximumWidth` is given, so such a
+  formula has more than one row. Its baseline is the first row's.
+- `mglyph`, `mstack` and `mlongdiv` no longer throw `MathLayoutError.unsupported`.
+- `MathMLNode.parse(xml:)` keeps the attributes of a token's element children, and marks each
+  `mglyph`'s place in the token's `text` with U+FFFC. Hosts that build nodes themselves should
+  do the same; the README's Images section has the details.
+
+### For EPUBLib
+
+Each workaround that [vocaro/EPUBLib#61](https://github.com/vocaro/EPUBLib/pull/61) added for
+[vocaro/EPUBLib#25](https://github.com/vocaro/EPUBLib/issues/25) can go:
+
+- **`MathBreaking.swift`** (`MathBreaks`, `MathArrangement`): pass the line width as
+  `maximumWidth` and use `rows` instead of slicing the tree and stacking a layout per slice.
+  That retires its lists of relations, operators and brackets, the empty `mi` put before an
+  operator that starts a row, and the quarter-em axis (`axisHeight`). `MathFormula`'s shrink
+  policy can compare `widestUnbreakableWidth` with the line, and an inline formula can place its
+  rows on consecutive lines of the paragraph (`firstRowMaximumWidth`) instead of becoming a block.
+- **`mglyph` as text** (`MathConversion`, `missingGlyph`): keep the element as a child of its
+  token with its attributes and a U+FFFC in the text, and give `MathStyle` an image provider.
+  The engine falls back to `alt`, then to U+25AF, itself.
+- **`MathElementary.swift`** (`rewrite`, `spoken`): pass `mstack` and `mlongdiv` through
+  unchanged. The approximations it counted in `SectionReport.mathApproximations` are gone.
+- **`MathSpeech.generate`**: call `accessibilityDescription(locale:)` with the content's language
+  and tag the utterance with the `language` it returns, in place of `generatedLanguage`.
+- The disclosure of the `mtext` operand spacing defect.
+
 ## 0.1.0
 
 - First release, moved out of [EPUBLib](https://github.com/vocaro/EPUBLib) (at `35f7fdc`), where it
