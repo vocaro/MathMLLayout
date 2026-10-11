@@ -227,6 +227,8 @@ final class LayoutEngine {
             box = try table(node, context, depth: depth)
         case "mtr", "mlabeledtr":
             box = try table(MathMLNode(name: "mtable", children: [node]), context, depth: depth)
+        case "mstack", "mlongdiv", "msgroup", "msrow", "mscarries", "mscarry", "msline":
+            box = try elementaryMath(node, context, depth: depth)
         case "mfenced":
             box = try row(fenced(node), context, embellishment, depth: depth)
         case "semantics":
