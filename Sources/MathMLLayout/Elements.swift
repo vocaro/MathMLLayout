@@ -493,8 +493,12 @@ extension LayoutEngine {
     /// labels form a column at the side. Spanning cells occupy one cell.
     func table(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
         guard depth + 2 < MathLimits.depth else { throw MathLayoutError.limitExceeded }
-        let cellContext = scriptContext(context, levels: 0)
         let attributes = node.attributes
+        // Cells are in text style whatever surrounds the table, unless the table itself says otherwise
+        // (MathML Core 3.5.1). `context` cannot tell the two apart: `inherit` put the table's own
+        // `displaystyle` where the surroundings' was.
+        var cellContext = context
+        cellContext.display = attributes.flag("displaystyle") ?? false
         func list(_ name: String, in attributes: [String: String]) -> [String] {
             (attributes[name] ?? "").split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
         }

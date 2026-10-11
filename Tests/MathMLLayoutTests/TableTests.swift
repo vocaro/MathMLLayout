@@ -225,7 +225,6 @@ final class TableTests: XCTestCase {
     /// MathML 3, 3.5.1.2 and MathML Core 3.5.1: `<mtable displaystyle="true">` sets its cells in
     /// display style. LaTeX converters write aligned equations and `cases` this way.
     func testDisplayStyleOnTheTableReachesItsCells() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/6 is fixed.
         let display = try innerBox(fractionCell, display: true), text = try innerBox(fractionCell)
         for outer in [false, true] {
             let table = try innerBox("<mtable displaystyle=\"true\"><mtr><mtd>\(fractionCell)</mtd></mtr></mtable>", display: outer)
@@ -233,6 +232,14 @@ final class TableTests: XCTestCase {
             XCTAssertEqual(table.width, display.width, accuracy: 0.01)
         }
         XCTAssertEqual(try innerBox("<mtable displaystyle=\"false\"><mtr><mtd>\(fractionCell)</mtd></mtr></mtable>", display: true).height, text.height, accuracy: 0.01)
+        XCTAssertEqual(try innerBox("<mtable displaystyle=\" TRUE \"><mtr><mtd>\(fractionCell)</mtd></mtr></mtable>").height, display.height, accuracy: 0.01)
+        // A row or a cell may still say otherwise, and a row's label is in the style of its cells.
+        for body in ["<mtable displaystyle=\"true\"><mtr displaystyle=\"false\"><mtd>\(fractionCell)</mtd></mtr></mtable>",
+                     "<mtable displaystyle=\"true\"><mtr><mtd displaystyle=\"false\">\(fractionCell)</mtd></mtr></mtable>"] {
+            XCTAssertEqual(try innerBox(body).height, text.height, accuracy: 0.01, body)
+        }
+        XCTAssertEqual(try innerBox("<mtable displaystyle=\"true\"><mlabeledtr><mtd>\(fractionCell)</mtd><mtd><mi>x</mi></mtd></mlabeledtr></mtable>").height,
+                       display.height, accuracy: 0.01, "a label")
         // A sum in an aligned display keeps its limits above and below.
         let stacked = try innerBox("<munderover><mo>∑</mo><mi>i</mi><mi>n</mi></munderover>", display: true)
         XCTAssertEqual(try innerBox("<mtable displaystyle=\"true\"><mtr><mtd><munderover><mo>∑</mo><mi>i</mi><mi>n</mi></munderover></mtd></mtr></mtable>").height,
