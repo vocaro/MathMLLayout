@@ -47,6 +47,16 @@ Line breaking, `mglyph`, elementary math and localized readings
 - A `linebreak="newline"` now breaks the row even when no `maximumWidth` is given, so such a
   formula has more than one row. Its baseline is the first row's.
 - `mglyph`, `mstack` and `mlongdiv` no longer throw `MathLayoutError.unsupported`.
+- A label over or under an operator that stretches horizontally, as in
+  `<mover><mo>→</mo><mtext>heat</mtext></mover>`, is placed by the MATH table's StretchStack
+  constants in place of the over- and underbar gaps
+  ([#21](https://github.com/vocaro/MathMLLayout/issues/21)). Its baseline is the font's standard
+  shift from the arrow's baseline, further only to keep the minimum gap from the arrow's ink, so
+  labels on one arrow after another share a baseline whatever their letters. With STIX Two Math
+  at 20 points a label moves by up to about 3 points, mostly away from the arrow. The shifts are
+  read from the baseline, as OpenType defines them and
+  [w3c/mathml-core#121](https://github.com/w3c/mathml-core/issues/121) settled, where MathML
+  Core's text still has them from the ink.
 - `MathMLNode.parse(xml:)` keeps the attributes of a token's element children, and marks each
   `mglyph`'s place in the token's `text` with U+FFFC. Hosts that build nodes themselves should
   do the same; the README's Images section has the details.

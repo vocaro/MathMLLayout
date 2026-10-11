@@ -418,6 +418,82 @@ final class ScriptAndLimitTests: XCTestCase {
         XCTAssertEqual(try innerBox("<mi>A</mi>\(stack)<mi>B</mi>").width - a - b - (try innerBox(stack).width), 10 * em / 18, accuracy: 0.05)
     }
 
+    /// Scripts on a base that stretches horizontally take the MATH table's StretchStack constants
+    /// (MathML Core 3.4.2.3 to 3.4.2.5), read as OpenType defines them and as
+    /// https://github.com/w3c/mathml-core/issues/121 settled: a script's baseline is the standard
+    /// shift from the base's baseline, and further off when the minimum gap from the arrow's ink
+    /// needs it. `stretchStackGapAboveMin` is the gap above the arrow and `GapBelowMin` below it.
+    func testScriptsOnAStretchyBaseUseTheStretchStackConstants() throws {
+        // A script of known extents: a bar `height` above its baseline and `depth` below it.
+        func bar(_ height: CGFloat, _ depth: CGFloat, _ color: String = "red") -> String {
+            "<mspace width=\"40px\" height=\"\(height)px\" depth=\"\(depth)px\" mathbackground=\"\(color)\"/>"
+        }
+        let shiftUp = constant(\.stretchStackTopShiftUp), shiftDown = constant(\.stretchStackBottomShiftDown)
+        let gapAbove = constant(\.stretchStackGapAboveMin), gapBelow = constant(\.stretchStackGapBelowMin)
+        // Arrows the font assembles, whose boxes end at their ink.
+        for arrow in ["→", "←", "⇒", "↔"] {
+            // A shallow script keeps the standard shift where the font's is large, as STIX Two
+            // Math's are; a deep overscript or a tall underscript is pushed off by the gap.
+            for (height, depth) in [(5, 0), (0, 5), (4, 30), (30, 4)] as [(CGFloat, CGFloat)] {
+                let label = "\(arrow) with a script \(height) high and \(depth) deep"
+                let over = try inks("<mover><mo>\(arrow)</mo>\(bar(height, depth))</mover>")
+                let overShaft = try XCTUnwrap(over[.black], label), above = try XCTUnwrap(over[.red], label)
+                XCTAssertEqual(above.minY + depth, max(shiftUp, overShaft.maxY + gapAbove + depth), accuracy: pixel, "over \(label)")
+                let under = try inks("<munder><mo>\(arrow)</mo>\(bar(height, depth))</munder>")
+                let underShaft = try XCTUnwrap(under[.black], label), below = try XCTUnwrap(under[.red], label)
+                XCTAssertEqual(height - below.maxY, max(shiftDown, gapBelow + height - underShaft.minY), accuracy: pixel, "under \(label)")
+                // munderover places each script where munder and mover do, and its box covers them.
+                let stack = "<munderover><mo>\(arrow)</mo>\(bar(height, depth, "blue"))\(bar(height, depth))</munderover>"
+                let both = try inks(stack)
+                XCTAssertEqual(try XCTUnwrap(both[.red], label).minY, above.minY, accuracy: 0.3, "munderover, over \(label)")
+                XCTAssertEqual(try XCTUnwrap(both[.blue], label).maxY, below.maxY, accuracy: 0.3, "munderover, under \(label)")
+                let box = try innerBox(stack), ink = try XCTUnwrap(box.inkBounds, label)
+                XCTAssertLessThanOrEqual(ink.maxY, box.ascent + 0.01, label); XCTAssertGreaterThanOrEqual(ink.minY, -box.descent - 0.01, label)
+            }
+        }
+        // The same from the boxes' own metrics, exactly. A font with no MATH table has the built-in
+        // constants, whose two gaps differ, so neither can stand in for the other.
+        let builtIn = MathFont.named("Helvetica").constants
+        XCTAssertNotEqual(builtIn.stretchStackGapAboveMin, builtIn.stretchStackGapBelowMin)
+        // ⟶ is drawn, not assembled, so it is measured here by its box and not by its ink above.
+        for (font, arrow) in [(nil, "→"), (nil, "⟶"), ("Helvetica", "→"), ("Helvetica", "⟶")] as [(String?, String)] {
+            let constants = MathFont.named(font).constants, label = "\(arrow) in \(font ?? "the math font")"
+            func box(_ element: String, _ height: CGFloat, _ depth: CGFloat) throws -> MathBox {
+                try innerBox("<\(element)><mo>\(arrow)</mo>\(bar(height, depth))</\(element)>", font: font)
+            }
+            // The arrow's own extents: a script on one side leaves the other side to the base.
+            let ascent = try box("munder", 30, 30).ascent, descent = try box("mover", 30, 30).descent
+            XCTAssertEqual(try box("mover", 30, 30).ascent - 60 - ascent, constants.stretchStackGapAboveMin * em, accuracy: 0.01, "gap above with \(label)")
+            XCTAssertEqual(try box("munder", 30, 30).descent - 60 - descent, constants.stretchStackGapBelowMin * em, accuracy: 0.01, "gap below with \(label)")
+            // The shifts are from the baseline, whatever the arrow's ink, and nothing is added
+            // beyond the scripts as the over- and underbar's extra ascender and descender are.
+            XCTAssertEqual(try box("mover", 5, 0).ascent - 5, max(constants.stretchStackTopShiftUp * em, ascent + constants.stretchStackGapAboveMin * em),
+                           accuracy: 0.01, "shift up with \(label)")
+            XCTAssertEqual(try box("munder", 0, 5).descent - 5, max(constants.stretchStackBottomShiftDown * em, descent + constants.stretchStackGapBelowMin * em),
+                           accuracy: 0.01, "shift down with \(label)")
+        }
+        // A base that does not stretch keeps the bar gaps: stretchy="false", or an operator that never does.
+        for base in ["<mo stretchy=\"false\">→</mo>", "<mo>=</mo>"] {
+            let found = try inks("<munderover>\(base)\(bar(4, 4, "blue"))\(bar(4, 4))</munderover>")
+            let middle = try XCTUnwrap(found[.black], base)
+            XCTAssertEqual(try XCTUnwrap(found[.red], base).minY, middle.maxY + constant(\.overbarVerticalGap), accuracy: pixel, base)
+            XCTAssertEqual(try XCTUnwrap(found[.blue], base).maxY, middle.minY - constant(\.underbarVerticalGap), accuracy: pixel, base)
+        }
+    }
+
+    /// OpenType measures the StretchStack gaps from the stretched operator, whichever child it
+    /// is. An arrow stretched over or under an expression has its base below or above it, so it
+    /// keeps `GapBelowMin` or `GapAboveMin` from the base, not the bar gap MathML Core gives it.
+    func testAStretchedScriptKeepsTheStretchStackGapFromItsBase() throws {
+        // Between two glyphs' antialiased edges, as the bar gaps are measured above.
+        let accuracy: CGFloat = 0.75
+        XCTAssertGreaterThan(abs(constant(\.overbarVerticalGap) - constant(\.stretchStackGapBelowMin)), 2 * accuracy, "the font tells the two gaps apart")
+        let over = try inks("<mover>\(wideBase)<mo mathcolor=\"red\">→</mo></mover>")
+        XCTAssertEqual(try XCTUnwrap(over[.red]).minY - (try XCTUnwrap(over[.black]).maxY), constant(\.stretchStackGapBelowMin), accuracy: accuracy)
+        let under = try inks("<munder>\(wideBase)<mo mathcolor=\"red\">→</mo></munder>")
+        XCTAssertEqual(try XCTUnwrap(under[.black]).minY - (try XCTUnwrap(under[.red]).maxY), constant(\.stretchStackGapAboveMin), accuracy: accuracy)
+    }
+
     /// The operator dictionary marks these arrows stretchy. Each should cover a long label,
     /// from the font's glyph assembly where it has one and drawn where it does not, as the
     /// single-shafted long arrows already are.
