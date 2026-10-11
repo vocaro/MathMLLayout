@@ -11,10 +11,12 @@ import Foundation
 
 // MARK: Attributes
 
-/// `linebreak` on an `mo` or `mspace` (MathML 3, 3.2.5.2.2).
+/// `linebreak` on an `mo` (MathML 3, 3.2.5.2.2) or an `mspace` (3.2.7.2).
 enum Linebreak: String, Sendable { case auto, newline, nobreak, goodbreak, badbreak }
 
-/// `linebreakstyle`: where the operator goes that a line breaks at.
+/// `linebreakstyle`: where the operator goes that a line breaks at. The operator dictionary sets
+/// it, to `after` for its three separators (the comma, the semicolon and the invisible separator)
+/// and to `before` for everything else (MathML 3, 3.2.5.2.2 and appendix C).
 enum LinebreakStyle: String, Sendable { case before, after, duplicate }
 
 /// `indentalign` (MathML 3, 3.2.5.2.3).
@@ -29,8 +31,15 @@ struct LineLength: Sendable, Equatable {
 }
 
 /// The line-breaking and indentation attributes in effect at an element. They are read at the
-/// `mo` or `mspace` a line breaks at, and inherit from `mstyle` and `math` (MathML 3, 3.2.5.2.2
-/// and 3.2.5.2.3).
+/// `mo` or `mspace` a line breaks at (MathML 3, 3.2.5.2.2 and 3.2.5.2.3), and those that say
+/// where the operator goes, how far apart the lines are and how they are indented may be
+/// "inherited from mstyle or math elements" (3.1.7.1).
+///
+/// `linebreak` is inherited here too, and of that the specification says two things. It "can
+/// only be set on mo and mspace elements" (3.1.7.1). But an `mstyle` takes every attribute that
+/// has a default, the schema lists `linebreak` among those it takes (appendix A), and a value
+/// there changes the default "for all elements within its scope" (3.3.4.1). The second is
+/// followed: `linebreak="nobreak"` on an `mstyle` keeps what it holds on one line.
 struct LineStyle: Sendable {
     var linebreak = Linebreak.auto
     /// nil is the default: before an operator, after a separator.
@@ -177,8 +186,9 @@ final class BreakableRow {
 // MARK: Layout
 
 extension LayoutEngine {
-    /// The line-breaking attributes of `node` join the context its content inherits, where MathML 3
-    /// puts them: on `mo` and `mspace`, and on `mstyle` and `math` for the operators inside.
+    /// The line-breaking attributes of `node` join the context its content inherits, on the elements
+    /// that may carry them: `mo` and `mspace`, and `mstyle` and `math` for the operators inside
+    /// (`LineStyle` has what MathML 3 says of each).
     func inheritLineStyle(_ node: MathMLNode, _ context: inout LayoutContext) {
         guard LineStyle.elements.contains(node.name),
               node.attributes.keys.contains(where: LineStyle.attributes.contains) else { return }
@@ -308,6 +318,11 @@ extension LayoutEngine {
     /// Lays out `root` and breaks it into rows no wider than `maximumWidth`, the first no wider than
     /// `firstRowMaximumWidth`. Each row's box covers its ink, so a host that clips to a row (an
     /// attachment image) never cuts an italic overhang or a glyph that leans past the left edge.
+    ///
+    /// `overflow` and `maxwidth` on `math` (MathML 3, 2.2.1) are not read: the width given decides.
+    /// Breaking is what `overflow="linebreak"`, the default, asks for (3.1.7.1). The other values
+    /// "suggest a processing method to the renderer" that is a host's to carry out (scrolling,
+    /// eliding, truncating, scaling), and a host that means to gives no width.
     static func lines(_ root: MathMLNode, style: MathStyle, maximumWidth: CGFloat,
                       firstRowMaximumWidth: CGFloat?) throws -> MathLines {
         // A line wider than any formula may be is no limit: `.greatestFiniteMagnitude` is how a host
@@ -476,10 +491,12 @@ extension LayoutEngine {
     }
 
     /// Narrows the columns of a table wider than the line, and wraps the cells that no longer fit
-    /// theirs into stacked lines: "inside an mtable, the column width serves as the wrap width"
-    /// (MathML 3, 3.1.7.1). Columns narrower than an equal share keep their width and the rest
-    /// share what is left, none below its widest unbreakable unit. A cell with a forced break
-    /// is stacked whatever the width. `fixed` is the width of everything but the columns.
+    /// theirs into stacked lines: a column's width "should be used as the line wrapping width for
+    /// linebreaking, and each entry in an mtable is linewrapped as needed" (MathML 3, 3.1.7.1).
+    /// That width is an attribute's or the content's there; narrowing it to the line is this
+    /// engine's. Columns narrower than an equal share keep their width and the rest share what
+    /// is left, none below its widest unbreakable unit. A cell with a forced break is stacked
+    /// whatever the width. `fixed` is the width of everything but the columns.
     func wrapCells(_ cells: inout [[(box: MathBox, align: String?)]], columnAlign: [String], fixed: CGFloat) {
         func align(_ row: Int, _ column: Int) -> IndentAlign {
             let name = cells[row][column].align ?? columnAlign.last.map { _ in columnAlign[min(column, columnAlign.count - 1)] }
@@ -862,9 +879,12 @@ struct Paragraph {
         /// the line its indentation takes, and the alignment still to apply once the rows are known.
         func place(_ i: Int, _ j: Int, _ size: (width: CGFloat, left: CGFloat), room: CGFloat)
             -> (x: CGFloat, indent: CGFloat, align: IndentAlign) {
-            // A row is placed by the attributes of the stop it starts at: an `indentshift` on an operator
-            // is for the row after the break there. The first row has those the formula starts with,
-            // unless the stop it ends at gives the first row its own.
+            // A row is placed by the attributes of the stop it starts at: those on an operator "control
+            // linebreaking and indentation of the following line" (MathML 3, 3.1.7.1), so an `indentshift`
+            // there is for the row after the break and no other. Whose attributes place the first row
+            // the specification does not say, only that `indentalignfirst` and `indentshiftfirst` place
+            // a formula of one line too: here it has those the formula starts with, unless the stop it
+            // ends at gives the first row its own.
             let from = stops[i].point, to = stops[j].point
             var align = from.style.align, shift = from.style.shift
             if i == 0 {

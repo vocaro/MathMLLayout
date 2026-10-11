@@ -649,6 +649,31 @@ final class LineBreakingTests: MathTestCase {
         XCTAssertEqual(layout.rows.map(\.origin), plain.rows.map(\.origin))
     }
 
+    func testIndentationIsReadAtTheOperatorALineBreaksAt() throws {
+        // On an operator the attributes "control linebreaking and indentation of the following line"
+        // (MathML 3, 3.1.7.1): the row after the break there, and no row after that.
+        var layout = try broken(mi("alpha") + mo("=", "linebreak=\"newline\" indentshift=\"3em\"") + mi("beta")
+            + mo("+", "linebreak=\"newline\"") + mi("gamma"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [0, 3 * em, 0])
+        // They "apply if a linebreak occurs at that element" (3.2.5.2.3): where none does, they do nothing.
+        layout = try broken(mi("alpha") + mo("=", "indentshift=\"3em\" indentshiftfirst=\"2em\"") + mi("beta")
+            + mo("+", "linebreak=\"newline\"") + mi("gamma"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [0, 0])
+        // Whose `indentshiftfirst` places the first row the specification leaves open. Here it is the
+        // operator the first row ends at,
+        layout = try broken(mi("alpha") + mo("=", "linebreak=\"newline\" indentshiftfirst=\"2em\"") + mi("beta"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [2 * em, 0])
+        // not one that a later row ends at,
+        layout = try broken(mi("alpha") + mo("=", "linebreak=\"newline\"") + mi("beta")
+            + mo("+", "linebreak=\"newline\" indentshiftfirst=\"2em\"") + mi("gamma"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [0, 0, 0])
+        // and failing that the row the formula starts in, which is all a formula of one row has.
+        layout = try broken("<mstyle indentshiftfirst=\"2em\">" + mi("alpha") + "</mstyle>" + mo("=") + mi("beta"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [2 * em])
+        layout = try broken("<mstyle indentshiftfirst=\"2em\">" + mi("alpha") + "</mstyle>" + mo("=", "linebreak=\"newline\"") + mi("beta"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [2 * em, 0])
+    }
+
     func testIndentTargetAlignsWithAnElementAbove() throws {
         // MathML 3's own example (3.2.5.9): the second "=" under the first, the last "+" under the first.
         let lhs = "<mrow><mi>f</mi><mo>\u{2061}</mo><mo>(</mo><mi>x</mi><mo>)</mo></mrow>"
