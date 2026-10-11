@@ -18,7 +18,6 @@ final class TokenTests: XCTestCase {
     // MARK: Whitespace (MathML 3, 2.1.7: trimmed at the ends and collapsed inside)
 
     func testNormalizedTrimsAndCollapsesXMLWhitespace() {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/5 is fixed.
         XCTAssertEqual(LayoutEngine.normalized("x"), "x")
         XCTAssertEqual(LayoutEngine.normalized(" x"), "x")
         XCTAssertEqual(LayoutEngine.normalized("x "), "x", "trailing space")
@@ -30,7 +29,6 @@ final class TokenTests: XCTestCase {
     }
 
     func testWhitespaceAroundAnIdentifierOrNumberDoesNotChangeIt() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/5 is fixed.
         // A single-letter `mi` is italic however the markup is indented.
         try assertSameLayout("<mi> x </mi>", "<mi>x</mi>")
         try assertSameLayout("<mi>x </mi>", "<mi>x</mi>")
@@ -40,7 +38,6 @@ final class TokenTests: XCTestCase {
     }
 
     func testWhitespaceAroundAnOperatorDoesNotChangeIt() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/5 is fixed.
         // The operator dictionary is keyed on the trimmed text: spacing, fences and stretching.
         try assertSameLayout("<mi>a</mi><mo> + </mo><mi>b</mi>", "<mi>a</mi><mo>+</mo><mi>b</mi>")
         try assertSameLayout("<mi>a</mi><mo>\n=\n</mo><mi>b</mi>", "<mi>a</mi><mo>=</mo><mi>b</mi>")

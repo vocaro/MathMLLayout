@@ -132,11 +132,10 @@ final class RobustnessTests: XCTestCase {
         XCTAssertEqual(try MathLayout(formula, style: MathStyle(fontSize: .infinity, color: black)).width, thousand.width)
     }
 
-    /// A size that is not a number slips through the clamp. The result must be a usable layout
-    /// (the smallest size, like any other size that is not positive) or an error, not a formula
-    /// that measures nothing.
+    /// A size that is not a number used to slip through the clamp. The result must be a usable
+    /// layout (the smallest size, like any other size that is not positive) or an error, not a
+    /// formula that measures nothing.
     func testANaNFontSizeIsClampedOrRefused() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/17 is fixed.
         let formula = try mathML("<mfrac><mi>a</mi><msqrt><mi>b</mi></msqrt></mfrac>")
         guard survive(formula, size: .nan, "font size NaN") == .laidOut else { return }
         let layout = try MathLayout(formula, style: MathStyle(fontSize: .nan, color: black))
@@ -144,28 +143,25 @@ final class RobustnessTests: XCTestCase {
         XCTAssertGreaterThan(layout.ascent + layout.descent, 0, "a NaN font size laid out with no height")
     }
 
-    // MARK: Known crashes
+    // MARK: Former crashes
 
-    /// `selection - 1` overflows for the smallest integer.
+    /// `selection - 1` overflowed for the smallest integer.
     func testActionSelectionAtTheIntegerLimitDoesNotCrash() throws {
-        try skipKnownCrash("https://github.com/vocaro/MathMLLayout/issues/3")
         XCTAssertEqual(survive("<maction selection=\"-9223372036854775808\"><mi>x</mi><mi>y</mi></maction>"), .laidOut)
     }
 
-    /// `scriptlevel="+n"` is added to the current level without a bound (the shape of WPT's
+    /// `scriptlevel="+n"` was added to the current level without a bound (the shape of WPT's
     /// `mathml/crashtests/math-depth-overflow`, at this platform's integer width).
     func testRelativeScriptLevelAtTheIntegerLimitDoesNotCrash() throws {
-        try skipKnownCrash("https://github.com/vocaro/MathMLLayout/issues/3")
         XCTAssertEqual(survive("<msup><mi>x</mi><mstyle scriptlevel=\"+9223372036854775807\"><mi>y</mi></mstyle></msup>"), .laidOut)
         XCTAssertEqual(survive("<mstyle scriptlevel=\"-1\"><mstyle scriptlevel=\"-9223372036854775808\"><mi>y</mi></mstyle></mstyle>"), .laidOut)
         XCTAssertEqual(survive("<mstyle scriptlevel=\"5\"><mstyle scriptlevel=\"+9223372036854775803\"><mi>y</mi></mstyle></mstyle>"), .laidOut)
     }
 
-    /// The spoken reading is "bounded like layout", but `isSimple` recurses without a depth
-    /// bound, so a deep hand-built tree under `msqrt`, `mfrac` or `msup` overflows the stack:
+    /// The spoken reading is bounded like layout. `isSimple` once recursed without a depth
+    /// bound, so a deep hand-built tree under `msqrt`, `mfrac` or `msup` overflowed the stack:
     /// about 2,000 levels on a secondary thread's 512 KB stack, about 30,000 on the main thread.
     func testSpeechOfADeepTreeDoesNotOverflowTheStack() throws {
-        try skipKnownCrash("https://github.com/vocaro/MathMLLayout/issues/4")
         let deep = nested(5_000) { MathMLNode(name: "mrow", children: [$0]) }
         let roots = [MathMLNode(name: "msqrt", children: [deep]), MathMLNode(name: "mfrac", children: [deep, deep]), MathMLNode(name: "msup", children: [mi("x"), deep])]
         let finished = expectation(description: "read on a secondary thread")
@@ -259,14 +255,15 @@ final class RobustnessTests: XCTestCase {
     }
 
     func testTheLargestFormulasFinish() throws {
-        // The worst cases the bounds allow, as a guard against layout that hangs. Rows of
-        // stretchy fences are kept to a quarter of the bound: laying them out is quadratic in an
-        // unoptimized build (seconds at the bound), though quick when optimized.
+        // The worst cases the bounds allow, as a guard against layout that hangs. In an
+        // unoptimized build each takes a fraction of a second, where a row of stretchy fences once
+        // took eight. Nested rows of space-like children are the exception, at several seconds.
         let many = MathLimits.nodes - 2
+        let slow: Set = ["nested rows of spaces"]
         let cases: [(String, MathMLNode)] = [
             ("identifiers", MathMLNode(name: "math", children: Array(repeating: mi("x"), count: many))),
-            ("fences", MathMLNode(name: "math", children: Array(repeating: mo("("), count: many / 4) + [mi("x")])),
-            ("fences and identifiers", MathMLNode(name: "math", children: (0..<many / 8).flatMap { _ in [mo("("), mi("x")] })),
+            ("fences", MathMLNode(name: "math", children: Array(repeating: mo("("), count: many - 1) + [mi("x")])),
+            ("fences and identifiers", MathMLNode(name: "math", children: (0..<many / 2).flatMap { _ in [mo("("), mi("x")] })),
             ("operators", MathMLNode(name: "math", children: (0..<many / 2).flatMap { _ in [mi("a"), mo("+")] })),
             ("spaces around an operator", MathMLNode(name: "math", children: Array(repeating: MathMLNode(name: "mspace"), count: many - 1) + [mo("=")])),
             ("one long text", math(MathMLNode(name: "mtext", text: String(repeating: "word ", count: MathLimits.textLength / 5)))),
@@ -279,7 +276,7 @@ final class RobustnessTests: XCTestCase {
         for (name, root) in cases {
             let clock = ContinuousClock()
             let elapsed = clock.measure { survive(root, size: 1, name) }
-            XCTAssertLessThan(elapsed, .seconds(20), "\(name) took \(elapsed)")
+            XCTAssertLessThan(elapsed, .seconds(slow.contains(name) ? 20 : 5), "\(name) took \(elapsed)")
         }
     }
 

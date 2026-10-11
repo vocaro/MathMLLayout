@@ -108,7 +108,6 @@ final class ParserTests: XCTestCase {
     /// The refusal has to hold in every encoding XMLParser reads, not only where the bytes of
     /// "<!DOCTYPE" are ASCII.
     func testDocumentTypeDeclarationsAreRefusedInUTF16() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/7 is fixed.
         let document = #"<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE math [<!ENTITY a "block">]><math display="&a;"><mi>&a;</mi></math>"#
         for (name, encoding) in [("UTF-16", String.Encoding.utf16), ("UTF-16LE", .utf16LittleEndian), ("UTF-16BE", .utf16BigEndian)] {
             let data = try XCTUnwrap(document.data(using: encoding))
