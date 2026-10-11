@@ -3,6 +3,10 @@ import Foundation
 
 /// `mglyph`: an image that stands for a character no font has, among a token's text (MathML 3,
 /// 3.2.1.2). Its image comes from the host's `MathImageProvider`; without one it is its `alt` text.
+///
+/// It is styled by where it stands, as a character is, and not by itself: on an `mglyph`
+/// "mathcolor has no effect" (3.2.1.2.2), and the `mathvariant` and `mathsize` that MathML 2 let
+/// it carry "have no effect in any case" (3.2.1.2.4). Only its `mathbackground` is its own.
 extension LayoutEngine {
     /// U+FFFC OBJECT REPLACEMENT CHARACTER, which marks an `mglyph`'s place in its token's text.
     static let glyphMarker: Unicode.Scalar = "\u{FFFC}"

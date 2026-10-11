@@ -470,6 +470,45 @@ final class GlyphTests: MathTestCase {
                        try width("<mtext>23braid</mtext>"))
     }
 
+    /// MathML 3, 3.2.1.2.2: on an `mglyph` "mathcolor has no effect". 3.2.1.2.4: the `mathvariant`
+    /// and `mathsize` that MathML 2 let it carry "have no effect in any case". It is styled by where
+    /// it stands, as a character is.
+    func testStyleAttributesOnTheGlyphItselfHaveNoEffect() throws {
+        let images = provider(["g": quarters(30, 20)])
+        func glyph(_ attributes: String) -> String { "<mglyph src=\"g\" alt=\"b\" width=\"1em\" \(attributes)/>" }
+        // In a token, in an operator, and at row level, where the glyph is laid out in its parent's style.
+        let places: [(String) -> String] = [{ "<mi>\($0)</mi>" }, { "<mo>\($0)</mo>" }, { $0 }, { "<mrow><mi>a</mi>\($0)</mrow>" }]
+        // MathML 3's names, and the deprecated ones that say the same on other elements.
+        for style in [##"mathcolor="#0000ff" mathsize="3em" mathvariant="bold""##,
+                      ##"color="#0000ff" fontsize="3em" fontweight="bold" fontstyle="italic""##] {
+            for place in places {
+                // The image is an em of its token wide, not of its own mathsize.
+                let image = try box(place(glyph(style)), images: images)
+                XCTAssertEqual(imageRects(image), imageRects(try box(place(glyph("")), images: images)), place(style))
+                XCTAssertEqual(imageRects(image).first?.width, 20, place(style))
+                // The alt is the same letter, as large and of the same color as without them.
+                let styled = try box(place(glyph(style)), images: nil), plain = try box(place(glyph("")), images: nil)
+                XCTAssertEqual(styled.width, plain.width, place(style))
+                XCTAssertEqual(styled.ascent, plain.ascent, place(style))
+                XCTAssertEqual(glyphRuns(styled).map(\.glyphs), glyphRuns(plain).map(\.glyphs), place(style))
+                XCTAssertEqual(Set(glyphRuns(styled).map(\.color)), [black], place(style))
+                XCTAssertTrue(fills(styled).isEmpty, place(style))
+            }
+        }
+        // The same attributes where it stands do style it: on its token, or around it at row level.
+        let outer = ##"mathcolor="#ff0000" mathsize="2em" mathvariant="bold""##
+        let inner = glyph(##"mathcolor="#0000ff" mathsize="3em" mathvariant="italic""##)
+        let bold = try box("<mtext \(outer)>b</mtext>", images: nil)
+        XCTAssertNotEqual(bold.width, try box("<mtext>b</mtext>", images: nil).width)
+        for body in ["<mtext \(outer)>\(inner)</mtext>", "<mstyle \(outer)>\(inner)</mstyle>"] {
+            let alt = try box(body, images: nil)
+            XCTAssertEqual(alt.width, bold.width, body)
+            XCTAssertEqual(glyphRuns(alt).map(\.glyphs), glyphRuns(bold).map(\.glyphs), body)
+            XCTAssertEqual(glyphRuns(alt).map(\.color), [CGColor(srgbRed: 1, green: 0, blue: 0, alpha: 1)], body)
+            XCTAssertEqual(imageRects(try box(body, images: images)).first?.width, 40, body)
+        }
+    }
+
     func testGlyphWithoutAltDrawsAWhiteRectangle() throws {
         let rectangle = try layout("<mtext>\u{25AF}</mtext>")
         XCTAssertGreaterThan(rectangle.width, 0)
