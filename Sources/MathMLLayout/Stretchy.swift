@@ -10,6 +10,11 @@ extension LayoutEngine {
         "¯": "\u{0305}", "‾": "\u{0305}", "_": "\u{0332}",
     ]
 
+    /// Long arrows, which a font may give no construction of their own, and the short arrow each
+    /// is a longer form of. Stretched, the two are one arrow, so the long one takes the short
+    /// one's assembly. ⟵ ⟶ ⟷ are not among them: they are drawn.
+    private static let shortArrows: [Unicode.Scalar: Unicode.Scalar] = ["⟸": "⇐", "⟹": "⇒", "⟺": "⇔", "⟻": "↤", "⟼": "↦"]
+
     /// A large operator in display style: the first variant at least `DisplayOperatorMinHeight`
     /// tall (and √2 times the text size, as MathML Core asks), else the largest.
     func displayOperator(_ glyph: CGGlyph, _ context: LayoutContext) -> MathBox? {
@@ -49,21 +54,25 @@ extension LayoutEngine {
         return centered(box, on: center)
     }
 
-    /// An operator stretched to `width`: a variant or assembly of its own glyph or of the
-    /// combining accent it stands for, else a drawn bar, arrow or brace.
+    /// An operator stretched to `width`: a variant or assembly of its own glyph, of the
+    /// combining accent it stands for or of the short arrow it is a long form of, else a drawn
+    /// bar, arrow or brace.
     func stretchHorizontally(glyph: CGGlyph?, scalar: Unicode.Scalar?, natural: MathBox, width: CGFloat,
                              _ context: LayoutContext) -> MathBox? {
         let target = min(width, MathLimits.extent)
         guard target > natural.width else { return nil }
         var candidates: [CGGlyph] = glyph.map { [$0] } ?? []
-        if let scalar, let combining = Self.combiningEquivalents[scalar], let alternate = font.glyph(for: combining) {
+        let combining = scalar.flatMap { Self.combiningEquivalents[$0] }
+        if let equivalent = combining ?? scalar.flatMap({ Self.shortArrows[$0] }), let alternate = font.glyph(for: equivalent) {
             candidates.append(alternate)
         }
         for candidate in candidates {
             guard font.table?.construction(candidate, vertical: false) != nil else { continue }
             guard var box = stretchedGlyph(candidate, vertical: false, size: target, context) else { continue }
-            // Keep the natural glyph's height: accents are designed to sit where they are.
-            if candidate != glyph, let ink = natural.inkBounds, let stretched = box.inkBounds {
+            // Keep the natural glyph's height: accents are designed to sit where they are. A short
+            // arrow is where its long form is, on the axis, and stays there though its head is
+            // larger: STIX Two Math assembles ⇔ with taller heads than either glyph has.
+            if candidate != glyph, combining != nil, let ink = natural.inkBounds, let stretched = box.inkBounds {
                 box = shifted(box, by: ink.minY - stretched.minY)
             }
             return box
@@ -218,28 +227,14 @@ extension LayoutEngine {
         let em = context.fontSize, stroke = strokeWidth(context)
         let ink = natural.inkBounds ?? CGRect(x: 0, y: value(\.axisHeight, context), width: 0, height: 0)
         let middle = ink.midY
+        if let shape = Self.arrowShapes[scalar] { return drawnArrow(shape, width: width, middle: middle, context) }
         let path = CGMutablePath()
-        var ascent = middle + stroke, descent = -middle + stroke
+        let ascent: CGFloat, descent: CGFloat
         switch scalar {
         case "‾", "¯", "_", "\u{0305}", "\u{0332}":
             var box = MathBox(width: width, ascent: middle + stroke / 2, descent: -middle + stroke / 2)
             box.items = [.rect(CGRect(x: 0, y: middle - stroke / 2, width: width, height: stroke), context.color)]
             return box
-        case "→", "←", "↔", "⟶", "⟵", "⟷", "\u{20D7}", "\u{20D6}", "\u{20E1}":
-            let head = em * 0.25
-            path.move(to: CGPoint(x: stroke, y: middle))
-            path.addLine(to: CGPoint(x: width - stroke, y: middle))
-            if "→↔⟶⟷\u{20D7}\u{20E1}".unicodeScalars.contains(scalar) {
-                path.move(to: CGPoint(x: width - stroke - head, y: middle + head * 0.6))
-                path.addLine(to: CGPoint(x: width - stroke, y: middle))
-                path.addLine(to: CGPoint(x: width - stroke - head, y: middle - head * 0.6))
-            }
-            if "←↔⟵⟷\u{20D6}\u{20E1}".unicodeScalars.contains(scalar) {
-                path.move(to: CGPoint(x: stroke + head, y: middle + head * 0.6))
-                path.addLine(to: CGPoint(x: stroke, y: middle))
-                path.addLine(to: CGPoint(x: stroke + head, y: middle - head * 0.6))
-            }
-            ascent = middle + head * 0.6 + stroke; descent = -middle + head * 0.6 + stroke
         case "⏞", "⏟":
             let up: CGFloat = scalar == "⏞" ? 1 : -1
             let depth = min(em * 0.3, width * 0.2) * up
@@ -258,6 +253,147 @@ extension LayoutEngine {
         }
         var box = MathBox(width: width, ascent: ascent, descent: descent)
         box.items = [.path(path, lineWidth: stroke, color: context.color, fill: false)]
+        return box
+    }
+
+    // MARK: Drawn arrows
+
+    /// How a horizontal arrow is drawn: its shafts from the top down and what ends each, the
+    /// lines a shaft is made of, and whether it waves or is struck through.
+    private struct ArrowShape: Sendable {
+        enum End: Sendable { case plain, head, twoHeads, tail, bar, hook, loop, barbUp, barbDown }
+        typealias Shaft = (left: End, right: End)
+        var shafts: [Shaft]
+        var lines = 1
+        var isWave = false
+        var isNegated = false
+    }
+
+    /// Every horizontal arrow the operator dictionary calls stretchy, and the combining arrows:
+    /// a font with no MATH table has a construction for none of them, and STIX Two Math for a third.
+    private static let arrowShapes: [Unicode.Scalar: ArrowShape] = {
+        var shapes: [Unicode.Scalar: ArrowShape] = [:]
+        /// `left` and `right` point their ways with `tail` at the other end; `both` has a head at each.
+        func add(left: String, right: String, both: String = "", head: ArrowShape.End = .head, tail: ArrowShape.End = .plain,
+                 lines: Int = 1, isWave: Bool = false, isNegated: Bool = false) {
+            for (arrows, shaft) in [(left, (head, tail)), (right, (tail, head)), (both, (head, head))] as [(String, ArrowShape.Shaft)] {
+                for arrow in arrows.unicodeScalars {
+                    shapes[arrow] = ArrowShape(shafts: [shaft], lines: lines, isWave: isWave, isNegated: isNegated)
+                }
+            }
+        }
+        add(left: "←⟵\u{20D6}", right: "→⟶\u{20D7}", both: "↔⟷\u{20E1}")
+        add(left: "↚", right: "↛", both: "↮", isNegated: true)
+        add(left: "↜", right: "↝", both: "↭", isWave: true)
+        add(left: "↞", right: "↠", head: .twoHeads)
+        add(left: "↢", right: "↣", tail: .tail)
+        add(left: "↤⟻", right: "↦⟼", tail: .bar)
+        add(left: "↩", right: "↪", tail: .hook)
+        add(left: "↫", right: "↬", tail: .loop)
+        add(left: "↼", right: "⇀", head: .barbUp)
+        add(left: "↽", right: "⇁", head: .barbDown)
+        add(left: "⇐⟸", right: "⇒⟹", both: "⇔⟺", lines: 2)
+        add(left: "⇍", right: "⇏", both: "⇎", lines: 2, isNegated: true)
+        add(left: "⟽", right: "⟾", tail: .bar, lines: 2)
+        add(left: "⇚", right: "⇛", lines: 3)
+        // One arrow or harpoon over another.
+        let leftwards: ArrowShape.Shaft = (.head, .plain), rightwards: ArrowShape.Shaft = (.plain, .head)
+        let pairs: [(Unicode.Scalar, [ArrowShape.Shaft])] = [
+            ("⇄", [rightwards, leftwards]), ("⇆", [leftwards, rightwards]), ("⇇", [leftwards, leftwards]), ("⇉", [rightwards, rightwards]),
+            ("⇋", [(.barbUp, .plain), (.plain, .barbDown)]), ("⇌", [(.plain, .barbUp), (.barbDown, .plain)]),
+        ]
+        for (arrow, shafts) in pairs { shapes[arrow] = ArrowShape(shafts: shafts) }
+        return shapes
+    }()
+
+    /// An arrow drawn `width` long, its ink centred on `middle` as the natural glyph's is. The
+    /// single arrow sets the proportions: a head's arms run back a quarter em and out 0.15 em,
+    /// and those of a double or triple arrow at the same slope, as far past its outer lines.
+    private func drawnArrow(_ shape: ArrowShape, width: CGFloat, middle: CGFloat, _ context: LayoutContext) -> MathBox {
+        let em = context.fontSize, stroke = strokeWidth(context)
+        // Between the lines of a double arrow, and the radius of a hook or a loop.
+        let pitch = em * 0.2, curl = em * 0.13
+        let outerLine = CGFloat(shape.lines - 1) * pitch / 2
+        let head = em * 0.25 + outerLine / 0.6, spread = head * 0.6
+        let left = stroke, right = width - stroke
+        let path = CGMutablePath()
+        /// The arms of a head whose tip is at (`x`, `y`) and points the way of `facing`: 1 right, -1 left.
+        func arms(_ x: CGFloat, _ y: CGFloat, _ facing: CGFloat, up: Bool = true, down: Bool = true) {
+            path.move(to: up ? CGPoint(x: x - facing * head, y: y + spread) : CGPoint(x: x, y: y))
+            if up { path.addLine(to: CGPoint(x: x, y: y)) }
+            if down { path.addLine(to: CGPoint(x: x - facing * head, y: y - spread)) }
+        }
+        /// What ends a shaft at `x`, the end of the arrow that `facing` points to.
+        func draw(_ end: ArrowShape.End, _ x: CGFloat, _ y: CGFloat, _ facing: CGFloat) {
+            switch end {
+            case .plain: break
+            case .head: arms(x, y, facing)
+            case .twoHeads: arms(x, y, facing); arms(x - facing * head * 0.8, y, facing)
+            case .barbUp: arms(x, y, facing, down: false)
+            case .barbDown: arms(x, y, facing, up: false)
+            case .tail: arms(x - facing * head, y, -facing)
+            case .bar:
+                path.move(to: CGPoint(x: x, y: y + spread))
+                path.addLine(to: CGPoint(x: x, y: y - spread))
+            case .hook, .loop:
+                // From the shaft up and round, a hook half way and back along the shaft, a loop
+                // three quarters and down across it.
+                let loop = end == .loop
+                path.move(to: CGPoint(x: x - facing * curl, y: y))
+                path.addRelativeArc(center: CGPoint(x: x - facing * curl, y: y + curl), radius: curl, startAngle: -.pi / 2,
+                                    delta: facing * .pi * (loop ? 1.5 : 1))
+                path.addLine(to: loop ? CGPoint(x: x - facing * 2 * curl, y: y - 2 * curl) : CGPoint(x: x - facing * 1.5 * curl, y: y + 2 * curl))
+            }
+        }
+        /// How far short of its end of the arrow a line `offset` from the middle of its shaft stops:
+        /// where it meets the arm of a head, the point of a tail, or the foot of a hook or loop.
+        func inset(_ end: ArrowShape.End, _ offset: CGFloat) -> CGFloat {
+            switch end {
+            case .head: head * abs(offset) / spread
+            case .tail: head
+            case .hook, .loop: curl
+            default: 0
+            }
+        }
+        // Harpoons turn their barbs outwards and lie close; whole heads need room for their inner arms.
+        let hasHeads = shape.shafts.contains { $0.left == .head || $0.right == .head }
+        let apart = hasHeads ? spread : pitch / 2
+        for (index, shaft) in shape.shafts.enumerated() {
+            let y = shape.shafts.count == 1 ? 0 : index == 0 ? apart : -apart
+            for line in 0..<shape.lines {
+                let offset = (CGFloat(line) - CGFloat(shape.lines - 1) / 2) * pitch
+                let start = left + inset(shaft.left, offset), end = right - inset(shaft.right, offset)
+                path.move(to: CGPoint(x: start, y: y + offset))
+                if shape.isWave {
+                    // A head sits on a straight end and the shaft waves between, in half-waves of the
+                    // length nearest 0.18 em that fills it. At most 200, as an assembly repeats its
+                    // extenders: markup can make a shaft any number of ems long.
+                    let from = start + (shaft.left == .plain ? 0 : head), to = end - (shaft.right == .plain ? 0 : head)
+                    let waves = (to - from) / (em * 0.18), count = (waves >= 2 ? min(waves, 200) : 2).rounded()
+                    path.addLine(to: CGPoint(x: from, y: y + offset))
+                    for wave in 0..<Int(count) {
+                        path.addQuadCurve(to: CGPoint(x: from + (to - from) * CGFloat(wave + 1) / count, y: y + offset),
+                                          control: CGPoint(x: from + (to - from) * (CGFloat(wave) + 0.5) / count,
+                                                           y: y + offset + (wave % 2 == 0 ? 0.15 : -0.15) * em))
+                    }
+                }
+                path.addLine(to: CGPoint(x: end, y: y + offset))
+            }
+            draw(shaft.right, right, y, 1)
+            draw(shaft.left, left, y, -1)
+        }
+        if shape.isNegated {
+            let reach = spread * 1.25
+            path.move(to: CGPoint(x: width / 2 - reach / 2, y: -reach))
+            path.addLine(to: CGPoint(x: width / 2 + reach / 2, y: reach))
+        }
+        // The path is about its own middle line, and its ink goes where the glyph's is: not as far
+        // above the shaft as below, where a hook rises higher than a head falls. The box is a
+        // stroke beyond the path each way, as the single arrow's always was.
+        let bounds = path.boundingBoxOfPath
+        var rise = CGAffineTransform(translationX: 0, y: middle - bounds.midY)
+        var box = MathBox(width: width, ascent: rise.ty + bounds.maxY + stroke, descent: -(rise.ty + bounds.minY) + stroke)
+        box.items = [.path(path.copy(using: &rise) ?? path, lineWidth: stroke, color: context.color, fill: false)]
         return box
     }
 }

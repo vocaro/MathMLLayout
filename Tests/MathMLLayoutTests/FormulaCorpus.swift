@@ -269,7 +269,6 @@ enum FormulaCorpus {
             <mmultiscripts><mi mathvariant="normal">N</mi><mprescripts/><mn>7</mn><mn>14</mn></mmultiscripts>
             <mo>+</mo><msup><mi>e</mi><mo>−</mo></msup><mo>+</mo><msub><mover><mi>ν</mi><mo>¯</mo></mover><mi>e</mi></msub>
             """#, [.leftOf(.red, .green), .leftOf(.blue, .green), .above(.red, .blue)]),
-        // The equilibrium arrow does not stretch to its labels until https://github.com/vocaro/MathMLLayout/issues/13 is fixed.
         Formula("chemical equilibrium", #"""
             <msub><mi mathvariant="normal">N</mi><mn>2</mn></msub><mo>+</mo><mn>3</mn><msub><mi mathvariant="normal">H</mi><mn>2</mn></msub>
             <munderover><mo mathcolor="lime">⇌</mo><mtext mathcolor="blue">catalyst</mtext><mtext mathcolor="red">450 °C, 200 atm</mtext></munderover>
@@ -342,6 +341,9 @@ enum FormulaCorpus {
             """#, [.above(.red, .green), .above(.green, .blue), .coversHorizontally(.green, .blue), .centred(.red, .blue)]),
         Formula("labelled arrow", #"""
             <mi mathcolor="blue">A</mi><mover><mo mathcolor="lime">⟶</mo><mtext mathcolor="red">a long label</mtext></mover><mi>B</mi>
+            """#, [.above(.red, .green), .coversHorizontally(.green, .red), .leftOf(.blue, .green)]),
+        Formula("labelled implication", #"""
+            <mi mathcolor="blue">P</mi><mover><mo mathcolor="lime">⟹</mo><mtext mathcolor="red">by the lemma</mtext></mover><mi>Q</mi>
             """#, [.above(.red, .green), .coversHorizontally(.green, .red), .leftOf(.blue, .green)]),
         Formula("cancelled fraction", #"""
             <mfrac>
