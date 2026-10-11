@@ -792,6 +792,67 @@ final class GlyphTests: MathTestCase {
 
     // MARK: Bounds
 
+    /// A glyph larger than the extent bound is scaled down whole: its longer side is the bound, and
+    /// it keeps the shape its image or its author gave it.
+    func testAGlyphScaledToTheExtentBoundKeepsItsShape() throws {
+        let extent = MathLimits.extent
+        let images = provider(["g": quarters(30, 20), "wide": bitmap(60_000, 1).makeImage()!,
+                               "tall": bitmap(1, 60_000).makeImage()!])
+        // At 100 points a length is at most 1000em, twice the bound, and 500em is the bound itself.
+        func glyph(_ attributes: String) throws -> MathBox {
+            try box("<mi><mglyph alt=\"g\" \(attributes)/></mi>", images: images, size: 100)
+        }
+        // Each with its shape, width over height.
+        let scaled: [(String, CGFloat)] = [
+            // One length: the image's own shape.
+            (#"src="g" width="99999em""#, 1.5), (#"src="g" height="99999em""#, 1.5), (#"src="wide" height="100px""#, 60_000),
+            (#"src="tall" width="300%""#, 1.0 / 60_000),
+            // Neither: the same, from an image larger than the bound.
+            (#"src="wide""#, 60_000), (#"src="tall""#, 1.0 / 60_000),
+            // Both: the shape its author asked for, whatever the image's.
+            (#"src="g" width="99999em" height="500em""#, 2), (#"src="g" width="250em" height="99999em""#, 0.25),
+            (#"src="g" width="1px" height="99999em""#, 1.0 / 100_000), (#"src="g" width="99999em" height="99999em""#, 1),
+        ]
+        for (attributes, shape) in scaled {
+            let box = try glyph(attributes)
+            let rect = try XCTUnwrap(imageRects(box).first, attributes)
+            XCTAssertEqual(max(rect.width, rect.height), extent, attributes)
+            XCTAssertEqual(rect.width / rect.height / shape, 1, accuracy: 1e-9, attributes)
+            XCTAssertEqual([box.width, box.ascent, box.descent], [rect.width, rect.height, 0], attributes)
+        }
+        // valign moves what is left of it, and no further than the bound.
+        let lowered = try glyph(#"src="g" width="99999em" valign="-100em""#)
+        XCTAssertEqual(lowered.width, extent)
+        XCTAssertEqual(lowered.ascent, extent * 2 / 3 - 10_000, accuracy: 0.001)
+        XCTAssertEqual(lowered.descent, 10_000)
+        let raised = try glyph(#"src="wide" valign="99999em""#)
+        XCTAssertEqual([raised.width, raised.ascent], [extent, extent])
+        XCTAssertEqual(raised.descent, extent / 60_000 - extent, accuracy: 0.001)
+        // At the bound or inside it nothing is scaled.
+        for (attributes, size) in [(#"src="g" width="500em" height="1px""#, CGSize(width: extent, height: 1)),
+                                   (#"src="g" width="2px" height="500em""#, CGSize(width: 2, height: extent)),
+                                   (#"src="g" width="500em" height="500em""#, CGSize(width: extent, height: extent)),
+                                   (#"src="g" height="300em""#, CGSize(width: 45_000, height: 30_000))] {
+            XCTAssertEqual(imageRects(try glyph(attributes)).first?.size, size, attributes)
+        }
+        // The drawing agrees: scaled whole, each quarter of the image is still a quarter of the box.
+        let drawn = try layout(#"<mi><mglyph src="g" alt="g" width="99999em"/></mi>"#, images: images, size: 100)
+        XCTAssertEqual(drawn.width, extent)
+        XCTAssertEqual(drawn.ascent, extent * 2 / 3, accuracy: 0.001)
+        // Drawn at a thousandth, so that 50,000 by 33,333 points are 50 by 33.3 pixels, 5 from the corner.
+        let side = 60
+        let context = bitmap(side, side)
+        context.scaleBy(x: 0.001, y: 0.001)
+        drawn.draw(in: context, baselineOrigin: CGPoint(x: 5_000, y: 5_000))
+        let pixels = context.data!.bindMemory(to: UInt8.self, capacity: side * side * 4)
+        func pixel(_ x: Int, _ y: Int) -> [UInt8] { (0..<4).map { pixels[((side - 1 - (5 + y)) * side + 5 + x) * 4 + $0] } }
+        assertColor(pixel(12, 25), red, "top left")
+        assertColor(pixel(37, 25), green, "top right")
+        assertColor(pixel(12, 8), blue, "bottom left")
+        assertColor(pixel(37, 8), opaqueBlack, "bottom right")
+        assertColor(pixel(25, 42), [0, 0, 0, 0], "above it, where a height of the bound would reach")
+    }
+
     func testHostileGlyphSizesAreBounded() throws {
         let extent = MathLimits.extent
         let images = provider(["g": quarters(30, 20), "wide": bitmap(60_000, 1).makeImage()!,
@@ -802,10 +863,14 @@ final class GlyphTests: MathTestCase {
         // Lengths: a thousand ems at 100 points is twice the bound.
         var result = try glyph(#"src="g" width="99999em" height="99999em""#)
         XCTAssertEqual([result.width, result.ascent, result.descent], [extent, extent, 0])
+        // Past the bound a glyph is scaled down whole (testAGlyphScaledToTheExtentBoundKeepsItsShape),
+        // so the side that was within it is smaller too.
         result = try glyph(#"src="g" width="99999em""#)
-        XCTAssertEqual([result.width, result.ascent], [extent, extent], "the height the aspect ratio asks for is bounded too")
+        XCTAssertEqual(result.width, extent)
+        XCTAssertEqual(result.ascent, extent * 2 / 3, accuracy: 0.001, "the height the aspect ratio asks for is bounded too")
         result = try glyph(#"src="g" height="99999em" width="1px""#)
-        XCTAssertEqual([result.width, result.ascent], [1, extent])
+        XCTAssertEqual(result.width, 0.5, accuracy: 0.001)
+        XCTAssertEqual(result.ascent, extent)
         // valign cannot push either extent past the bound.
         result = try glyph(#"src="g" valign="-99999em""#)
         XCTAssertEqual([result.width, result.ascent, result.descent], [30, 0, extent])
@@ -815,11 +880,14 @@ final class GlyphTests: MathTestCase {
         XCTAssertEqual([result.ascent, result.descent], [extent, 0])
         // Images: their own size, and what an aspect ratio makes of it.
         result = try glyph(#"src="wide""#)
-        XCTAssertEqual([result.width, result.ascent], [extent, 1])
+        XCTAssertEqual(result.width, extent)
+        XCTAssertEqual(result.ascent, extent / 60_000, accuracy: 0.001)
         result = try glyph(#"src="wide" height="100px""#)
-        XCTAssertEqual([result.width, result.ascent], [extent, 100])
+        XCTAssertEqual(result.width, extent)
+        XCTAssertEqual(result.ascent, extent / 60_000, accuracy: 0.001)
         result = try glyph(#"src="tall""#)
-        XCTAssertEqual([result.width, result.ascent], [1, extent])
+        XCTAssertEqual(result.width, extent / 60_000, accuracy: 0.001)
+        XCTAssertEqual(result.ascent, extent)
         result = try glyph(#"src="tall" width="50%" valign="-150em""#)
         XCTAssertEqual([result.width, result.ascent, result.descent], [0.5, 15_000, 15_000])
         // Together they exceed the formula's bound like anything else.

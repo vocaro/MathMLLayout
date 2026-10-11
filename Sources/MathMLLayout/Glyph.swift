@@ -120,18 +120,24 @@ extension LayoutEngine {
     /// has no colour of its own, is filled with the token's as a character would be: that is "the
     /// foreground color to use when drawing ... the content for token elements" (3.1.10).
     ///
-    /// No dimension exceeds `MathLimits.extent`, whatever the image or the lengths, and an image
+    /// No dimension exceeds `MathLimits.extent`, whatever the image or the lengths: a larger image
+    /// is scaled down whole, and keeps the shape that its lengths or its pixels gave it. An image
     /// with a size that is not positive is empty.
     private func imageBox(_ glyph: MathMLNode, _ image: CGImage, _ context: LayoutContext) -> MathBox {
         let natural = CGSize(width: image.width, height: image.height)
         guard natural.width > 0, natural.height > 0 else { return .empty() }
         let given = (width: length(glyph.attributes["width"], context, reference: natural.width),
                      height: length(glyph.attributes["height"], context, reference: natural.height))
-        let width = min(given.width ?? given.height.map { $0 * natural.width / natural.height } ?? natural.width,
-                        MathLimits.extent)
-        let height = min(given.height ?? given.width.map { $0 * natural.height / natural.width } ?? natural.height,
-                         MathLimits.extent)
+        var width = given.width ?? given.height.map { $0 * natural.width / natural.height } ?? natural.width
+        var height = given.height ?? given.width.map { $0 * natural.height / natural.width } ?? natural.height
         guard width > 0, height > 0 else { return .empty() }
+        // Past the bound it is scaled down whole: each side bounded by itself would change its shape.
+        // The longer side is the bound itself, not what rounding makes of it.
+        let longer = max(width, height)
+        if longer > MathLimits.extent {
+            width = width == longer ? MathLimits.extent : width / longer * MathLimits.extent
+            height = height == longer ? MathLimits.extent : height / longer * MathLimits.extent
+        }
         // A percentage or a multiple of `valign`'s default, 0ex, is zero. Resolved with nothing to be
         // a percentage of it is no length at all, which comes to the same.
         let raise = min(max(length(glyph.attributes["valign"], context) ?? 0, -MathLimits.extent),
