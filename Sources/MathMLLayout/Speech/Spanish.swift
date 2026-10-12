@@ -1,5 +1,7 @@
-/// Spanish, as it is read aloud in class: "x al cuadrado", "a sobre b", "raíz cuadrada de x",
-/// "abre paréntesis". Where Spain and Latin America differ, the term both understand is used.
+// Selected wording adapted from MathCAT (MIT) and Speech Rule Engine (Apache-2.0).
+// Modified for MathMLLayout's phrase templates; see THIRD_PARTY_NOTICES.md and
+// Documentation/SpeechWordingAudit.md for sources, decisions and remaining uncertainty.
+/// Spanish formula readings; regional terminology has not been verified.
 enum SpanishVocabulary: MathVocabulary {
     static let language = "es"
 
@@ -23,7 +25,7 @@ enum SpanishVocabulary: MathVocabulary {
 
     static let accents = MathAccents(
         hat: .after("circunflejo"), tilde: .after("tilde"), bar: .after("barra"), underbar: .after("subrayado"),
-        dot: .after("punto"), doubleDot: .after("dos puntos"), vector: .before("vector"), check: .after("carón"),
+        dot: .after("punto"), doubleDot: .after("diéresis"), vector: .before("vector"), check: .after("carón"),
         breve: .after("breve"), overbrace: .after("con llave encima"), underbrace: .after("con llave debajo"))
 
     static func fraction(_ numerator: String, _ denominator: String, simple: Bool) -> String {
