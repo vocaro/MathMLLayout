@@ -17,6 +17,11 @@ Copyright © web-platform-tests contributors; the test fonts also retain their e
 Copyright (c) 2016 MathML Association notices. They are distributed under the
 [WPT 3-Clause BSD license](../Tests/MathMLLayoutTests/ExternalFixtures/WPT-LICENSE.md).
 Only their packaging changes from WOFF to sfnt; original MATH metrics are preserved.
+The supplemental operator tests include the original Ahem.ttf unchanged. Ahem belongs
+to the public domain; its embedded name-table declaration provides CC0 for jurisdictions
+that do not recognize that status. The sampled OpenStax inputs retain CC-BY-NC-SA-4.0
+and attribution in local corpus outputs; those inputs and renderings are not distributed
+with this repository or library. Source pins and measured results are retained here.
 The independent fontTools oracle contains decoded numeric data from Apple's installed
 STIX Two Math (Copyright 2001–2021 The STIX Fonts Project Authors, SIL OFL 1.1), not a font file.
 Optional tooling uses fontTools (MIT), lxml (BSD), Pillow (HPND), and Playwright (Apache-2.0)

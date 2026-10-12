@@ -1,0 +1,4823 @@
+{
+  "date": "2026-10-12",
+  "baseRevision": "4ca33a78e106b2344d6f56bc544b43de57417fff",
+  "scope": "Best-effort follow-up for issue #52; validation-only changes.",
+  "environment": {
+    "os": "Version 27.0 (Build 26A428)",
+    "xcode": "27.1",
+    "swift": "6.4",
+    "font": "system STIX Two Math",
+    "chromium": "151.0.7922.34",
+    "playwright": "1.62.1"
+  },
+  "standardsSupplement": {
+    "cases": [
+      {
+        "expectedInnerGap": 0,
+        "expectedOuterGap": 50,
+        "id": "mrow-op-1",
+        "innerGap": -0.25,
+        "meetsAssertion": true,
+        "outerGap": 50,
+        "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html"
+      },
+      {
+        "expectedInnerGap": 50,
+        "expectedOuterGap": 0,
+        "id": "mrow-nonop-1",
+        "innerGap": 50,
+        "meetsAssertion": true,
+        "outerGap": 0,
+        "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html"
+      },
+      {
+        "expectedInnerGap": 0,
+        "expectedOuterGap": 50,
+        "id": "mstyle-op-1",
+        "innerGap": -0.25,
+        "meetsAssertion": true,
+        "outerGap": 50,
+        "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html"
+      },
+      {
+        "expectedInnerGap": 50,
+        "expectedOuterGap": 0,
+        "id": "mstyle-nonop-1",
+        "innerGap": 50,
+        "meetsAssertion": true,
+        "outerGap": 0,
+        "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html"
+      },
+      {
+        "expectedInnerGap": 0,
+        "expectedOuterGap": 50,
+        "id": "mpadded-op-1",
+        "innerGap": -0.25,
+        "meetsAssertion": true,
+        "outerGap": 50,
+        "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html"
+      },
+      {
+        "expectedInnerGap": 50,
+        "expectedOuterGap": 0,
+        "id": "mpadded-nonop-1",
+        "innerGap": 50,
+        "meetsAssertion": true,
+        "outerGap": 0,
+        "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html"
+      },
+      {
+        "expectedInkHeight": 60,
+        "expectedInkWidth": 30,
+        "id": "mtd-reference",
+        "inkHeight": 60,
+        "inkWidth": 30,
+        "maximumChildGeometryDifference": 0,
+        "meetsAssertion": true,
+        "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/tables/table-cell-mrow-layout.html"
+      },
+      {
+        "expectedInkHeight": 60,
+        "expectedInkWidth": 30,
+        "id": "mtable-reference",
+        "inkHeight": 60,
+        "inkWidth": 30,
+        "maximumChildGeometryDifference": 0,
+        "meetsAssertion": true,
+        "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/tables/table-cell-mrow-layout.html"
+      }
+    ]
+  },
+  "corpus": {
+    "repository": "openstax/osbooks-calculus-bundle",
+    "revision": "8dbc2ce19e804924b2517b89ac72ee45be949d15",
+    "license": "CC-BY-NC-SA-4.0",
+    "manifestSHA256": "dc7616f27f99a38382ddd698ef00d3d81f114bb127cd73b19aea2d5a701e7edc",
+    "population": {
+      "files": 6,
+      "equations": 2888,
+      "uniqueEquations": 1807
+    },
+    "sourceModules": [
+      {
+        "file": "m53477.cnxml",
+        "path": "modules/m53477/index.cnxml",
+        "title": "Review of Functions",
+        "sha256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2"
+      },
+      {
+        "file": "m53611.cnxml",
+        "path": "modules/m53611/index.cnxml",
+        "title": "Maxima and Minima",
+        "sha256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c"
+      },
+      {
+        "file": "m53657.cnxml",
+        "path": "modules/m53657/index.cnxml",
+        "title": "Trigonometric Integrals",
+        "sha256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060"
+      },
+      {
+        "file": "m53840.cnxml",
+        "path": "modules/m53840/index.cnxml",
+        "title": "Area and Arc Length in Polar Coordinates",
+        "sha256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528"
+      },
+      {
+        "file": "m53970.cnxml",
+        "path": "modules/m53970/index.cnxml",
+        "title": "Change of Variables in Multiple Integrals",
+        "sha256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5"
+      },
+      {
+        "file": "m54050.cnxml",
+        "path": "modules/m54050/index.cnxml",
+        "title": "Table of Derivatives",
+        "sha256": "7baf91d3cd548cbaa6b3d49395a698900ed6513c9d0f3926f11f6cd67602213d"
+      }
+    ],
+    "sampling": "SHA256(seed+fixture hash) order within display/log2(node count)/rarest element strata; round-robin strata",
+    "seed": 52,
+    "sampleSize": 100,
+    "displayCounts": {
+      "block": 42,
+      "inline": 58
+    },
+    "featureCaseCounts": {
+      "math": 100,
+      "mrow": 92,
+      "mi": 96,
+      "mo": 93,
+      "mfrac": 30,
+      "mn": 77,
+      "mspace": 34,
+      "mtext": 45,
+      "msqrt": 12,
+      "msup": 44,
+      "mroot": 1,
+      "msub": 11,
+      "mtable": 13,
+      "mtr": 13,
+      "mtd": 13,
+      "mstyle": 29,
+      "munder": 10,
+      "msubsup": 10,
+      "munderover": 7,
+      "mfenced": 2,
+      "mover": 1
+    },
+    "exclusions": [],
+    "invariantPasses": 100,
+    "nativeRenderErrors": 0,
+    "nativeClipped": 0,
+    "chromiumRenderErrors": 0,
+    "visualReviewCount": 24,
+    "classifications": {
+      "unreviewed": 86,
+      "pass": 12,
+      "unsuitable reference/test": 2
+    },
+    "outcomeMeaning": "Corpus pass means only a limited visual review found no obvious defect, not standards conformance. Unreviewed includes inspected cases whose differences were not adjudicated. Root widths and DOM boxes differ by contract.",
+    "reviewSelection": "Largest remaining case containing each of mover, mroot, mfenced, munderover, munder, msubsup, mtable, msqrt, mfrac, msub, mtext, mstyle; fill to 24 with largest remaining cases, ID tie-break.",
+    "cases": [
+      {
+        "id": "corpus-465ab9485754be943f2b",
+        "sha256": "465ab9485754be943f2be376d432908ed5cfae688abae720c256b4224b9bab9a",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 291,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 3,
+          "mi": 1,
+          "mo": 4,
+          "mfrac": 2,
+          "mn": 4
+        },
+        "display": "block",
+        "nodeCount": 15,
+        "depth": 5,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          86.55111111111111,
+          25.680000000000003,
+          13.900000000000002
+        ],
+        "chromiumDimensions": [
+          97.734375,
+          26.59375,
+          16.265625
+        ],
+        "widthDifference": -11.183263888888888,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-ee716210e3191dd85645",
+        "sha256": "ee716210e3191dd85645c950c9819690ee5c424d1888bbbce2607688b77e2935",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 64,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mo": 5,
+          "mi": 2,
+          "mn": 1
+        },
+        "display": "block",
+        "nodeCount": 10,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          81.49111111111112,
+          14.72,
+          4.4
+        ],
+        "chromiumDimensions": [
+          109.78125,
+          17.015625,
+          6.703125
+        ],
+        "widthDifference": -28.290138888888876,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-3287058dc4d227df0254",
+        "sha256": "3287058dc4d227df02546188e1dc6a14d74547ba1832f18dd9695eec5a92a24c",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 53,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mo": 4,
+          "mi": 2,
+          "mspace": 1,
+          "mtext": 1
+        },
+        "display": "block",
+        "nodeCount": 10,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          205.01999999999998,
+          14.720000000000002,
+          4.7
+        ],
+        "chromiumDimensions": [
+          233.328125,
+          17.015625,
+          6.703125
+        ],
+        "widthDifference": -28.308125000000018,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-e90b2d64926730901367",
+        "sha256": "e90b2d649267309013676428e0ce5eb7f954ab421773dd3239a80e7b2017b6a6",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 123,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 2,
+          "mi": 2,
+          "mo": 5,
+          "mn": 2,
+          "msqrt": 1
+        },
+        "display": "block",
+        "nodeCount": 13,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          148.9488888888889,
+          19.91,
+          5.39
+        ],
+        "chromiumDimensions": [
+          172.34375,
+          18.890625,
+          6.390625
+        ],
+        "widthDifference": -23.394861111111112,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-0cb98e08afa945abab2f",
+        "sha256": "0cb98e08afa945abab2f49eb51bae44f347a448b38e05e93441dd08f8f5cd8a3",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 121,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 2,
+          "msup": 1,
+          "mo": 6,
+          "mi": 2,
+          "mn": 3
+        },
+        "display": "block",
+        "nodeCount": 15,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          140.6788888888889,
+          19.136000000000003,
+          4.4
+        ],
+        "chromiumDimensions": [
+          146.84375,
+          19.140625,
+          4.6875
+        ],
+        "widthDifference": -6.164861111111094,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-cc0c9344c03cacf74260",
+        "sha256": "cc0c9344c03cacf74260122dcec01d7f8fbe6291a6b8a823e41b1b99026941c0",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 602,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mi": 2,
+          "mo": 7,
+          "mfrac": 1,
+          "mn": 4
+        },
+        "display": "block",
+        "nodeCount": 16,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          160.44888888888892,
+          25.580000000000002,
+          12.8
+        ],
+        "chromiumDimensions": [
+          174.296875,
+          25.5625,
+          12.796875
+        ],
+        "widthDifference": -13.847986111111084,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-d5952c7b1924206bb089",
+        "sha256": "d5952c7b1924206bb089ec62d592d4511a29ae68bcf0d72b20d080a816139713",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 63,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mo": 10,
+          "mn": 4,
+          "mi": 2
+        },
+        "display": "block",
+        "nodeCount": 18,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          184.40666666666667,
+          14.72,
+          4.4
+        ],
+        "chromiumDimensions": [
+          212.703125,
+          17.015625,
+          6.703125
+        ],
+        "widthDifference": -28.296458333333334,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-736822630d427f66404a",
+        "sha256": "736822630d427f66404a49379a0a0cb1b02211410484c1a5af3404696441018f",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 401,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 7,
+          "mo": 11,
+          "mi": 6
+        },
+        "display": "block",
+        "nodeCount": 25,
+        "depth": 5,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          171.9,
+          14.72,
+          4.5
+        ],
+        "chromiumDimensions": [
+          219.296875,
+          17.015625,
+          6.6875
+        ],
+        "widthDifference": -47.396874999999994,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-ec9190810163fe77eb73",
+        "sha256": "ec9190810163fe77eb732ba86e31166615a13bf90ee8ae83f633343276f549a8",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 309,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mi": 2,
+          "mo": 9,
+          "mn": 8,
+          "mspace": 2,
+          "mtext": 1,
+          "mroot": 1
+        },
+        "display": "block",
+        "nodeCount": 25,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          326.8822222222222,
+          22.26,
+          4.5
+        ],
+        "chromiumDimensions": [
+          344.09375,
+          19.1875,
+          6.09375
+        ],
+        "widthDifference": -17.211527777777803,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-a9695bc4ef8400c83b2d",
+        "sha256": "a9695bc4ef8400c83b2d10de175404f6ca500b511e662b50fffb472ef07ac85c",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 70,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mo": 7,
+          "mtext": 2,
+          "mi": 4,
+          "mspace": 1
+        },
+        "display": "block",
+        "nodeCount": 16,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          303.02444444444444,
+          14.720000000000002,
+          4.7
+        ],
+        "chromiumDimensions": [
+          324.671875,
+          17.015625,
+          6.703125
+        ],
+        "widthDifference": -21.64743055555556,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-7f1e0bf6877ca8d85052",
+        "sha256": "7f1e0bf6877ca8d850525dc860102530032c6814cde1e71c3062a2c288245751",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 21,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 8,
+          "msub": 2,
+          "mi": 6,
+          "mo": 8,
+          "mfrac": 1,
+          "mn": 3,
+          "mtext": 1,
+          "msup": 1
+        },
+        "display": "block",
+        "nodeCount": 31,
+        "depth": 9,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          165.11311111111112,
+          25.580000000000002,
+          12.8
+        ],
+        "chromiumDimensions": [
+          201,
+          25.5625,
+          12.796875
+        ],
+        "widthDifference": -35.886888888888876,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-5928a0cce55f161b363c",
+        "sha256": "5928a0cce55f161b363cc259c56c7787c5d287bf0052d4c7d099e3eefa801db7",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 148,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 2,
+          "mn": 4,
+          "mi": 2,
+          "mo": 6,
+          "msup": 1
+        },
+        "display": "block",
+        "nodeCount": 16,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          153.91222222222223,
+          19.136000000000003,
+          4.4
+        ],
+        "chromiumDimensions": [
+          153.421875,
+          19.140625,
+          4.6875
+        ],
+        "widthDifference": 0.49034722222222626,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-4daeb2cf01dc136c9737",
+        "sha256": "4daeb2cf01dc136c97372a9967f210201d3e737b7e6e6b4238333ce5940a9885",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 74,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mtable": 1,
+          "mtr": 2,
+          "mtd": 6,
+          "mn": 4,
+          "mo": 4,
+          "mspace": 3,
+          "mtext": 2,
+          "mi": 2
+        },
+        "display": "block",
+        "nodeCount": 25,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          165.92222222222222,
+          25.95,
+          15.629999999999999
+        ],
+        "chromiumDimensions": [
+          181.453125,
+          30.53125,
+          20.234375
+        ],
+        "widthDifference": -15.530902777777783,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-d59d20dcc3b88c245684",
+        "sha256": "d59d20dcc3b88c2456845a8e2836e716bb9353995828c7c7cfd611f47c2eccc7",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 68,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mo": 9,
+          "mtext": 1,
+          "mi": 3,
+          "mn": 2
+        },
+        "display": "block",
+        "nodeCount": 17,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          172.71555555555554,
+          14.72,
+          4.4
+        ],
+        "chromiumDimensions": [
+          201.015625,
+          17.015625,
+          6.703125
+        ],
+        "widthDifference": -28.30006944444446,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-13ba9aa832440dd26f09",
+        "sha256": "13ba9aa832440dd26f09f6820ab00b7aca70b91a53ccc98f01c0fd0c9e439099",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 324,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 6,
+          "mstyle": 1,
+          "munder": 1,
+          "mo": 6,
+          "mi": 8,
+          "msup": 3,
+          "mn": 2
+        },
+        "display": "block",
+        "nodeCount": 28,
+        "depth": 8,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          187.7448888888889,
+          28.620000000000005,
+          31.700000000000003
+        ],
+        "chromiumDimensions": [
+          191.953125,
+          28.609375,
+          31.6875
+        ],
+        "widthDifference": -4.208236111111091,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-4ab41b85ed5a8b46fe66",
+        "sha256": "4ab41b85ed5a8b46fe66c5ae31dda32077d3b00654d4a0cb61f8d5b26383033a",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 450,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 5,
+          "mo": 21,
+          "mi": 9,
+          "msup": 2,
+          "mn": 5,
+          "mfrac": 1
+        },
+        "display": "block",
+        "nodeCount": 44,
+        "depth": 7,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          387.33999999999986,
+          29.996000000000002,
+          13.900000000000002
+        ],
+        "chromiumDimensions": [
+          396.328125,
+          31.015625,
+          16.265625
+        ],
+        "widthDifference": -8.988125000000139,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-c36b51485e2234421c6f",
+        "sha256": "c36b51485e2234421c6f658826937d6259616a9eace965d48faed63c99515a83",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 375,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 13,
+          "mi": 21,
+          "mo": 27
+        },
+        "display": "block",
+        "nodeCount": 62,
+        "depth": 6,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          493.04222222222234,
+          14.72,
+          4.5
+        ],
+        "chromiumDimensions": [
+          558.9375,
+          17.015625,
+          6.6875
+        ],
+        "widthDifference": -65.89527777777766,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-e502094bbd0b07d7758b",
+        "sha256": "e502094bbd0b07d7758b71e3db3ea3184db86bcf4168c65d6aca8c50eb84422f",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 84,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 3,
+          "mi": 12,
+          "mo": 9,
+          "mspace": 10,
+          "mtext": 5
+        },
+        "display": "block",
+        "nodeCount": 40,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          442.09777777777776,
+          14.72,
+          4.5
+        ],
+        "chromiumDimensions": [
+          459.90625,
+          14.46875,
+          4.6875
+        ],
+        "widthDifference": -17.808472222222235,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-99c3d25571f97343edaf",
+        "sha256": "99c3d25571f97343edaf467edba78e405d6611048f699afd6445f1e06d4c8f4d",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 191,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 4,
+          "mstyle": 1,
+          "mo": 8,
+          "msup": 1,
+          "mtext": 6,
+          "mn": 5,
+          "mi": 8,
+          "mspace": 6,
+          "mfrac": 2
+        },
+        "display": "block",
+        "nodeCount": 42,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          441.2344444444444,
+          28.62,
+          18.3
+        ],
+        "chromiumDimensions": [
+          432.125,
+          28.609375,
+          18.296875
+        ],
+        "widthDifference": 9.10944444444442,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-bf99dfbde12779d96ed0",
+        "sha256": "bf99dfbde12779d96ed0f1ab55384b28509a4e1a8707b9171485d316760ca988",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 179,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 9,
+          "msub": 7,
+          "mstyle": 5,
+          "mi": 18,
+          "mo": 15,
+          "mn": 4,
+          "mfrac": 2
+        },
+        "display": "block",
+        "nodeCount": 61,
+        "depth": 5,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          350.1766666666667,
+          27.46,
+          13.040000000000001
+        ],
+        "chromiumDimensions": [
+          386.453125,
+          27.734375,
+          13.03125
+        ],
+        "widthDifference": -36.27645833333332,
+        "visuallyReviewed": true,
+        "classification": "unreviewed",
+        "reviewNote": "Native inherited bold mstyle mathvariant differs from Chromium. Font/style applicability needs adjudication; no native bug inferred."
+      },
+      {
+        "id": "corpus-0732e3e3aeacf6f5a317",
+        "sha256": "0732e3e3aeacf6f5a317e61a05dfe9b1d8e1e22cab9fd9d7eaec11450cda7fac",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 81,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 14,
+          "mi": 13,
+          "mo": 8,
+          "mstyle": 1,
+          "msubsup": 1,
+          "msqrt": 1,
+          "msup": 2,
+          "mfrac": 2,
+          "mn": 2
+        },
+        "display": "block",
+        "nodeCount": 45,
+        "depth": 13,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          258.1686666666667,
+          40.588,
+          21.668
+        ],
+        "chromiumDimensions": [
+          263.453125,
+          39.71875,
+          21.578125
+        ],
+        "widthDifference": -5.284458333333305,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-760ab63541d6ef8011ac",
+        "sha256": "760ab63541d6ef8011ac6706662f3f50ec56d74fd48e34a063773e07cef586c3",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 213,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 10,
+          "mi": 6,
+          "mo": 14,
+          "mn": 9,
+          "msup": 4
+        },
+        "display": "block",
+        "nodeCount": 44,
+        "depth": 7,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          316.71999999999997,
+          21.436,
+          6.7
+        ],
+        "chromiumDimensions": [
+          364.25,
+          21.4375,
+          6.6875
+        ],
+        "widthDifference": -47.53000000000003,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-8f390068193c32faa9bd",
+        "sha256": "8f390068193c32faa9bd090c0398252699ebfa11a931ea1e01be78c269b6e465",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 57,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mtable": 1,
+          "mtr": 3,
+          "mtd": 9,
+          "mn": 7,
+          "mspace": 7,
+          "mtext": 4,
+          "mi": 4,
+          "mo": 5,
+          "mfrac": 1
+        },
+        "display": "block",
+        "nodeCount": 42,
+        "depth": 5,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          187.1888888888889,
+          45.673,
+          35.35300000000001
+        ],
+        "chromiumDimensions": [
+          202.21875,
+          50.25,
+          39.9375
+        ],
+        "widthDifference": -15.029861111111103,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-b98aa4e5c2271e226c78",
+        "sha256": "b98aa4e5c2271e226c7819c2ca9beb022281cf756d3bcf8935e6e723adc95b80",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 24,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 9,
+          "mi": 11,
+          "mo": 9,
+          "munder": 1,
+          "mtext": 1,
+          "msub": 1,
+          "mfrac": 1,
+          "mn": 3,
+          "mstyle": 1,
+          "msubsup": 1,
+          "msup": 1
+        },
+        "display": "block",
+        "nodeCount": 40,
+        "depth": 10,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          269.0728888888889,
+          34.05800000000001,
+          21.696
+        ],
+        "chromiumDimensions": [
+          290.609375,
+          34.03125,
+          21.671875
+        ],
+        "widthDifference": -21.536486111111117,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-2a71bf2b94f3d2462563",
+        "sha256": "2a71bf2b94f3d246256314bb8f240fd80bc9d22f5769a5f8fccfecb737a7eff6",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 22,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 12,
+          "msub": 3,
+          "mi": 12,
+          "mo": 13,
+          "mstyle": 2,
+          "munderover": 2,
+          "mn": 5,
+          "mfrac": 1,
+          "mtext": 1,
+          "msup": 1
+        },
+        "display": "block",
+        "nodeCount": 53,
+        "depth": 11,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          270.76755555555553,
+          31.116,
+          21.616000000000003
+        ],
+        "chromiumDimensions": [
+          319.40625,
+          31.171875,
+          21.484375
+        ],
+        "widthDifference": -48.63869444444447,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-d3bde8b96e5ce14538c1",
+        "sha256": "d3bde8b96e5ce14538c1cc00d15189cf7e8d5428f3ed93793d538aa6a4a2a880",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 111,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mtable": 1,
+          "mtr": 3,
+          "mtd": 6,
+          "mi": 13,
+          "mo": 14,
+          "mn": 16,
+          "mstyle": 3,
+          "mrow": 18,
+          "msubsup": 3,
+          "msqrt": 2,
+          "mspace": 3,
+          "mtext": 3,
+          "msup": 1,
+          "mfrac": 2
+        },
+        "display": "block",
+        "nodeCount": 89,
+        "depth": 12,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          245.09377777777775,
+          99.27700000000002,
+          88.95700000000002
+        ],
+        "chromiumDimensions": [
+          256.828125,
+          103.640625,
+          93.34375
+        ],
+        "widthDifference": -11.734347222222254,
+        "visuallyReviewed": true,
+        "classification": "unreviewed",
+        "reviewNote": "Both engines preserve the equation content. Table spacing/alignment and some script/limit sizing differ; specification-based adjudication deferred."
+      },
+      {
+        "id": "corpus-161a420fab9377917d8f",
+        "sha256": "161a420fab9377917d8f7ed829042ede3105911122d6b9c24635e967dce5505b",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 896,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 30,
+          "mi": 22,
+          "mo": 25,
+          "mtable": 1,
+          "mtr": 3,
+          "mtd": 15,
+          "mfrac": 9
+        },
+        "display": "block",
+        "nodeCount": 106,
+        "depth": 10,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          238.0777777777778,
+          64.903,
+          54.583
+        ],
+        "chromiumDimensions": [
+          254.484375,
+          69.53125,
+          59.234375
+        ],
+        "widthDifference": -16.40659722222219,
+        "visuallyReviewed": true,
+        "classification": "unreviewed",
+        "reviewNote": "Both engines preserve the equation content. Table spacing/alignment and some script/limit sizing differ; specification-based adjudication deferred."
+      },
+      {
+        "id": "corpus-2e24b0d6b6a9d854a0e6",
+        "sha256": "2e24b0d6b6a9d854a0e6d216d999b594575febcae35cc2031097b49b92e15fc2",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 420,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 9,
+          "mstyle": 2,
+          "munder": 2,
+          "mo": 12,
+          "mi": 25,
+          "mspace": 14,
+          "mtext": 6,
+          "msup": 1,
+          "mn": 1
+        },
+        "display": "block",
+        "nodeCount": 73,
+        "depth": 7,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          687.5277777777776,
+          28.62,
+          31.854000000000003
+        ],
+        "chromiumDimensions": [
+          688.1875,
+          28.609375,
+          31.828125
+        ],
+        "widthDifference": -0.6597222222223991,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-a03c22970f8465b92e00",
+        "sha256": "a03c22970f8465b92e00ffe7edebcc0d122e2a7153bfcbb95acaeff7013a036c",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 350,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 13,
+          "mstyle": 3,
+          "munder": 1,
+          "mo": 9,
+          "mi": 18,
+          "msup": 4,
+          "mn": 8,
+          "mfrac": 1,
+          "munderover": 2,
+          "mspace": 2,
+          "mtext": 2
+        },
+        "display": "block",
+        "nodeCount": 64,
+        "depth": 10,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          392.23199999999997,
+          44.546000000000014,
+          32.946000000000005
+        ],
+        "chromiumDimensions": [
+          383.34375,
+          44.53125,
+          32.921875
+        ],
+        "widthDifference": 8.888249999999971,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-b7d9e58e89299e34b398",
+        "sha256": "b7d9e58e89299e34b3983c16fbb416acaeead7c7f349253554d18af83b8b4d8e",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 49,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mtable": 1,
+          "mtr": 6,
+          "mtd": 12,
+          "mi": 19,
+          "mo": 36,
+          "mfrac": 12,
+          "mn": 39,
+          "mstyle": 3,
+          "mrow": 41,
+          "msubsup": 4,
+          "mtext": 10,
+          "mspace": 5,
+          "msup": 1
+        },
+        "display": "block",
+        "nodeCount": 190,
+        "depth": 13,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          289.4637777777778,
+          166.56,
+          156.24
+        ],
+        "chromiumDimensions": [
+          322.46875,
+          181.109375,
+          170.8125
+        ],
+        "widthDifference": -33.00497222222219,
+        "visuallyReviewed": true,
+        "classification": "unreviewed",
+        "reviewNote": "Both engines preserve the equation content. Table spacing/alignment and some script/limit sizing differ; specification-based adjudication deferred."
+      },
+      {
+        "id": "corpus-a5ae12d96efb89b9de9e",
+        "sha256": "a5ae12d96efb89b9de9ed250d4cc95ea090db8afbcdc99def3635d9177db15d5",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 88,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mtable": 1,
+          "mtr": 5,
+          "mtd": 15,
+          "mi": 26,
+          "mrow": 4,
+          "mo": 26,
+          "msub": 24,
+          "mn": 24,
+          "mtext": 8,
+          "mspace": 8
+        },
+        "display": "block",
+        "nodeCount": 142,
+        "depth": 6,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          356.02,
+          73.85,
+          63.530000000000015
+        ],
+        "chromiumDimensions": [
+          394.203125,
+          85.125,
+          74.828125
+        ],
+        "widthDifference": -38.18312500000002,
+        "visuallyReviewed": true,
+        "classification": "unreviewed",
+        "reviewNote": "Both engines preserve the equation content. Table spacing/alignment and some script/limit sizing differ; specification-based adjudication deferred."
+      },
+      {
+        "id": "corpus-71015566a19ff83d5e9c",
+        "sha256": "71015566a19ff83d5e9ce5fd3d61ddb3a0550681da58beae1fa83f2c0ad85833",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 489,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mtable": 1,
+          "mtr": 2,
+          "mtd": 4,
+          "mstyle": 3,
+          "mrow": 30,
+          "munder": 3,
+          "mo": 48,
+          "mi": 48,
+          "mfrac": 1,
+          "mspace": 4
+        },
+        "display": "block",
+        "nodeCount": 145,
+        "depth": 11,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          676.2297777777778,
+          70.36400000000002,
+          60.04400000000001
+        ],
+        "chromiumDimensions": [
+          729.5,
+          75.03125,
+          64.71875
+        ],
+        "widthDifference": -53.27022222222217,
+        "visuallyReviewed": true,
+        "classification": "unreviewed",
+        "reviewNote": "Both engines preserve the equation content. Table spacing/alignment and some script/limit sizing differ; specification-based adjudication deferred."
+      },
+      {
+        "id": "corpus-94fec0994d77a480e630",
+        "sha256": "94fec0994d77a480e630858cbff69ac16a8507c69a482059fd2766ebd5541cad",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 238,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 37,
+          "mstyle": 5,
+          "munder": 3,
+          "mo": 36,
+          "mi": 52,
+          "mtext": 5,
+          "munderover": 4,
+          "mn": 4,
+          "msub": 8
+        },
+        "display": "block",
+        "nodeCount": 155,
+        "depth": 13,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          836.8315555555555,
+          31.116,
+          31.700000000000003
+        ],
+        "chromiumDimensions": [
+          932.203125,
+          31.171875,
+          31.6875
+        ],
+        "widthDifference": -95.3715694444445,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-13310806123820f40cb5",
+        "sha256": "13310806123820f40cb52da9c57b614097bc439009ab7eb1fdc5a08cad9f0184",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 91,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mtable": 1,
+          "mtr": 6,
+          "mtd": 12,
+          "mi": 70,
+          "mo": 69,
+          "mstyle": 6,
+          "mrow": 77,
+          "msubsup": 6,
+          "msqrt": 6,
+          "msup": 20,
+          "mfrac": 5,
+          "mn": 16,
+          "mspace": 8,
+          "mtext": 8
+        },
+        "display": "block",
+        "nodeCount": 311,
+        "depth": 15,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          601.1124444444445,
+          207.1995,
+          196.87950000000004
+        ],
+        "chromiumDimensions": [
+          662.8125,
+          209.0625,
+          198.75
+        ],
+        "widthDifference": -61.70005555555554,
+        "visuallyReviewed": true,
+        "classification": "unreviewed",
+        "reviewNote": "Both engines preserve the equation content. Table spacing/alignment and some script/limit sizing differ; specification-based adjudication deferred."
+      },
+      {
+        "id": "corpus-66c084a1baa7173b5a1c",
+        "sha256": "66c084a1baa7173b5a1cb551c7fb32b21f70b4df4b5efb1f0da127da38c4acd5",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 412,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mtable": 3,
+          "mtr": 12,
+          "mtd": 18,
+          "mo": 32,
+          "mtext": 51,
+          "mspace": 59,
+          "mi": 64,
+          "mrow": 24,
+          "msup": 24,
+          "mn": 24
+        },
+        "display": "block",
+        "nodeCount": 312,
+        "depth": 8,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          653.8000000000001,
+          121.94000000000001,
+          111.62000000000002
+        ],
+        "chromiumDimensions": [
+          699.875,
+          129.59375,
+          119.296875
+        ],
+        "widthDifference": -46.07499999999993,
+        "visuallyReviewed": true,
+        "classification": "unreviewed",
+        "reviewNote": "Both engines preserve the equation content. Table spacing/alignment and some script/limit sizing differ; specification-based adjudication deferred."
+      },
+      {
+        "id": "corpus-2e583fdd71cf5851ddaf",
+        "sha256": "2e583fdd71cf5851ddaf5acfb0a7e88974e8a8092fca80e8a10cdeed32831d5e",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 470,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mtable": 1,
+          "mtr": 10,
+          "mtd": 5,
+          "mspace": 21,
+          "mstyle": 18,
+          "mrow": 65,
+          "munderover": 18,
+          "mo": 71,
+          "mn": 64,
+          "mi": 67,
+          "mtext": 2,
+          "mfrac": 5,
+          "msubsup": 3,
+          "msup": 3
+        },
+        "display": "block",
+        "nodeCount": 354,
+        "depth": 16,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          756.2644444444444,
+          246.227,
+          235.9070000000001
+        ],
+        "chromiumDimensions": [
+          733.921875,
+          228.71875,
+          218.40625
+        ],
+        "widthDifference": 22.342569444444393,
+        "visuallyReviewed": true,
+        "classification": "unreviewed",
+        "reviewNote": "Both engines preserve the equation content. Table spacing/alignment and some script/limit sizing differ; specification-based adjudication deferred."
+      },
+      {
+        "id": "corpus-b4f76eed420c1ffa20d2",
+        "sha256": "b4f76eed420c1ffa20d2bba8eeecaa40fb4fcc9d0bc46d8bdccbe22e1ee84b05",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 57,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          },
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 352,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          },
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 489,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          },
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 491,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mi": 1
+        },
+        "display": "inline",
+        "nodeCount": 2,
+        "depth": 1,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          11.1,
+          9.58,
+          0.24
+        ],
+        "chromiumDimensions": [
+          11.109375,
+          9.6875,
+          0.125
+        ],
+        "widthDifference": -0.009375000000000355,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-a047a829d3737458ddbb",
+        "sha256": "a047a829d3737458ddbbf41a126bce288c494bf2141956c9d4506ef1edb84686",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 854,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mn": 1,
+          "mo": 1
+        },
+        "display": "inline",
+        "nodeCount": 3,
+        "depth": 1,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          14.8,
+          12.88,
+          0.16
+        ],
+        "chromiumDimensions": [
+          21.46875,
+          12.875,
+          0.15625
+        ],
+        "widthDifference": -6.668749999999999,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-6b6b1f8dd40c869616e0",
+        "sha256": "6b6b1f8dd40c869616e03fda743afdcb546ad916e77171c80cd8d04b79276b94",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 19,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          },
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 22,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mi": 1,
+          "mo": 1
+        },
+        "display": "inline",
+        "nodeCount": 3,
+        "depth": 1,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          16.28,
+          9.58,
+          0.2
+        ],
+        "chromiumDimensions": [
+          22.75,
+          9.453125,
+          0.15625
+        ],
+        "widthDifference": -6.469999999999999,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-e2b45b66f39d87a5cfd1",
+        "sha256": "e2b45b66f39d87a5cfd1bba8f1541a1575e2449f1ef330237f993b171e2d4b86",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 374,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mi": 1,
+          "mtext": 1
+        },
+        "display": "inline",
+        "nodeCount": 3,
+        "depth": 1,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          19.34,
+          13.4,
+          0.22
+        ],
+        "chromiumDimensions": [
+          18.859375,
+          13.375,
+          0.21875
+        ],
+        "widthDifference": 0.48062499999999986,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-45eb1ba70ce7303c3ad4",
+        "sha256": "45eb1ba70ce7303c3ad451bda498cb7c3486146d82c05c2345c895075455a423",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 301,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mfrac": 1,
+          "mn": 2,
+          "mo": 1
+        },
+        "display": "inline",
+        "nodeCount": 6,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          18.363333333333333,
+          20.646000000000004,
+          11.7
+        ],
+        "chromiumDimensions": [
+          17.171875,
+          20.625,
+          11.6875
+        ],
+        "widthDifference": 1.1914583333333333,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-0575f3ec540c7062bc15",
+        "sha256": "0575f3ec540c7062bc1580c550a01a106ba856a6ddc39cbd288cd6049b2608b6",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 441,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mi": 3
+        },
+        "display": "inline",
+        "nodeCount": 5,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          31.94,
+          9.64,
+          4.4
+        ],
+        "chromiumDimensions": [
+          31.265625,
+          9.453125,
+          4.6875
+        ],
+        "widthDifference": 0.6743750000000013,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-b8eb1522b5145f49d47c",
+        "sha256": "b8eb1522b5145f49d47cccb79438c26680936a696b3681830082d56f8bd1c360",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 378,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mi": 1,
+          "mo": 1,
+          "mn": 1
+        },
+        "display": "inline",
+        "nodeCount": 5,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          46.79111111111111,
+          12.9,
+          0.2
+        ],
+        "chromiumDimensions": [
+          46.59375,
+          12.890625,
+          0
+        ],
+        "widthDifference": 0.19736111111110688,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-aa3ca0a5dcd24e9afa12",
+        "sha256": "aa3ca0a5dcd24e9afa123981fe1d71ae19ddd6620337761423253c8bd0a5308c",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 1,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          },
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 6,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mi": 1,
+          "mo": 1
+        },
+        "display": "inline",
+        "nodeCount": 4,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          20.953333333333337,
+          13.14,
+          2.64
+        ],
+        "chromiumDimensions": [
+          20.109375,
+          13.125,
+          2.625
+        ],
+        "widthDifference": 0.8439583333333367,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-3a0fe99ae4cae66f511a",
+        "sha256": "3a0fe99ae4cae66f511ac0dd4866d0c633f3e4dab7b88d0ee5e6ca116441d34e",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 104,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          },
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 106,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          },
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 112,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          },
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 170,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          },
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 202,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mtext": 1,
+          "mspace": 1,
+          "mi": 1
+        },
+        "display": "inline",
+        "nodeCount": 5,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          40.8,
+          12.200000000000001,
+          0.2
+        ],
+        "chromiumDimensions": [
+          40.609375,
+          12.1875,
+          0.1875
+        ],
+        "widthDifference": 0.19062499999999716,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-34e9d6221a9419a5c286",
+        "sha256": "34e9d6221a9419a5c2863c5a1c27af03286bd808e6bb98aa540e838e80b1555d",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 290,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "msqrt": 1,
+          "mn": 1
+        },
+        "display": "inline",
+        "nodeCount": 4,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          25.78,
+          21.4,
+          3.9000000000000012
+        ],
+        "chromiumDimensions": [
+          34.140625,
+          17.46875,
+          7.8125
+        ],
+        "widthDifference": -8.360624999999999,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-8cc52042142a2947489f",
+        "sha256": "8cc52042142a2947489f6e83772b80ddc34be86fd4249a3d6fc87a3784f49195",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 179,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          },
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 180,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mstyle": 1,
+          "mo": 2,
+          "mtext": 1,
+          "mi": 1
+        },
+        "display": "inline",
+        "nodeCount": 7,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          34.82,
+          14.72,
+          3.92
+        ],
+        "chromiumDimensions": [
+          34.140625,
+          14.71875,
+          3.90625
+        ],
+        "widthDifference": 0.6793750000000003,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-8b8ed526b374e7fb963c",
+        "sha256": "8b8ed526b374e7fb963cc7321bede839aae7e2c96a571fd97ec501e36ce9092e",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 13,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mtext": 1,
+          "msub": 1,
+          "mi": 2
+        },
+        "display": "inline",
+        "nodeCount": 6,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          42.616,
+          14.34,
+          4.3260000000000005
+        ],
+        "chromiumDimensions": [
+          42.34375,
+          14.234375,
+          4.1875
+        ],
+        "widthDifference": 0.27224999999999966,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-32493803d9f2f3c3d925",
+        "sha256": "32493803d9f2f3c3d925c2f0eea4c51d6b9dea1dd2eb03b34b90fd7711c0b858",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 137,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "msup": 1,
+          "mi": 1,
+          "mo": 1
+        },
+        "display": "inline",
+        "nodeCount": 4,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          19.064000000000004,
+          18.642000000000003,
+          0.22
+        ],
+        "chromiumDimensions": [
+          18.078125,
+          18.609375,
+          0.21875
+        ],
+        "widthDifference": 0.9858750000000036,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-36f05a7707c201705c34",
+        "sha256": "36f05a7707c201705c348e59d1d914332a228afc307efcef2a7b3c891b20064f",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 392,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mi": 3,
+          "mtext": 1
+        },
+        "display": "inline",
+        "nodeCount": 6,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          82.17999999999999,
+          14.340000000000002,
+          4.4
+        ],
+        "chromiumDimensions": [
+          81.515625,
+          14.234375,
+          4.390625
+        ],
+        "widthDifference": 0.6643749999999926,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-c4ff727d712377e87f91",
+        "sha256": "c4ff727d712377e87f91c296095b94e5e4dbd10ff8d24527c6c2035ac0180d7b",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 394,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mi": 3,
+          "mo": 2,
+          "msup": 1,
+          "mn": 2,
+          "mfrac": 1
+        },
+        "display": "inline",
+        "nodeCount": 11,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          89.916,
+          20.716,
+          11.84
+        ],
+        "chromiumDimensions": [
+          87.734375,
+          20.703125,
+          11.6875
+        ],
+        "widthDifference": 2.181624999999997,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-3fff77c9114d627f082c",
+        "sha256": "3fff77c9114d627f082c837eda9a303f617040e1645ce994f5b9812c06f27f29",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 152,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 2,
+          "mi": 2,
+          "mo": 5,
+          "mn": 1
+        },
+        "display": "inline",
+        "nodeCount": 11,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          84.06444444444445,
+          14.72,
+          4.5
+        ],
+        "chromiumDimensions": [
+          94.703125,
+          14.46875,
+          4.15625
+        ],
+        "widthDifference": -10.638680555555553,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-0024f314e9decb05f6b0",
+        "sha256": "0024f314e9decb05f6b08b9de5a2ca7da9570e57072fc853ca8da0bd8addb648",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 294,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mi": 3,
+          "mo": 3
+        },
+        "display": "inline",
+        "nodeCount": 8,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          70.17111111111112,
+          14.72,
+          4.5
+        ],
+        "chromiumDimensions": [
+          69.28125,
+          14.71875,
+          3.90625
+        ],
+        "widthDifference": 0.8898611111111165,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-91b5f9c990664b159bce",
+        "sha256": "91b5f9c990664b159bced0e0fda7cd73435d95f6f886bff09e2c86963c4c2b67",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 883,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "msub": 1,
+          "mi": 5,
+          "mo": 3,
+          "mn": 1,
+          "mfenced": 1,
+          "mover": 1
+        },
+        "display": "inline",
+        "nodeCount": 13,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          113.47444444444446,
+          14.120000000000003,
+          7.28
+        ],
+        "chromiumDimensions": [
+          101.890625,
+          13.234375,
+          7.46875
+        ],
+        "widthDifference": 11.583819444444458,
+        "visuallyReviewed": true,
+        "classification": "unsuitable reference/test",
+        "reviewNote": "Pinned Chromium rendering omits mfenced fences. Native fences are present; this comparison cannot validate their geometry."
+      },
+      {
+        "id": "corpus-4b522b6bf579dd33f5a6",
+        "sha256": "4b522b6bf579dd33f5a697e6eb31604603932601bff50b18219bdd572dc52e5f",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 433,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mi": 2,
+          "mo": 4,
+          "mn": 2,
+          "mtext": 1,
+          "mspace": 1
+        },
+        "display": "inline",
+        "nodeCount": 12,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          139.97555555555556,
+          14.120000000000001,
+          2.64
+        ],
+        "chromiumDimensions": [
+          146.265625,
+          14.109375,
+          2.625
+        ],
+        "widthDifference": -6.290069444444441,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-948b05122f6bd04c272a",
+        "sha256": "948b05122f6bd04c272a4910809b9945b4236ff96fc9badf1ec0e7d6c0e08273",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 681,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mi": 2,
+          "mo": 2,
+          "msqrt": 1,
+          "mn": 1
+        },
+        "display": "inline",
+        "nodeCount": 8,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          81.40444444444445,
+          21.27,
+          4.4
+        ],
+        "chromiumDimensions": [
+          89.265625,
+          17.46875,
+          7.8125
+        ],
+        "widthDifference": -7.861180555555549,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-057c7865d90df9f57262",
+        "sha256": "057c7865d90df9f57262cc270d4aab2a5f72c0f58891a41cf28aa75fab56e847",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 275,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 4,
+          "mstyle": 1,
+          "mo": 1,
+          "msup": 1,
+          "mtext": 1,
+          "mn": 2,
+          "mi": 3,
+          "mspace": 1
+        },
+        "display": "inline",
+        "nodeCount": 15,
+        "depth": 7,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          121.11666666666666,
+          28.62,
+          18.3
+        ],
+        "chromiumDimensions": [
+          109.53125,
+          28.609375,
+          18.296875
+        ],
+        "widthDifference": 11.58541666666666,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-a6c88db04cffd4dbbefd",
+        "sha256": "a6c88db04cffd4dbbefd00549debbe1bb3171530cc65bfb2091e89f7fe1e3d4e",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 567,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "msub": 2,
+          "mi": 2,
+          "mn": 2,
+          "mo": 2
+        },
+        "display": "inline",
+        "nodeCount": 10,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          68.47111111111111,
+          9.540000000000003,
+          4.2
+        ],
+        "chromiumDimensions": [
+          75.15625,
+          9.546875,
+          4.1875
+        ],
+        "widthDifference": -6.685138888888886,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-078fad214424717b52bf",
+        "sha256": "078fad214424717b52bfbf1bcce0144a21c53a8bcfb1b4eb973bedc8d889aac8",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 338,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mtext": 1,
+          "msubsup": 2,
+          "mi": 2,
+          "mn": 4,
+          "mo": 2
+        },
+        "display": "inline",
+        "nodeCount": 13,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          92.53111111111112,
+          16.798000000000002,
+          4.416
+        ],
+        "chromiumDimensions": [
+          101.03125,
+          16.78125,
+          4.421875
+        ],
+        "widthDifference": -8.500138888888884,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-526155fefa8662757f2d",
+        "sha256": "526155fefa8662757f2d73540f4e67a363682b09e618d05d4b1140aa6c580404",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 279,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 2,
+          "mi": 3,
+          "mo": 5,
+          "mn": 3,
+          "msup": 1
+        },
+        "display": "inline",
+        "nodeCount": 15,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          164.78333333333336,
+          16.276,
+          3.92
+        ],
+        "chromiumDimensions": [
+          175.234375,
+          16.609375,
+          4.15625
+        ],
+        "widthDifference": -10.45104166666664,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-c9e3b96149926259c285",
+        "sha256": "c9e3b96149926259c2855b2203799724ea3bb2e600613be6f7ffdd3e76b01602",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 51,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mi": 2,
+          "mo": 1,
+          "mn": 2,
+          "mtext": 1
+        },
+        "display": "inline",
+        "nodeCount": 8,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          80.57111111111111,
+          14.18,
+          1.78
+        ],
+        "chromiumDimensions": [
+          79.359375,
+          14.171875,
+          1.765625
+        ],
+        "widthDifference": 1.211736111111108,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-b362412da59f0104114d",
+        "sha256": "b362412da59f0104114d607b8a47a40adb763515650a0d402c1c637feed7269a",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 829,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 3,
+          "mstyle": 1,
+          "munder": 1,
+          "mo": 2,
+          "mi": 4,
+          "mn": 1,
+          "mspace": 1
+        },
+        "display": "inline",
+        "nodeCount": 14,
+        "depth": 5,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          115.34,
+          28.620000000000005,
+          31.700000000000003
+        ],
+        "chromiumDimensions": [
+          101.84375,
+          28.609375,
+          31.6875
+        ],
+        "widthDifference": 13.496250000000003,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-0d837a7e4381c22d7847",
+        "sha256": "0d837a7e4381c22d78474ad596e679412d88b9ad52a7837f75cd305385e417f5",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 621,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mfrac": 2,
+          "mrow": 3,
+          "mn": 5,
+          "mi": 7,
+          "msup": 3,
+          "mtext": 1,
+          "mfenced": 1,
+          "mo": 1
+        },
+        "display": "inline",
+        "nodeCount": 24,
+        "depth": 6,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          111.72800000000001,
+          24.658000000000005,
+          11.84
+        ],
+        "chromiumDimensions": [
+          103.625,
+          23.796875,
+          11.8125
+        ],
+        "widthDifference": 8.103000000000009,
+        "visuallyReviewed": true,
+        "classification": "unsuitable reference/test",
+        "reviewNote": "Pinned Chromium rendering omits mfenced fences. Native fences are present; this comparison cannot validate their geometry."
+      },
+      {
+        "id": "corpus-f0cce0448daca58620de",
+        "sha256": "f0cce0448daca58620de0b0958cbc391b8f13f83bebb735b61f08f42afe585f8",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m54050/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m54050.cnxml",
+            "sourceSHA256": "7baf91d3cd548cbaa6b3d49395a698900ed6513c9d0f3926f11f6cd67602213d",
+            "originalFile": "originals/7baf91d3cd548cbaa6b3d49395a698900ed6513c9d0f3926f11f6cd67602213d.cnxml",
+            "equationIndex": 25,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m54050/index.cnxml",
+            "sourceTitle": "Table of Derivatives"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 5,
+          "mfrac": 1,
+          "mi": 5,
+          "mo": 3,
+          "mtext": 2,
+          "mspace": 2,
+          "msup": 1,
+          "mn": 1
+        },
+        "display": "inline",
+        "nodeCount": 21,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          170.11111111111111,
+          21.570000000000004,
+          11.867999999999999
+        ],
+        "chromiumDimensions": [
+          179.15625,
+          21.5625,
+          11.796875
+        ],
+        "widthDifference": -9.045138888888886,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-12ca07ce8be2dace1e8b",
+        "sha256": "12ca07ce8be2dace1e8b002dc66d5b073a98bc4130716134f6cf499f0817658a",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 280,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 5,
+          "mo": 8,
+          "mn": 4
+        },
+        "display": "inline",
+        "nodeCount": 18,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          101.09333333333333,
+          14.72,
+          3.92
+        ],
+        "chromiumDimensions": [
+          123.1875,
+          14.46875,
+          4.15625
+        ],
+        "widthDifference": -22.094166666666666,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-e9a2b555ed4e6754cb95",
+        "sha256": "e9a2b555ed4e6754cb9506607ffc850fa53a3de334f3b99c6c341ce357285e68",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 381,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 5,
+          "mi": 10,
+          "mo": 12
+        },
+        "display": "inline",
+        "nodeCount": 28,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          245.54222222222228,
+          14.72,
+          4.5
+        ],
+        "chromiumDimensions": [
+          265.78125,
+          14.46875,
+          4.6875
+        ],
+        "widthDifference": -20.23902777777772,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-677c40c4314b293b2bfa",
+        "sha256": "677c40c4314b293b2bfa9105b99a7600c02ef4326192f246a1d7905bbe07e5bb",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 22,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 3,
+          "msup": 2,
+          "mtext": 3,
+          "mn": 2,
+          "mi": 3,
+          "mo": 1,
+          "mspace": 2
+        },
+        "display": "inline",
+        "nodeCount": 17,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          154.4711111111111,
+          17.875999999999998,
+          0.22
+        ],
+        "chromiumDimensions": [
+          153.90625,
+          17.875,
+          0.21875
+        ],
+        "widthDifference": 0.5648611111110995,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-b313cfc0540779e9f95c",
+        "sha256": "b313cfc0540779e9f95ca8d3a916a5bc0b84cceef465fd76f9055730ee6b56db",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 236,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 4,
+          "mstyle": 1,
+          "mo": 1,
+          "msqrt": 1,
+          "mtext": 2,
+          "mspace": 4,
+          "mi": 4
+        },
+        "display": "inline",
+        "nodeCount": 18,
+        "depth": 7,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          161.86666666666667,
+          28.62,
+          18.3
+        ],
+        "chromiumDimensions": [
+          158.4375,
+          28.609375,
+          18.296875
+        ],
+        "widthDifference": 3.4291666666666742,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-4763fbe7cae467a36e44",
+        "sha256": "4763fbe7cae467a36e448e904237ac1e542f89062579c8f7765660689bba38f1",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 16,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 2,
+          "mstyle": 1,
+          "mo": 2,
+          "msup": 1,
+          "mtext": 2,
+          "mn": 1,
+          "mi": 4,
+          "mspace": 3
+        },
+        "display": "inline",
+        "nodeCount": 17,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          156.61666666666667,
+          28.62,
+          18.3
+        ],
+        "chromiumDimensions": [
+          151.5,
+          28.609375,
+          18.296875
+        ],
+        "widthDifference": 5.116666666666674,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-75c9ff8d921f02bc9114",
+        "sha256": "75c9ff8d921f02bc9114b66d696d65011e7ec7c90678fde9bed5dea088d475ed",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 836,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "msub": 4,
+          "mi": 7,
+          "mn": 4,
+          "mo": 8
+        },
+        "display": "inline",
+        "nodeCount": 25,
+        "depth": 3,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          203.3288888888889,
+          14.72,
+          4.5
+        ],
+        "chromiumDimensions": [
+          201.6875,
+          14.71875,
+          4.1875
+        ],
+        "widthDifference": 1.6413888888889119,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-70d59868864ad2ab573b",
+        "sha256": "70d59868864ad2ab573b450e8429086e934db418f83ce697ed6b7e0cd47922b0",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 0,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 4,
+          "mstyle": 1,
+          "msubsup": 1,
+          "mo": 5,
+          "mn": 5,
+          "mi": 4,
+          "msup": 2
+        },
+        "display": "inline",
+        "nodeCount": 23,
+        "depth": 8,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          162.6588888888889,
+          33.036,
+          21.5
+        ],
+        "chromiumDimensions": [
+          150.875,
+          33.03125,
+          21.484375
+        ],
+        "widthDifference": 11.783888888888896,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-bc024859a9bc358624fc",
+        "sha256": "bc024859a9bc358624fc119d2f2233981fb2cc49329ce6d3a065976ae6ccb165",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 293,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 4,
+          "mi": 6,
+          "mo": 8,
+          "mtext": 2,
+          "msup": 1,
+          "mn": 1
+        },
+        "display": "inline",
+        "nodeCount": 23,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          191.16111111111113,
+          16.216,
+          3.92
+        ],
+        "chromiumDimensions": [
+          207.703125,
+          16.203125,
+          4.15625
+        ],
+        "widthDifference": -16.542013888888874,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-7fd1066645ae2f18e9d2",
+        "sha256": "7fd1066645ae2f18e9d2774d8ae56b1dfa87dec6b40d863aee7974ce9b14a384",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 617,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          },
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 818,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 6,
+          "mi": 6,
+          "mo": 8,
+          "mtable": 1,
+          "mtr": 2,
+          "mtd": 2,
+          "mtext": 1,
+          "mn": 2
+        },
+        "display": "inline",
+        "nodeCount": 29,
+        "depth": 8,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          152.21555555555557,
+          25.37,
+          15.05
+        ],
+        "chromiumDimensions": [
+          181.96875,
+          31.40625,
+          21.078125
+        ],
+        "widthDifference": -29.753194444444432,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-344e389ff5b2ecd3763f",
+        "sha256": "344e389ff5b2ecd3763f7d3a1a6520d46806b317ea85fff5de6a7a8eed508722",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 565,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 4,
+          "mi": 4,
+          "mo": 6,
+          "mtext": 1
+        },
+        "display": "inline",
+        "nodeCount": 16,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          120.01111111111112,
+          14.72,
+          4.5
+        ],
+        "chromiumDimensions": [
+          147.5625,
+          14.46875,
+          4.15625
+        ],
+        "widthDifference": -27.55138888888888,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-a2ed5e5118ef52ee0996",
+        "sha256": "a2ed5e5118ef52ee0996656ba7c1b7dd856aca93d585e41209b2d9c92e669129",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 756,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 3,
+          "mstyle": 1,
+          "munder": 1,
+          "mo": 3,
+          "mi": 6,
+          "mtext": 1,
+          "msup": 1,
+          "mn": 1,
+          "mspace": 1
+        },
+        "display": "inline",
+        "nodeCount": 19,
+        "depth": 6,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          154.39666666666665,
+          28.62,
+          31.910000000000004
+        ],
+        "chromiumDimensions": [
+          142.53125,
+          28.609375,
+          31.890625
+        ],
+        "widthDifference": 11.865416666666647,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-5aecc70c341a2f8e2665",
+        "sha256": "5aecc70c341a2f8e266563b41a8b36e5de06c1e068855b4ef709c1db3455f0e4",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 826,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 6,
+          "mstyle": 2,
+          "munderover": 2,
+          "mo": 2,
+          "mn": 4,
+          "mspace": 2,
+          "mi": 9,
+          "msup": 2
+        },
+        "display": "inline",
+        "nodeCount": 30,
+        "depth": 11,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          174.75933333333336,
+          43.566,
+          34.78
+        ],
+        "chromiumDimensions": [
+          150.703125,
+          43.546875,
+          34.96875
+        ],
+        "widthDifference": 24.05620833333336,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-d7fc37975ceb6f187451",
+        "sha256": "d7fc37975ceb6f187451bd544f0742ac5258399d97b5df6f2d28dcf83a8d641f",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 806,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 8,
+          "mi": 7,
+          "mo": 12,
+          "mn": 5,
+          "mfrac": 1,
+          "msup": 1
+        },
+        "display": "inline",
+        "nodeCount": 35,
+        "depth": 7,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          248.96311111111115,
+          21.82,
+          12.26
+        ],
+        "chromiumDimensions": [
+          292.046875,
+          24.21875,
+          13.890625
+        ],
+        "widthDifference": -43.08376388888885,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-05c97f75fca3a243c290",
+        "sha256": "05c97f75fca3a243c2907a152a5e16d1f7030886460ec0560f5571848695c78e",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 499,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 9,
+          "mo": 14,
+          "mi": 5,
+          "mn": 4
+        },
+        "display": "inline",
+        "nodeCount": 33,
+        "depth": 5,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          279.2422222222222,
+          14.72,
+          4.5
+        ],
+        "chromiumDimensions": [
+          330.21875,
+          14.46875,
+          4.15625
+        ],
+        "widthDifference": -50.97652777777779,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-a3b5bf8a2902b3eca728",
+        "sha256": "a3b5bf8a2902b3eca7288da07a1ca518e025c16539039e8a8779d140bb292fb7",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 198,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 9,
+          "mi": 9,
+          "mo": 13
+        },
+        "display": "inline",
+        "nodeCount": 32,
+        "depth": 6,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          215.74444444444447,
+          14.72,
+          4.5
+        ],
+        "chromiumDimensions": [
+          257.5625,
+          17.015625,
+          6.6875
+        ],
+        "widthDifference": -41.81805555555553,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-35a19da79c56008776df",
+        "sha256": "35a19da79c56008776df303ab5a7dc2868a0c7f57b779fbf747525a91504529d",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 139,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 7,
+          "msup": 4,
+          "mtext": 6,
+          "mi": 10,
+          "mspace": 6,
+          "mo": 3,
+          "mn": 2
+        },
+        "display": "inline",
+        "nodeCount": 39,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          331.2631111111111,
+          17.470000000000002,
+          0.22
+        ],
+        "chromiumDimensions": [
+          341.9375,
+          17.46875,
+          0.21875
+        ],
+        "widthDifference": -10.674388888888927,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-c82399e0596690ade503",
+        "sha256": "c82399e0596690ade503a6c00f556aed01d1f6fa584c0f5407130d822a5a25a3",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m54050/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m54050.cnxml",
+            "sourceSHA256": "7baf91d3cd548cbaa6b3d49395a698900ed6513c9d0f3926f11f6cd67602213d",
+            "originalFile": "originals/7baf91d3cd548cbaa6b3d49395a698900ed6513c9d0f3926f11f6cd67602213d.cnxml",
+            "equationIndex": 33,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m54050/index.cnxml",
+            "sourceTitle": "Table of Derivatives"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 10,
+          "mfrac": 2,
+          "mi": 6,
+          "mo": 7,
+          "msup": 2,
+          "mtext": 1,
+          "mn": 5,
+          "msqrt": 1,
+          "mspace": 1
+        },
+        "display": "inline",
+        "nodeCount": 36,
+        "depth": 7,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          255.59422222222224,
+          21.57,
+          14.589999999999996
+        ],
+        "chromiumDimensions": [
+          284.015625,
+          21.5625,
+          15.578125
+        ],
+        "widthDifference": -28.421402777777757,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-1cdbfda07762bc666943",
+        "sha256": "1cdbfda07762bc666943dcb59a23fbac4f550b1425d2f9342edc5dfe967aab39",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 227,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 7,
+          "mstyle": 2,
+          "mo": 7,
+          "msup": 3,
+          "mtext": 3,
+          "mi": 11,
+          "mspace": 2,
+          "mfrac": 1,
+          "mn": 4
+        },
+        "display": "inline",
+        "nodeCount": 41,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          383.48333333333323,
+          28.62,
+          18.3
+        ],
+        "chromiumDimensions": [
+          377.625,
+          28.609375,
+          18.296875
+        ],
+        "widthDifference": 5.858333333333235,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-67c610291c0d1631444c",
+        "sha256": "67c610291c0d1631444c14726e37b62f2c102eec79eb55c9fecdd9cf538a82fc",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 730,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 5,
+          "msub": 2,
+          "mi": 8,
+          "mo": 13,
+          "msup": 2,
+          "mn": 2
+        },
+        "display": "inline",
+        "nodeCount": 33,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          284.5808888888889,
+          17.555999999999997,
+          4.4
+        ],
+        "chromiumDimensions": [
+          297.40625,
+          17.546875,
+          6.6875
+        ],
+        "widthDifference": -12.825361111111079,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-ba73d59523ee6cf6b7de",
+        "sha256": "ba73d59523ee6cf6b7de6682fc60593ead0bceeea51d2ef2d0a161a7c1e5fcca",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 5,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 8,
+          "mi": 7,
+          "mo": 9,
+          "mstyle": 1,
+          "msubsup": 1,
+          "msqrt": 1,
+          "mn": 2,
+          "msup": 2
+        },
+        "display": "inline",
+        "nodeCount": 32,
+        "depth": 12,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          234.34266666666667,
+          35.028999999999996,
+          21.668
+        ],
+        "chromiumDimensions": [
+          250.09375,
+          33.890625,
+          21.578125
+        ],
+        "widthDifference": -15.751083333333327,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-b7b300d66652e873b999",
+        "sha256": "b7b300d66652e873b999eb539e5584145efa254345f1af5aa38119b48ff7f847",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 206,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 6,
+          "mi": 6,
+          "mo": 14,
+          "msup": 1,
+          "mn": 5
+        },
+        "display": "inline",
+        "nodeCount": 33,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          317.3411111111111,
+          16.216,
+          4.5
+        ],
+        "chromiumDimensions": [
+          349.0625,
+          16.203125,
+          4.15625
+        ],
+        "widthDifference": -31.721388888888896,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-928ba3a02d1203d212d8",
+        "sha256": "928ba3a02d1203d212d8c2eda746d3bcd36080602587d1f60e62af746abecda4",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53611.cnxml",
+            "sourceSHA256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c",
+            "originalFile": "originals/0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c.cnxml",
+            "equationIndex": 478,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53611/index.cnxml",
+            "sourceTitle": "Maxima and Minima"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 7,
+          "mi": 6,
+          "mo": 8,
+          "mtable": 1,
+          "mtr": 2,
+          "mtd": 4,
+          "msup": 2,
+          "mn": 8
+        },
+        "display": "inline",
+        "nodeCount": 39,
+        "depth": 9,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          206.97222222222226,
+          28.226000000000006,
+          17.906000000000002
+        ],
+        "chromiumDimensions": [
+          225,
+          33.796875,
+          23.484375
+        ],
+        "widthDifference": -18.027777777777743,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-dedd0324c5bf620372c1",
+        "sha256": "dedd0324c5bf620372c14b0b0cc871256ba009c357f03d082519ad5575cd0544",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 822,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 10,
+          "mstyle": 1,
+          "munder": 1,
+          "mo": 15,
+          "mi": 12,
+          "mfrac": 1,
+          "mn": 5,
+          "msup": 1,
+          "mtext": 1
+        },
+        "display": "inline",
+        "nodeCount": 48,
+        "depth": 8,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          437.901111111111,
+          28.620000000000005,
+          31.700000000000003
+        ],
+        "chromiumDimensions": [
+          445.453125,
+          28.609375,
+          31.6875
+        ],
+        "widthDifference": -7.552013888889007,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-779951bbb9bfe48b81e9",
+        "sha256": "779951bbb9bfe48b81e9027f5945520b09f550c94b46ab6f6092c0b75854480c",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 831,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 8,
+          "mstyle": 3,
+          "munderover": 3,
+          "mo": 3,
+          "mn": 5,
+          "mspace": 5,
+          "mi": 9
+        },
+        "display": "inline",
+        "nodeCount": 37,
+        "depth": 11,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          206.2,
+          43.63600000000001,
+          31.854000000000003
+        ],
+        "chromiumDimensions": [
+          171.875,
+          43.625,
+          31.828125
+        ],
+        "widthDifference": 34.32499999999999,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-d8617e0c7fc2f4b0dd30",
+        "sha256": "d8617e0c7fc2f4b0dd30fd875e3bbc79a27984f1dcae0087f77f5ff11a8724a0",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 606,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 13,
+          "mi": 19,
+          "mo": 19,
+          "mfrac": 3,
+          "msup": 6,
+          "mn": 8
+        },
+        "display": "inline",
+        "nodeCount": 69,
+        "depth": 8,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          499.4624444444444,
+          24.468,
+          13.91
+        ],
+        "chromiumDimensions": [
+          510.078125,
+          24.21875,
+          13.90625
+        ],
+        "widthDifference": -10.615680555555628,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-70cafb02c0c6d1042938",
+        "sha256": "70cafb02c0c6d104293881c7781deb53c2be89b96b12eb77a611a9cd7256db70",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53657.cnxml",
+            "sourceSHA256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060",
+            "originalFile": "originals/dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060.cnxml",
+            "equationIndex": 150,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53657/index.cnxml",
+            "sourceTitle": "Trigonometric Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 13,
+          "msup": 8,
+          "mtext": 8,
+          "mi": 13,
+          "mo": 12,
+          "mn": 8,
+          "mspace": 2
+        },
+        "display": "inline",
+        "nodeCount": 65,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          596.8411111111109,
+          17.470000000000002,
+          3.92
+        ],
+        "chromiumDimensions": [
+          626.59375,
+          17.46875,
+          3.90625
+        ],
+        "widthDifference": -29.752638888889123,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-e6f559caac99c02a5edb",
+        "sha256": "e6f559caac99c02a5edb6973ba60a0d3ed97d6a5fe7d27bb4988d70b61cd3cfb",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 126,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 20,
+          "mi": 18,
+          "mo": 17,
+          "mstyle": 2,
+          "msubsup": 2,
+          "msqrt": 2,
+          "msup": 5,
+          "mn": 4,
+          "mfrac": 1
+        },
+        "display": "inline",
+        "nodeCount": 72,
+        "depth": 13,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          486.9173333333333,
+          40.368,
+          21.696
+        ],
+        "chromiumDimensions": [
+          506.875,
+          39.71875,
+          21.671875
+        ],
+        "widthDifference": -19.957666666666682,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-c00439d7b54854c380f9",
+        "sha256": "c00439d7b54854c380f96a6411b1e865cfb68c12a7a83df27d317ee76f521c63",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 95,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 10,
+          "mtable": 1,
+          "mtr": 2,
+          "mtd": 4,
+          "mi": 19,
+          "mo": 26,
+          "mn": 19,
+          "msup": 5
+        },
+        "display": "inline",
+        "nodeCount": 87,
+        "depth": 9,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          609.3211111111111,
+          33.818,
+          23.498000000000008
+        ],
+        "chromiumDimensions": [
+          666.0625,
+          38.515625,
+          28.203125
+        ],
+        "widthDifference": -56.74138888888888,
+        "visuallyReviewed": true,
+        "classification": "unreviewed",
+        "reviewNote": "Both engines preserve the equation content. Table spacing/alignment and some script/limit sizing differ; specification-based adjudication deferred."
+      },
+      {
+        "id": "corpus-413e49826cb6a8cb85ad",
+        "sha256": "413e49826cb6a8cb85ad7637e6795ad34e638b106fa289ef3275e452132345cb",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 486,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 21,
+          "mstyle": 2,
+          "munder": 2,
+          "mo": 26,
+          "mi": 22,
+          "mfrac": 1,
+          "mspace": 1
+        },
+        "display": "inline",
+        "nodeCount": 76,
+        "depth": 9,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          448.89177777777775,
+          28.620000000000005,
+          31.910000000000004
+        ],
+        "chromiumDimensions": [
+          485.40625,
+          28.609375,
+          31.890625
+        ],
+        "widthDifference": -36.51447222222225,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-c3eff8ef53516933c7cd",
+        "sha256": "c3eff8ef53516933c7cd2324e956b1aee4bfe1ac2ddc7596cd3e0c04bd16df5f",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53970.cnxml",
+            "sourceSHA256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5",
+            "originalFile": "originals/f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5.cnxml",
+            "equationIndex": 834,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53970/index.cnxml",
+            "sourceTitle": "Change of Variables in Multiple Integrals"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 15,
+          "mstyle": 3,
+          "munderover": 3,
+          "mo": 9,
+          "mn": 12,
+          "mspace": 4,
+          "mtext": 2,
+          "msqrt": 4,
+          "msup": 6,
+          "mi": 12
+        },
+        "display": "inline",
+        "nodeCount": 71,
+        "depth": 15,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          274.734,
+          50.650000000000006,
+          38.71
+        ],
+        "chromiumDimensions": [
+          278.9375,
+          48.984375,
+          38.671875
+        ],
+        "widthDifference": -4.2035000000000196,
+        "visuallyReviewed": true,
+        "classification": "pass",
+        "reviewNote": "Limited visual review found no obvious missing native content, clipping or overlap; no authoritative expected layout."
+      },
+      {
+        "id": "corpus-8be3a53c15487e688f43",
+        "sha256": "8be3a53c15487e688f4350fa25cc6e634523e53aba0a2c2e926adc6c471dbdbd",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 165,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 2,
+          "mfrac": 1,
+          "mn": 2,
+          "mi": 2,
+          "mo": 3
+        },
+        "display": "block",
+        "nodeCount": 11,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          88.68,
+          25.68,
+          13
+        ],
+        "chromiumDimensions": [
+          93.640625,
+          25.671875,
+          12.796875
+        ],
+        "widthDifference": -4.960624999999993,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-98f643ed31eba2f68d62",
+        "sha256": "98f643ed31eba2f68d62a8b98283ca941ae7224c22941389638eb3bc2887dfee",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 596,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mn": 3,
+          "mo": 6,
+          "mi": 2
+        },
+        "display": "block",
+        "nodeCount": 13,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          139.2488888888889,
+          14.120000000000003,
+          4.4
+        ],
+        "chromiumDimensions": [
+          167.609375,
+          14.109375,
+          4.6875
+        ],
+        "widthDifference": -28.3604861111111,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-e6d7c587cf77d79f122d",
+        "sha256": "e6d7c587cf77d79f122d6cd81854c052737d4c5c9cc555bb789155f67cd6768e",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53840.cnxml",
+            "sourceSHA256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528",
+            "originalFile": "originals/c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528.cnxml",
+            "equationIndex": 77,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53840/index.cnxml",
+            "sourceTitle": "Area and Arc Length in Polar Coordinates"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mn": 2,
+          "mspace": 2,
+          "mtext": 1,
+          "mi": 1,
+          "mo": 2
+        },
+        "display": "block",
+        "nodeCount": 10,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          94.11111111111113,
+          14.34,
+          0.28
+        ],
+        "chromiumDimensions": [
+          100.28125,
+          14.234375,
+          0.296875
+        ],
+        "widthDifference": -6.1701388888888715,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-4c02c54c162043f74ef3",
+        "sha256": "4c02c54c162043f74ef38b2d89abb99b4236356ca39b7874c654068a15ff376b",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 144,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 2,
+          "msqrt": 1,
+          "mn": 3,
+          "mi": 2,
+          "mo": 4
+        },
+        "display": "block",
+        "nodeCount": 13,
+        "depth": 4,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          144.44888888888892,
+          21.849999999999998,
+          4.4
+        ],
+        "chromiumDimensions": [
+          158.96875,
+          19.171875,
+          6.109375
+        ],
+        "widthDifference": -14.519861111111084,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-3433f3002aa25043f4d5",
+        "sha256": "3433f3002aa25043f4d54cd6ecd34216a217c5223eaa770a638c4afa8a440c7e",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 457,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 4,
+          "msup": 1,
+          "mo": 5,
+          "mfrac": 1,
+          "mn": 3,
+          "mi": 2
+        },
+        "display": "block",
+        "nodeCount": 17,
+        "depth": 7,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          114.41,
+          29.996000000000002,
+          13.900000000000002
+        ],
+        "chromiumDimensions": [
+          126.6875,
+          31.015625,
+          16.265625
+        ],
+        "widthDifference": -12.277500000000003,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      },
+      {
+        "id": "corpus-8c88a9b6065b3daccece",
+        "sha256": "8c88a9b6065b3daccecefe052260e3c53e8437f4be7fe577cc6f680e0cf4b50c",
+        "source": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+        "provenance": [
+          {
+            "sourceFile": "m53477.cnxml",
+            "sourceSHA256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2",
+            "originalFile": "originals/af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2.cnxml",
+            "equationIndex": 60,
+            "sourceElementID": null,
+            "sourceURL": "https://github.com/openstax/osbooks-calculus-bundle/blob/8dbc2ce19e804924b2517b89ac72ee45be949d15/modules/m53477/index.cnxml",
+            "sourceTitle": "Review of Functions"
+          }
+        ],
+        "features": {
+          "math": 1,
+          "mrow": 1,
+          "mo": 10,
+          "mn": 4,
+          "mi": 2
+        },
+        "display": "block",
+        "nodeCount": 18,
+        "depth": 2,
+        "invariants": "pass",
+        "raster": "checked",
+        "nativeClipped": false,
+        "nativeDimensions": [
+          184.72666666666666,
+          14.72,
+          4.4
+        ],
+        "chromiumDimensions": [
+          213.015625,
+          17.015625,
+          6.703125
+        ],
+        "widthDifference": -28.28895833333334,
+        "visuallyReviewed": false,
+        "classification": "unreviewed",
+        "reviewNote": "Not visually inspected; invariant success does not establish correct typography."
+      }
+    ]
+  },
+  "validation": {
+    "debug": "Six selected XCTest methods passed without skips; strict standards and required font oracle enabled.",
+    "tooling": "Eleven tests passed, including native and Chromium integrations.",
+    "reimport": "Corpus and supplemental WPT manifests reproduced byte-for-byte.",
+    "release": "Incomplete: compilation ran out of disk space. No release-test result claimed."
+  }
+}

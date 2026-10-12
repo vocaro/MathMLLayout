@@ -8,6 +8,111 @@ import XCTest
 /// Numeric assertions from pinned WPT tests. Expectations come from upstream JS and
 /// purpose-built fonts, never from this library's font decoder or a regenerated baseline.
 final class ExternalValidationTests: XCTestCase {
+    private struct Supplement: Decodable {
+        struct Sample: Decodable {
+            let id: String
+            let source: String
+            let sourceSHA256: String
+            let markup: String
+            let sha256: String
+            let kind: String
+            let fontSize: CGFloat
+            let tolerance: CGFloat
+            let expectedOuterGap: CGFloat?
+            let expectedInnerGap: CGFloat?
+            let referenceMarkup: String?
+            let referenceSHA256: String?
+        }
+        struct Font: Decodable { let path: String; let postScriptName: String; let sha256: String }
+        let cases: [Sample]
+        let fonts: [Font]
+    }
+
+    /// WPT checks of grouping operators and implicit mrow layout in table cells.
+    /// Ahem's square ink matches the DOM glyph boxes used by the upstream spacing test.
+    func testSupplementalWPTOperatorsAndTableCells() throws {
+        let root = try fixtures()
+        let supplement = try JSONDecoder().decode(Supplement.self,
+            from: Data(contentsOf: root.appendingPathComponent("supplemental.json")))
+        XCTAssertEqual(supplement.cases.count, 8)
+        let font = try XCTUnwrap(supplement.fonts.first)
+        let url = root.appendingPathComponent(font.path)
+        XCTAssertEqual(hash(try Data(contentsOf: url)), font.sha256)
+        var error: Unmanaged<CFError>?
+        if !CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) {
+            XCTAssertEqual(error.map { CFErrorGetCode($0.takeRetainedValue()) },
+                           CTFontManagerError.alreadyRegistered.rawValue)
+        }
+        XCTAssertEqual(CTFontCopyPostScriptName(CTFontCreateWithName(font.postScriptName as CFString, 25, nil)) as String,
+                       font.postScriptName)
+        XCTAssertEqual(Set(supplement.cases.map(\.id)).count, supplement.cases.count)
+        var report: [[String: Any]] = []
+        for sample in supplement.cases {
+            let label = "\(sample.id): \(sample.source)"
+            XCTAssertEqual(hash(Data(sample.markup.utf8)), sample.sha256, label)
+            let sourceName = try XCTUnwrap(URL(string: sample.source)?.lastPathComponent)
+            XCTAssertEqual(hash(try Data(contentsOf: root.appendingPathComponent("upstream").appendingPathComponent(sourceName))),
+                           sample.sourceSHA256, label)
+            let node = try MathMLNode.parse(xml: Data(sample.markup.utf8))
+            let layout = try MathLayout(node, style: MathStyle(fontSize: sample.fontSize, color: black,
+                fontName: sample.kind == "operator" ? font.postScriptName : "STIXTwoMath-Regular"))
+            let rendering = Rendering(layout)
+            if sample.kind == "operator" {
+                // Ahem's solid square glyphs completely obscure the backgrounds. As in
+                // the numeric subset, expose backgrounds with a separate transparent draw.
+                let measuringMarkup = sample.markup.replacingOccurrences(of: " mathcolor=\"red\"", with: "")
+                    .replacingOccurrences(of: " mathcolor=\"lime\"", with: "")
+                let measuring = try MathLayout(MathMLNode.parse(xml: Data(measuringMarkup.utf8)),
+                    style: MathStyle(fontSize: sample.fontSize, color: CGColor(gray: 0, alpha: 0), fontName: font.postScriptName))
+                XCTAssertEqual([layout.width, layout.ascent, layout.descent], [measuring.width, measuring.ascent, measuring.descent], label)
+                let backgrounds = Rendering(measuring)
+                let before = try XCTUnwrap(backgrounds.bounds(.red), label)
+                let wrapper = try XCTUnwrap(backgrounds.bounds(.blue), label)
+                let core = try XCTUnwrap(rendering.bounds(.green), label)
+                XCTAssertEqual(wrapper.minX - before.maxX, try XCTUnwrap(sample.expectedOuterGap), accuracy: sample.tolerance, label)
+                XCTAssertEqual(core.minX - wrapper.minX, try XCTUnwrap(sample.expectedInnerGap), accuracy: sample.tolerance, label)
+                let outer = wrapper.minX - before.maxX, inner = core.minX - wrapper.minX
+                report.append(["id": sample.id, "source": sample.source, "outerGap": outer, "innerGap": inner,
+                    "expectedOuterGap": sample.expectedOuterGap!, "expectedInnerGap": sample.expectedInnerGap!,
+                    "meetsAssertion": abs(outer - sample.expectedOuterGap!) <= sample.tolerance &&
+                        abs(inner - sample.expectedInnerGap!) <= sample.tolerance])
+            } else {
+                let markup = try XCTUnwrap(sample.referenceMarkup)
+                XCTAssertEqual(hash(Data(markup.utf8)), sample.referenceSHA256, label)
+                let reference = try MathLayout(MathMLNode.parse(xml: Data(markup.utf8)),
+                    style: MathStyle(fontSize: sample.fontSize, color: black, fontName: "STIXTwoMath-Regular"))
+                let expected = Rendering(reference)
+                // Cell geometry is translated by the table's math-axis alignment. Compare
+                // every child's rectangle relative to the first child, not root baselines.
+                let origin = try XCTUnwrap(rendering.bounds(.red), label).origin
+                let referenceOrigin = try XCTUnwrap(expected.bounds(.red), label).origin
+                var maximumDifference: CGFloat = 0
+                for color in [Rendering.Ink.red, .green, .blue] {
+                    let actual = try XCTUnwrap(rendering.bounds(color), label)
+                    let target = try XCTUnwrap(expected.bounds(color), label)
+                    for (a, b) in [(actual.minX - origin.x, target.minX - referenceOrigin.x),
+                                   (actual.minY - origin.y, target.minY - referenceOrigin.y),
+                                   (actual.width, target.width), (actual.height, target.height)] {
+                        XCTAssertEqual(a, b, accuracy: sample.tolerance, label)
+                        maximumDifference = max(maximumDifference, abs(a - b))
+                    }
+                }
+                XCTAssertEqual(try XCTUnwrap(rendering.bounds()).width, 30, accuracy: sample.tolerance, label)
+                XCTAssertEqual(try XCTUnwrap(rendering.bounds()).height, 60, accuracy: sample.tolerance, label)
+                let ink = try XCTUnwrap(rendering.bounds())
+                report.append(["id": sample.id, "source": sample.source, "maximumChildGeometryDifference": maximumDifference,
+                    "inkWidth": ink.width, "inkHeight": ink.height, "expectedInkWidth": 30, "expectedInkHeight": 60,
+                    "meetsAssertion": maximumDifference <= sample.tolerance && abs(ink.width - 30) <= sample.tolerance &&
+                        abs(ink.height - 60) <= sample.tolerance])
+            }
+            assertBoxCoversInk(layout, label, rendering: rendering)
+        }
+        if let path = ProcessInfo.processInfo.environment["MATHML_EXTERNAL_SUPPLEMENT_REPORT"] {
+            try JSONSerialization.data(withJSONObject: ["cases": report], options: [.prettyPrinted, .sortedKeys])
+                .write(to: URL(fileURLWithPath: path))
+        }
+    }
+
     struct Manifest: Decodable {
         let schemaVersion: Int
         let revision: String
