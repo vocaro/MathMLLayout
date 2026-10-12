@@ -140,6 +140,12 @@ private struct Stack {
     var bands: [Band] = []
     /// Those of the rows of digits, the rows `align` counts.
     var rows: [Band] = []
+    /// What each line draws, top to bottom: the rectangle around the boxes of its characters and of the
+    /// carries beside them, or its rule. x is from the left edge of the columns and y down from the top
+    /// of the stack, as a band's. A line that draws nothing has none. A band will not do to tell what is
+    /// drawn over what: it has the line's leading, so a division's result, which stands a rule's thickness
+    /// lower than the work beside it, is always in the band of the next row.
+    var drawn: [CGRect] = []
 }
 
 /// `longdivstyle` (3.6.2.2): where the divisor and the result go around the dividend.
@@ -599,11 +605,20 @@ extension LayoutEngine {
             let (left, right) = ends(of: line.cells.indices, on: index)
             reach = (min(reach.left, left), max(reach.right, right))
         }
-        /// The ends of the rule that is line `index`, with its overhangs.
+        /// The ends of the rule that is line `index`. An overhang is how far it runs past the leftmost or the
+        /// rightmost column it spans (3.6.7.2), not past a sign that overflows that column. A rule across the
+        /// stack reaches such a sign as well, so it ends at whichever of the two is further out: an overhang
+        /// no longer than the sign's overflow changes nothing.
         func ends(ofRule index: Int) -> (left: CGFloat, right: CGFloat) {
             let line = lines[index]
-            let (left, right) = line.count > 0 ? ends(ofColumns: 0..<line.count, on: index) : line.isFrame ? (0, width) : reach
-            return (left - line.overhang.left, right + line.overhang.right)
+            var (left, right) = line.count > 0 ? ends(ofColumns: 0..<line.count, on: index) : (0, width)
+            left -= line.overhang.left; right += line.overhang.right
+            if line.count == 0, !line.isFrame {
+                // Without a sign to reach, the rule keeps to its overhang, which may shorten it.
+                if reach.left < 0 { left = min(left, reach.left) }
+                if reach.right > width { right = max(right, reach.right) }
+            }
+            return (left, right)
         }
         var backgrounds: [MathItem] = [], groups: [MathItem] = []
         for (index, line) in lines.enumerated() {
@@ -635,6 +650,7 @@ extension LayoutEngine {
                     let rect = CGRect(x: left, y: -band.bottom, width: right - left, height: line.thickness)
                     backgrounds += line.backgrounds.map { .rect(rect, $0.color) }
                     stack.box.items.append(.rect(rect, line.color))
+                    stack.drawn.append(CGRect(x: left, y: band.top, width: right - left, height: line.thickness))
                 }
                 continue
             }
@@ -643,13 +659,20 @@ extension LayoutEngine {
                 let (left, right) = ends(of: cells, on: index)
                 backgrounds.append(.rect(CGRect(x: left, y: -band.bottom, width: right - left, height: band.bottom - band.top), color))
             }
+            var drawn = CGRect.null
+            /// Draws a character or a carry of the line, `raise` above its baseline.
+            func draw(_ box: MathBox, x: CGFloat, raise: CGFloat = 0) {
+                guard !box.items.isEmpty else { return }
+                stack.box.add(box, at: CGPoint(x: x, y: raise - band.baseline))
+                drawn = drawn.union(CGRect(x: x, y: band.baseline - raise - box.ascent, width: box.width, height: box.height))
+            }
             for (offset, cell) in line.cells.enumerated() {
-                if let cell { stack.box.add(cell, at: CGPoint(x: origins[index][offset], y: -band.baseline)) }
+                if let cell { draw(cell, x: origins[index][offset]) }
             }
             for (column, carry) in line.attached {
                 if carry.location != .n {
                     let at = origin(of: carry, on: index, column)
-                    stack.box.add(carry.box, at: CGPoint(x: at.x, y: at.y - band.baseline))
+                    draw(carry.box, x: at.x, raise: at.y)
                 }
                 // A crossout strikes the character under the carry, a little past its corners.
                 guard !carry.crossout.isEmpty, let target = character(index, column) else { continue }
@@ -673,6 +696,7 @@ extension LayoutEngine {
                 stack.box.items.append(.path(path, lineWidth: constants.overbarRuleThickness * line.em, color: carry.color,
                                              fill: false))
             }
+            if !drawn.isNull { stack.drawn.append(drawn) }
         }
         stack.box.items.insert(contentsOf: groups + backgrounds, at: 0)
         return stack
@@ -723,7 +747,8 @@ extension LayoutEngine {
     /// work under it. Where the result goes above the dividend it is a row of that stack, so
     /// their digits share columns; elsewhere it and the divisor are stacks of their own, level
     /// with the dividend or stacked beside it. The specification names ten notations and shows
-    /// one figure of each (3.6.8.3); the proportions here are this engine's.
+    /// one figure of each (3.6.8.3); the proportions here are this engine's, and so is moving a
+    /// divisor or a result that would be drawn over the work, which 3.6.2.1 leaves open.
     private func longDivision(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
         guard node.children.count >= 2 else { throw MathLayoutError.invalidMarkup(node.name) }
         let style = stackStyle(node, context), form = LongDivision(attribute: node.attributes["longdivstyle"])
@@ -778,20 +803,77 @@ extension LayoutEngine {
         // the top of the whole is at 0.
         var box = MathBox()
         var top: CGFloat = 0, bottom = stack.height, right: CGFloat = 0
+        /// What has been placed, as the rectangles it draws: x where it is placed and y down, as `Stack.drawn`.
+        var placed: [CGRect] = []
         func place(_ part: Stack?, x: CGFloat, y: CGFloat) {
             guard let part else { return }
             box.add(part.box, at: CGPoint(x: x, y: -y))
+            placed += part.drawn.map { $0.offsetBy(dx: x, dy: y) }
             top = min(top, y); bottom = max(bottom, y + part.height); right = max(right, x + part.width)
         }
         /// The top of a part whose first row shares the dividend's baseline.
         func level(_ part: Stack?) -> CGFloat { row.baseline - (part?.rows.first?.baseline ?? part?.height ?? 0) }
         func horizontal(from start: CGFloat, to end: CGFloat, y: CGFloat) {
             box.items.append(.rect(CGRect(x: start, y: -y - rule, width: end - start, height: rule), color))
+            placed.append(CGRect(x: start, y: y, width: end - start, height: rule))
             bottom = max(bottom, y + rule); right = max(right, end)
         }
         func vertical(x: CGFloat, from start: CGFloat, to end: CGFloat) {
             box.items.append(.rect(CGRect(x: x, y: -end, width: rule, height: end - start), color))
+            placed.append(CGRect(x: x, y: start, width: rule, height: end - start))
             top = min(top, start); bottom = max(bottom, end); right = max(right, x + rule)
+        }
+        /// How far what has been placed has to move away from the dividend, right or (`leftwards`) left, to be
+        /// drawn over nothing of the dividend's stack, which starts at `left`. A divisor or a result that
+        /// stands against the dividend's own digits has beside it whatever work reaches past them: the first
+        /// row of 1 ÷ 8, "10", and a result that follows the "1". What is drawn over no line stays where it
+        /// is. Else all of it goes, as one piece so that a frame keeps what it frames, to stand `gap` past
+        /// the far end of each line it is drawn over, as it stood past the dividend; and from there the same
+        /// again, since it may now be over a line that it fell short of.
+        func clearance(leftwards: Bool = false, gap: CGFloat) -> CGFloat {
+            /// A rectangle's ends along the way the piece moves: the one it comes to first, and the other.
+            func ends(_ rect: CGRect) -> (near: CGFloat, far: CGFloat) {
+                leftwards ? (-rect.maxX, -rect.minX) : (rect.minX, rect.maxX)
+            }
+            guard let edge = placed.map({ ends($0).near }).min() else { return 0 }
+            // For each part and each line at its height: the distances between which the part is drawn over
+            // the line, and the distance that takes the piece past it. The lines are in order, top to bottom,
+            // and none is at the height of another, so the pairs are found in little more than a pass.
+            var met: [(from: CGFloat, to: CGFloat, past: CGFloat)] = []
+            for part in placed {
+                var first = 0, end = stack.drawn.count
+                while first < end {
+                    let middle = (first + end) / 2
+                    if stack.drawn[middle].maxY > part.minY { end = middle } else { first = middle + 1 }
+                }
+                let own = ends(part)
+                for line in stack.drawn[first...] {
+                    guard line.minY < part.maxY else { break }
+                    let other = ends(line.offsetBy(dx: left, dy: 0))
+                    met.append((other.near - own.far, other.far - own.near, other.far + gap - edge))
+                }
+            }
+            met.sort { $0.from < $1.from }
+            var distance: CGFloat = 0, next = 0
+            while true {
+                var past = distance
+                while next < met.count, met[next].from < distance {
+                    if met[next].to > distance { past = max(past, met[next].past) }
+                    next += 1
+                }
+                guard past > distance else { return distance }
+                distance = past
+            }
+        }
+        /// Moves what has been placed since `mark`, which follows the dividend, right to clear the work.
+        func clear(from mark: Int = 0, gap: CGFloat) {
+            let distance = clearance(gap: gap)
+            guard distance > 0 else { return }
+            var piece = MathBox()
+            piece.items = Array(box.items[mark...])
+            box.items.removeSubrange(mark...)
+            box.add(piece, at: CGPoint(x: distance, y: 0))
+            right += distance
         }
         let divisorWidth = divisor?.width ?? 0, resultWidth = result?.width ?? 0
         /// The line under the divisor: below the dividend's row, and below the divisor.
@@ -824,7 +906,7 @@ extension LayoutEngine {
             // The dividend, a vertical line, then the divisor over a line over the result. The
             // vertical line runs the height of the work, of the divisor and result, or of the
             // divisor alone, which then stands right after the dividend with the work free to
-            // run on under it.
+            // run on under it, or after the work beside it where that reaches past the dividend.
             let x = (form == .shortStackedRightRight ? row.right : stack.width) + pad
             place(divisor, x: x + rule + pad, y: level(divisor))
             horizontal(from: x, to: x + rule + pad + max(divisorWidth, resultWidth) + pad, y: under)
@@ -833,7 +915,9 @@ extension LayoutEngine {
             switch form {
             case .stackedRightRight: vertical(x: x, from: min(0, level(divisor)), to: max(stack.height, resultBottom))
             case .mediumStackedRightRight: vertical(x: x, from: min(row.top, level(divisor)), to: resultBottom)
-            default: vertical(x: x, from: min(row.top, level(divisor)), to: under + rule)
+            default:
+                vertical(x: x, from: min(row.top, level(divisor)), to: under + rule)
+                clear(gap: pad)
             }
         case .stackedLeftLeft:
             // The same, mirrored: divisor over result, flush against the line, then the dividend.
@@ -846,12 +930,15 @@ extension LayoutEngine {
         case .leftSlashRight, .leftParenRight, .colonRightEqualsRight:
             // One line: divisor / dividend \ result, divisor ) dividend ( result, or
             // dividend : divisor = result. The signs go around the dividend's own digits, and
-            // the work hangs under it, wherever it reaches.
+            // the work hangs under it, wherever it reaches. That is under everything on the line
+            // unless a divisor or a result is taller than a row: then what is on its side of the
+            // dividend moves away from it to clear the work.
             var x: CGFloat = 0
             let space = 0.25 * em
             func sign(_ text: String) {
                 let glyph = textBox(text, context)
                 box.add(glyph, at: CGPoint(x: x, y: -row.baseline))
+                placed.append(CGRect(x: x, y: row.baseline - glyph.ascent, width: glyph.width, height: glyph.height))
                 top = min(top, row.baseline - glyph.ascent); bottom = max(bottom, row.baseline + glyph.descent)
                 x += glyph.width + space
             }
@@ -859,16 +946,24 @@ extension LayoutEngine {
                 place(part, x: x, y: level(part))
                 if let part { x += part.width + space }
             }
+            var mark = 0
             if form == .colonRightEqualsRight {
                 x = row.right + space
                 sign(":"); side(divisor); sign("="); side(result)
             } else {
                 side(divisor); sign(form == .leftSlashRight ? "/" : ")")
+                // What precedes the dividend stays where it is, and the dividend's stack starts further right.
                 left = x - row.left
-                x += row.right - row.left + space
+                let before = clearance(leftwards: true, gap: space)
+                left += before
+                x += row.right - row.left + space + before
+                // From here on, what is placed follows the dividend.
+                mark = box.items.count
+                placed = []
                 sign(form == .leftSlashRight ? "\\" : "("); side(result)
             }
             right = max(right, x - space)
+            clear(from: mark, gap: space)
         }
         box.add(stack.box, at: CGPoint(x: left, y: 0))
         // Work that reaches left of the dividend, under the divisor, may start before it.

@@ -449,7 +449,7 @@ final class ElementaryMathTests: MathTestCase {
 
     /// A line with no length spans the stack (3.6.7.2). The stack is as wide as its rows, so the
     /// line goes on under a sign that overflows the first or the last column, as the line under
-    /// a sum does on paper.
+    /// a sum does on paper. Its overhangs are measured from those columns all the same.
     func testALineAcrossTheStackReachesASignThatOverflows() throws {
         func stack(_ line: String = "", sign: String = "<mo>+</mo>") throws -> Drawing {
             let body = "<mstack><mn>99</mn><msrow>\(sign)<mn>11</mn></msrow><msline\(line)/><mn>110</mn></mstack>"
@@ -463,21 +463,42 @@ final class ElementaryMathTests: MathTestCase {
         equal(sum.rules[0].rect.minX, plus.origin.x); equal(sum.rules[0].rect.maxX, total[2].right)
         equal(sum.rules[0].rect.minX, 0); equal(sum.rules[0].rect.width, sum.box.width)
         // A trailing sign overflows to the right.
-        let trailing = try drawing("<mstack stackalign='right'><mn>123</mn><msrow><mn>456</mn><mo>+</mo></msrow><msline/><mn>579</mn></mstack>")
+        func ending(_ line: String = "") throws -> Drawing {
+            try drawing("<mstack stackalign='right'><mn>123</mn><msrow><mn>456</mn><mo>+</mo></msrow><msline\(line)/><mn>579</mn></mstack>")
+        }
+        let trailing = try ending()
         XCTAssertGreaterThan(try trailing.glyph("plus").right, try trailing.glyph("nine").right + 1)
         equal(trailing.rules[0].rect.minX, try trailing.glyph("four").origin.x)
         equal(trailing.rules[0].rect.maxX, try trailing.glyph("plus").right)
-        // Every such line of a stack is the same, wherever the sign is, and overhangs start from there.
+        // Every such line of a stack is the same, wherever the sign is.
         let lines = try drawing("<mstack><msline/><mn>99</mn><msrow><mo>+</mo><mn>11</mn></msrow><msline/><mn>110</mn><msline/></mstack>")
         XCTAssertEqual(lines.rules.count, 3)
         for rule in lines.rules { equal(rule.rect.minX, try lines.glyph("plus").origin.x); equal(rule.rect.width, sum.rules[0].rect.width) }
+        // An overhang is past the column the line spans, not past the sign (3.6.7.2), and the line ends at
+        // whichever is further out. So one no longer than the sign overflows changes nothing, nor does a negative one.
+        let overflow = total[0].origin.x - plus.origin.x
+        XCTAssertGreaterThan(overflow, 0.2 * em); XCTAssertLessThan(overflow, 0.5 * em - 1)
+        for overhang in ["1px", "0.2em", "-0.2em"] {
+            let under = try stack(" leftoverhang='\(overhang)'")
+            equal(under.rules[0].rect.minX, try under.glyph("plus").origin.x, overhang)
+            equal(under.rules[0].rect.maxX, under.row(2)[2].right, overhang)
+        }
+        equal(try ending(" rightoverhang='1px'").rules[0].rect.maxX, try trailing.glyph("plus").right)
+        // A longer one is as long as it says: half an em left of the hundreds, which is past the sign.
         let hanging = try stack(" leftoverhang='0.5em' rightoverhang='3px'")
-        equal(hanging.rules[0].rect.minX, try hanging.glyph("plus").origin.x - 0.5 * em)
+        equal(hanging.rules[0].rect.minX, hanging.row(2)[0].origin.x - 0.5 * em)
+        XCTAssertLessThan(hanging.rules[0].rect.minX, try hanging.glyph("plus").origin.x - 1)
         equal(hanging.rules[0].rect.maxX, hanging.row(2)[2].right + 3)
-        // A line with a length is a number of that many digits, and keeps to their columns.
+        equal(try ending(" rightoverhang='0.5em'").rules[0].rect.maxX, try trailing.glyph("nine").right + 0.5 * em)
+        // With no sign to reach, a negative one shortens the line.
+        let bare = try drawing("<mstack><mn>99</mn><msline leftoverhang='-0.2em'/><mn>11</mn></mstack>")
+        equal(bare.rules[0].rect.minX, bare.row(1)[0].origin.x + 0.2 * em); equal(bare.rules[0].rect.maxX, bare.box.width)
+        // A line with a length is a number of that many digits, and keeps to their columns and its overhangs.
         let counted = try stack(" length='3'")
         equal(counted.rules[0].rect.minX, counted.row(2)[0].origin.x); equal(counted.rules[0].rect.maxX, counted.row(2)[2].right)
         XCTAssertGreaterThan(counted.rules[0].rect.minX, try counted.glyph("plus").origin.x + 1)
+        let short = try stack(" length='3' leftoverhang='1px'")
+        equal(short.rules[0].rect.minX, short.row(2)[0].origin.x - 1)
         // A sign with a column of its own overflows nothing, and carries have no width (3.6.1.1).
         let fitting = try stack(sign: "<mo>+</mo><none/>")
         equal(fitting.rules[0].rect.minX, try fitting.glyph("plus").origin.x); equal(fitting.rules[0].rect.width, fitting.box.width)
@@ -885,6 +906,173 @@ final class ElementaryMathTests: MathTestCase {
             equal(try unfinished.glyph("seven").origin.y, try unfinished.glyph("four").origin.y, style)
         }
     }
+
+    // MARK: Work beside the divisor or the result
+
+    /// What a division draws before and after its dividend, and what the dividend's stack draws: as
+    /// rectangles, a glyph's its advance wide and its ink high, with x from the dividend's first digit.
+    private struct Sides {
+        var before: [CGRect] = [], after: [CGRect] = [], work: [CGRect] = []
+        /// Where what precedes the dividend ends, where what follows it starts, and where the box ends.
+        var trailing: CGFloat { before.map(\.maxX).max() ?? 0 }
+        var leading: CGFloat { after.map(\.minX).min() ?? 0 }
+        var right: CGFloat = 0
+    }
+
+    /// 1 ÷ 8 = 0.125 with `work` under the 1: rows that reach past it, or none. Colour tells what is drawn
+    /// apart: the dividend and the work are lime, the divisor red and the result blue, which leaves the
+    /// frame and the signs black. The top is on the baseline, so that work moves nothing up or down.
+    private func eighth(_ style: String, work: String = "", divisor: String = "<mn>8</mn>",
+                        result: String = "<mn>0.125</mn>") -> String {
+        "<mlongdiv longdivstyle=\"\(style)\" align='top'><msgroup mathcolor='red'>\(divisor)</msgroup>"
+            + "<msgroup mathcolor='blue'>\(result)</msgroup><mn mathcolor='lime'>1</mn>"
+            + "<msgroup mathcolor='lime'>\(work)</msgroup></mlongdiv>"
+    }
+
+    /// The work of 1 ÷ 8: 10 − 8, 20 − 16, 40 − 40. Its first row is a column longer than the dividend.
+    private static let eighths = "<msgroup position='-1' shift='-1'><msgroup><mn>10</mn><mn>8</mn><msline length='2'/></msgroup>"
+        + "<msgroup><mn>20</mn><mn>16</mn><msline length='2'/></msgroup>"
+        + "<msgroup><mn>40</mn><mn>40</mn><msline length='2'/><mn>0</mn></msgroup></msgroup>"
+
+    /// The sides of a division that `eighth` wrote, having asserted that nothing on either is drawn over
+    /// anything of the dividend's stack, and that the box covers them all.
+    private func sides(_ body: String, file: StaticString = #filePath, line: UInt = #line) throws -> Sides {
+        let drawn = try drawing(body), lime = MathColor.parse("lime")
+        let dividend = try XCTUnwrap(drawn.glyphs.first { $0.color == lime }, body, file: file, line: line).origin.x
+        var sides = Sides(right: drawn.box.width - dividend)
+        func sort(_ rect: CGRect, _ color: CGColor) {
+            let rect = rect.offsetBy(dx: -dividend, dy: 0)
+            if color == lime { sides.work.append(rect) } else if rect.midX < 0 { sides.before.append(rect) } else {
+                sides.after.append(rect)
+            }
+        }
+        for glyph in drawn.glyphs {
+            sort(CGRect(x: glyph.origin.x, y: glyph.ink.minY, width: glyph.advance, height: glyph.ink.height), glyph.color)
+        }
+        for rule in drawn.rules { sort(rule.rect, rule.color) }
+        for part in sides.before + sides.after {
+            for other in sides.work {
+                let shared = part.intersection(other)
+                XCTAssertFalse(shared.width > 0.01 && shared.height > 0.01, "\(part) is drawn over \(other): \(body)",
+                               file: file, line: line)
+            }
+        }
+        try assertCoversInk(body, file: file, line: line)
+        return sides
+    }
+
+    /// Asserts that `moved` are the rectangles that `plain` are, `distance` to the right.
+    private func assertMoved(_ moved: [CGRect], _ plain: [CGRect], by distance: CGFloat = 0, _ message: String = "",
+                             file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(moved.count, plain.count, message, file: file, line: line)
+        for (now, then) in zip(moved, plain) {
+            equal(now.minX, then.minX + distance, message, file: file, line: line)
+            equal(now.minY, then.minY, message, file: file, line: line)
+            equal(now.width, then.width, message, file: file, line: line)
+            equal(now.height, then.height, message, file: file, line: line)
+        }
+    }
+
+    /// 1 ÷ 8 = 0.125. The first row of the work, "10", is level with the result and a column longer than
+    /// the dividend, and the result began where the dividend ends: one was drawn over the other. What
+    /// follows the dividend follows the "10" instead, as one piece, as far from it as from a dividend.
+    func testAShortStackedResultStandsClearOfTheWork() throws {
+        let style = "shortstackedrightright", pad = 0.2 * em, rule = constants.fractionRuleThickness * em
+        // With no work: a line 0.2 em after the dividend, then the 8 over a line over the result.
+        let plain = try sides(eighth(style))
+        let digit = plain.work[0].width
+        XCTAssertEqual(plain.after.count, 8)
+        let line = plain.after[7], bar = plain.after[6]
+        equal(line.minX, digit + pad); equal(line.width, rule); equal(plain.leading, line.minX)
+        equal(bar.minX, line.minX); equal(bar.minY, line.minY); equal(bar.height, rule); equal(plain.right, bar.maxX)
+        equal(plain.after[0].minX, line.maxX + pad, "the divisor"); equal(plain.after[1].minX, line.maxX + pad, "the result")
+        equal(bar.maxX, plain.after[5].maxX + pad)
+        // With the work, the 0 of "10" is where the line was. All of it is a column further right.
+        let moved = try sides(eighth(style, work: Self.eighths))
+        let ten = moved.work[2]
+        equal(ten.minX, digit + 0.1 * em); XCTAssertGreaterThan(ten.maxX, line.maxX + pad)
+        equal(moved.leading, ten.maxX + pad)
+        assertMoved(moved.after, plain.after, by: ten.maxX - digit)
+        equal(moved.right, moved.after[6].maxX, "and the box with it")
+        // The rest of the work runs on under the result as before: only what is level with it is in its way.
+        XCTAssertGreaterThan(moved.work.map(\.maxX).max() ?? 0, moved.leading + 1)
+        // Work no longer than the dividend moves nothing, nor does work that is longer further down.
+        assertMoved(try sides(eighth(style, work: "<mn>1</mn>")).after, plain.after)
+        let lower = try sides(eighth(style, work: "<mn>1</mn>" + Self.eighths))
+        assertMoved(lower.after, plain.after)
+        XCTAssertGreaterThan(lower.work[3].maxX, lower.leading + 1, "the 10 does reach under the result")
+        // A divisor of two rows has the line beside the first row of the work, and that is in its way too.
+        let tall = try sides(eighth(style, work: Self.eighths, divisor: "<mn>8</mn><mn>8</mn>"))
+        equal(tall.leading, tall.work[2].maxX + pad)
+        // The specification's example (3.6.8.3) is as it was: its work is longer than 1306 only well below the result.
+        let spec = try drawing("<mlongdiv longdivstyle='\(style)'><mn>3</mn><mn>435.3</mn><mn>1306</mn><msgroup position='2' shift='-1'>"
+            + "<msgroup><mn>12</mn><msline length='2'/></msgroup><msgroup><mn>10</mn><mn>9</mn><msline length='2'/></msgroup>"
+            + "<msgroup><mn>16</mn><mn>15</mn><msline length='2'/><mn>1.0</mn></msgroup>"
+            + "<msgroup position='-1'><mn>9</mn><msline length='3'/><mn>1</mn></msgroup></msgroup></mlongdiv>")
+        let six = try spec.glyph("six"), corner = try XCTUnwrap(spec.verticals.first)
+        equal(corner.minX, six.right + pad); equal(try spec.glyph("three", 1).origin.x, corner.maxX + pad)
+        equal(try spec.glyph("four").origin.x, corner.maxX + pad); equal(spec.box.width, try spec.glyph("three", 3).right + pad)
+        // The move is part of the box, so a division that it makes too wide is refused like any other.
+        func long(_ digits: Int) -> String {
+            let number = String(repeating: "1", count: digits)
+            return "<mlongdiv longdivstyle='\(style)'><mn>8</mn><mn>\(number)</mn><mn>1</mn>"
+                + "<msrow position='\(1 - digits)'><mn>\(number)</mn></msrow></mlongdiv>"
+        }
+        let wide = try layout(long(1_500)).width
+        XCTAssertGreaterThan(wide, 2 * 1_500 * digit); XCTAssertLessThan(wide, MathLimits.extent)
+        XCTAssertThrowsError(try layout(long(3_000))) { XCTAssertEqual($0 as? MathLayoutError, .limitExceeded) }
+    }
+
+    /// The one-line styles. What is on the dividend's line is a row high and has the work under it, however
+    /// far that reaches. A divisor or a result of two rows is level with the first row of the work: where it
+    /// would be drawn over that, it and the signs on its side of the dividend stand past the work instead.
+    private func assertOneLineStandsClear(_ style: String) throws {
+        let space = 0.25 * em, rows = "<mn>0.125</mn><mn>0.000</mn>", pair = "<mn>8</mn><mn>8</mn>"
+        let isAfter = style == ":right=right"
+        // A row high: 0.25 em from the dividend each side, with the work or without it.
+        let flat = try sides(eighth(style)), digit = flat.work[0].width
+        equal(flat.leading, digit + space, style)
+        if isAfter { XCTAssertTrue(flat.before.isEmpty) } else { equal(flat.trailing, -space, style) }
+        for work in [Self.eighths, "<mn>111</mn>", "<msrow position='-6'><mn>111000000</mn></msrow>"] {
+            let low = try sides(eighth(style, work: work))
+            assertMoved(low.before, flat.before, style); assertMoved(low.after, flat.after, style)
+        }
+        // A result of two rows, and work that stops short of its second.
+        let plain = try sides(eighth(style, result: rows))
+        equal(plain.leading, digit + space, style)
+        let short = try sides(eighth(style, work: "<msrow position='-1'><mn>10</mn></msrow>", result: rows))
+        assertMoved(short.after, plain.after, style); assertMoved(short.before, plain.before, style)
+        // Work that reaches into it: the sign that follows the dividend follows the work, and the rest follows the sign.
+        let far = try sides(eighth(style, work: "<msrow position='-6'><mn>1000000</mn></msrow>", result: rows))
+        XCTAssertGreaterThan(far.work[7].maxX, plain.after[plain.after.count - 5].minX + 1, style)
+        equal(far.leading, far.work[7].maxX + space, style)
+        assertMoved(far.after, plain.after, by: far.work[7].maxX - digit, style); assertMoved(far.before, plain.before, style)
+        equal(far.right, far.after.map(\.maxX).max() ?? 0, style)
+        // A divisor of two rows. After the dividend it is as the result is.
+        let tall = try sides(eighth(style, divisor: pair))
+        guard !isAfter else {
+            let moved = try sides(eighth(style, work: "<msrow position='-2'><mn>100</mn></msrow>", divisor: pair))
+            XCTAssertGreaterThan(moved.work[3].maxX, tall.after[tall.after.count - 1].minX + 1, style)
+            equal(moved.leading, moved.work[3].maxX + space, style)
+            return assertMoved(moved.after, tall.after, by: moved.work[3].maxX - digit, style)
+        }
+        // Before it, it is in the way of work that reaches left of the dividend, and it goes left with its sign.
+        let left = try sides(eighth(style, work: "<mn>111</mn>", divisor: pair))
+        XCTAssertLessThan(left.work[1].minX, tall.before[2].maxX - 1, style)
+        equal(left.trailing, left.work[1].minX - space, style)
+        assertMoved(left.before, tall.before, by: left.work[1].minX, style); assertMoved(left.after, tall.after, style)
+        // Both at once: each side moves away from the dividend by what is in its own way.
+        let both = try sides(eighth(style, work: "<msrow position='-6'><mn>111000000</mn></msrow>", divisor: pair, result: rows))
+        let outer = try sides(eighth(style, divisor: pair, result: rows))
+        assertMoved(both.before, outer.before, by: both.work[1].minX, style)
+        assertMoved(both.after, outer.after, by: both.work[9].maxX - digit, style)
+    }
+
+    func testLeftSlashRightStandsClearOfTheWork() throws { try assertOneLineStandsClear("left/\\right") }
+
+    func testLeftParenRightStandsClearOfTheWork() throws { try assertOneLineStandsClear("left)(right") }
+
+    func testColonRightEqualsRightStandsClearOfTheWork() throws { try assertOneLineStandsClear(":right=right") }
 
     // MARK: Alignment and style
 

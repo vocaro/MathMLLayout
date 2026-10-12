@@ -233,15 +233,22 @@ final class LayoutEngine {
     /// its first when `selection` is missing, no number, or names no child. nil when there is no
     /// such child, and for every other element. Layout draws this child and a reading says it
     /// (`Speaker`), and both ask here, so that what is read aloud is what is drawn.
-    static func shownChild(_ node: MathMLNode) -> MathMLNode? {
+    static func shownChild(_ node: MathMLNode) -> MathMLNode? { shownIndex(node).map { node.children[$0] } }
+
+    /// Where among its children `shownChild` is. For a `semantics` that is also how many
+    /// annotations come before the child: they are passed over to find it, not laid out and not
+    /// read, but they are nodes of the formula all the same. Layout and a reading count them
+    /// toward the node bound, as the parser counts every element: a tree built by hand may put
+    /// thousands of them before the child, under thousands of parents.
+    static func shownIndex(_ node: MathMLNode) -> Int? {
         let children = node.children
         switch node.name {
         case "semantics":
-            return children.first { $0.name != "annotation" && $0.name != "annotation-xml" }
+            return children.firstIndex { $0.name != "annotation" && $0.name != "annotation-xml" }
         case "maction":
             let selection = node.attributes["selection"].flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } ?? 1
             // Compared, not subtracted from first: a `selection` of `Int.min` has no number before it.
-            return selection >= 1 && selection <= children.count ? children[selection - 1] : children.first
+            return selection >= 1 && selection <= children.count ? selection - 1 : (children.isEmpty ? nil : 0)
         default:
             return nil
         }
@@ -305,7 +312,13 @@ final class LayoutEngine {
         case "mfenced":
             box = try row(fenced(node), context, embellishment, depth: depth)
         case "semantics", "maction":
-            box = try Self.shownChild(node).map { try layout($0, context, embellishment, depth: depth + 1) } ?? .empty()
+            let shown = shownIndex(of: node)
+            if node.name == "semantics" {
+                // The annotations before the child, or all of them when there is no child.
+                nodeCount += shown ?? children.count
+                guard nodeCount <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
+            }
+            box = try shown.map { try layout(children[$0], context, embellishment, depth: depth + 1) } ?? .empty()
         case "merror":
             box = try errorBox(node, context, depth: depth)
         case let name where Self.empty.contains(name):
@@ -361,6 +374,19 @@ final class LayoutEngine {
     /// For each list of children asked about: where its one child in flow is, nil unless it has
     /// exactly one.
     private var flowOfLists = ListMemo<Int?>()
+    /// For each list of children that a `semantics` has: where the first that is no annotation is.
+    private var shownOfLists = ListMemo<Int?>()
+
+    /// `shownIndex`, with what it finds of a `semantics`'s children kept: the look-ahead asks it
+    /// of the same element from every row around it, and of the same list wherever a tree built
+    /// by hand has it. Which child an `maction` shows is its attribute's to say, and takes no search.
+    private func shownIndex(of node: MathMLNode) -> Int? {
+        guard node.name == "semantics" else { return Self.shownIndex(node) }
+        if let known = shownOfLists.answer(for: node.children) { return known }
+        let index = Self.shownIndex(node)
+        shownOfLists.keep(index, for: node.children)
+        return index
+    }
 
     /// The core `mo` of an embellished operator (MathML Core 3.2.4), or nil.
     func embellishedCore(_ node: MathMLNode) -> MathMLNode? {
@@ -373,8 +399,8 @@ final class LayoutEngine {
                 node = first
             case "semantics", "maction":
                 // The child that is drawn, which need not be the first (`shownChild`).
-                guard let shown = Self.shownChild(node) else { return nil }
-                node = shown
+                guard let shown = shownIndex(of: node) else { return nil }
+                node = node.children[shown]
             case "mrow", "mstyle", "mphantom", "mpadded":
                 // Its one child in flow, when it has exactly one.
                 guard let only = onlyInFlow(node.children) else { return nil }
@@ -453,8 +479,8 @@ final class LayoutEngine {
             case "maction", "semantics":
                 // Only what is shown (`shownChild`). Which child that is depends on the element and
                 // not on its list of children alone, so nothing is kept for the list.
-                guard let shown = Self.shownChild(node) else { break walk }
-                pending.append(([shown][...], nil, true, false))
+                guard let shown = shownIndex(of: node) else { break walk }
+                pending.append((node.children[shown...shown], nil, true, false))
             default: break walk
             }
         }
@@ -508,14 +534,15 @@ final class LayoutEngine {
         let flags = operatorFlags(core, form: inferred)
         // TeX drops binary and relation spacing in scripts; large operators keep theirs.
         let scale = context.scriptLevel > 0 && !flags.contains(.largeop) ? 0 : context.fontSize / 18
-        let lspace = length(core.attributes["lspace"], context, reference: context.fontSize) ?? CGFloat(entry.lspace) * scale
-        let rspace = length(core.attributes["rspace"], context, reference: context.fontSize) ?? CGFloat(entry.rspace) * scale
+        let ownLspace = length(core.attributes["lspace"], context, reference: context.fontSize)
+        let ownRspace = length(core.attributes["rspace"], context, reference: context.fontSize)
+        let lspace = ownLspace ?? CGFloat(entry.lspace) * scale, rspace = ownRspace ?? CGFloat(entry.rspace) * scale
         let isBinary = entry.lspace == 4 && entry.rspace == 4
             && core.attributes["lspace"] == nil && core.attributes["rspace"] == nil
         return OperatorProperties(form: form, lspace: lspace, rspace: rspace, flags: flags,
                                   isHorizontal: OperatorDictionary.isHorizontal(text), isBinary: isBinary,
                                   isMarkedInfix: explicitForm(core) == .infix,
-                                  dictionarySpacing: (entry.lspace, entry.rspace),
+                                  dictionarySpacing: (entry.lspace, entry.rspace), ownSpacing: (ownLspace != nil, ownRspace != nil),
                                   breakPoint: BreakPoint(operator: text, entry, form: form, flags: flags, context.lines))
     }
 
@@ -604,7 +631,10 @@ final class LayoutEngine {
         // The sides of the core operator this row spaces itself: those with something beside it.
         var spacesCore = (left: false, right: false)
         if let core, !spacedByParent {
-            spacesCore = (boxes[..<core].contains { $0.width > 0 }, boxes[(core + 1)...].contains { $0.width > 0 })
+            // And a side its author gave a space of its own (`lspace`, `rspace`), neighbour or none:
+            // that is no inference from the dictionary for a row to withhold.
+            let own = boxes[core].op?.ownSpacing ?? (lspace: false, rspace: false)
+            spacesCore = (own.lspace || boxes[..<core].contains { $0.width > 0 }, own.rspace || boxes[(core + 1)...].contains { $0.width > 0 })
         }
         var box = MathBox()
         var x: CGFloat = 0

@@ -69,6 +69,11 @@ func drawBroken(_ formula: MathMLNode, style: MathStyle, in context: CGContext) 
 - **Rows.** `rows` gives each row's `origin` (its baseline's left end, relative to the layout's),
   `width`, `ascent` and `descent`. The layout's baseline is its first row's, so `descent` reaches
   down through the last row. Each row's box covers its own ink.
+- **Clipping.** A box covers the ink as it is laid out. A bitmap context then moves each glyph
+  onto its pixel grid, down and to the left, and on macOS font smoothing thickens it, so ink can
+  fall up to two device pixels outside the box. A host that clips to a box allows that much
+  around it, or turns off `setShouldSubpixelQuantizeFonts` and `setShouldSmoothFonts` in its own
+  context before drawing.
 - **Too wide anyway.** A unit that cannot break (a long number, a wide radical) makes its row
   overflow. `widestUnbreakableWidth` is the narrowest `maximumWidth` at which none does; when it
   is more than the line, scale the formula.
@@ -137,6 +142,9 @@ A label on a stretchy arrow is placed by the MATH table's StretchStack constants
 defines them, with the shifts from the baseline
 ([w3c/mathml-core#121](https://github.com/w3c/mathml-core/issues/121)); Core's text has them
 from the arrow's ink, which sets the label far too high with STIX Two Math.
+An operator with nothing beside it (alone in `math`, a table cell or a radicand) is not padded
+with the dictionary's spacing, as TeX sets a lone atom, where Core pads it. An `lspace` or
+`rspace` written on it is applied.
 
 ## Font
 
@@ -165,9 +173,12 @@ declarations in any encoding, so no entity expands and nothing external loads; i
   a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
   drawn on a `mathbackground` of its own does not wrap.
   Where several wrapping units share a row (two radicals side by side), a row can still run a
-  few percent past `widestUnbreakableWidth`.
+  few percent past `widestUnbreakableWidth`. `overflow` and `maxwidth` on `math` are not read:
+  the host decides by the `maximumWidth` it passes.
 - **`mglyph`.** MathML 2's `fontfamily` and `index` glyphs have no image and show their `alt`.
-  An image has no scale of its own: size a 2x asset with `width` and `height`.
+  An image has no scale of its own: size a 2x asset with `width` and `height`. An `mo` with an
+  `mglyph` keeps the size its author gave it: it is not stretched, enlarged or centred on the
+  axis.
 - **Elementary math.** Columns run left to right only. `decimalpoint` names one character. An
   `mglyph` in a stack's number is not drawn. Division frames are drawn, not font glyphs.
 - **Speech.** Five languages, without regional variants or grammatical agreement. Token text and

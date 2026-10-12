@@ -30,6 +30,9 @@ struct OperatorProperties: Sendable {
     var isMarkedInfix = false
     /// The dictionary's spacing, in eighteenths of an em, before attributes or script level.
     var dictionarySpacing: (lspace: UInt8, rspace: UInt8) = (0, 0)
+    /// Whether each space is the `mo`'s own `lspace` or `rspace`. A row applies an author's space
+    /// even on a side where the operator has nothing beside it; the dictionary's it does not.
+    var ownSpacing: (lspace: Bool, rspace: Bool) = (false, false)
     /// Whether and how a line may break at the operator; nil when it was not laid out as an `mo`.
     var breakPoint: BreakPoint?
     func has(_ flag: OperatorFlags) -> Bool { flags.contains(flag) }

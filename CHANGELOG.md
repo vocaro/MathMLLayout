@@ -87,6 +87,10 @@ Line breaking, `mglyph`, elementary math and localized readings
   children: 60 nested rows of 300 spaces took 4.5 s in a debug build and take 0.05 s. A
   hand-built tree with one row of spaces in many places is read once, where reading it could
   take without end ([#34](https://github.com/vocaro/MathMLLayout/issues/34)).
+- An `lspace` or `rspace` written on an operator is applied where the operator has nothing
+  beside it: alone in `math`, a table cell or a radicand, `<mo lspace="1em">=</mo>` was as wide
+  as its glyph. The dictionary's spacing is still left off there, as TeX sets a lone atom
+  ([#20](https://github.com/vocaro/MathMLLayout/issues/20)).
 - Hostile markup that 0.1.0 let through, found by fuzzing this release:
   - `scriptlevel="+9223372036854775807"` and `maction selection="-9223372036854775808"`
     overflowed an integer and stopped the process.
@@ -99,6 +103,10 @@ Line breaking, `mglyph`, elementary math and localized readings
     stack runs out.
   - A row of thousands of stretchy operators took quadratic time, and a NaN font size gave a
     NaN box.
+  - The annotations a `semantics` has before its child were passed over uncounted. A tree built
+    by hand with ten thousand of them, under ten thousand parents that share them, was inside
+    every bound and took most of a minute to lay out. They count toward the 20,000 nodes
+    ([#40](https://github.com/vocaro/MathMLLayout/issues/40)).
 
 ### Changed
 
