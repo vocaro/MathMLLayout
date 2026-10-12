@@ -101,9 +101,8 @@ are included; see [how to regenerate the images](doc/usage.md#regenerating-the-r
 - [Bounds and limitations](doc/limits.md): input limits and unsupported behavior.
 - [Testing](doc/testing.md): debug, release, simulator and fuzz testing.
 - [Notices](doc/notices.md): specification and font acknowledgments.
-
-The guides link to Swift source examples in [doc/examples](doc/examples).
-Release history is in the [changelog](CHANGELOG.md).
+- [Swift examples](doc/examples): source code linked from the guides.
+- [Changelog](CHANGELOG.md): release history.
 
 ## License
 
