@@ -17,7 +17,8 @@ Licensed under MIT; the complete copyright and permission notice is retained in
 
 Adapted material: French and German accent names and ∂ names, German ∮ name,
 French comparison wording, Spanish double-dot accent name, English/French multiscript
-names, the tensor multiscript regression structure, and selected regression expectations.
+names, French and Spanish ordinal-root templates, English point name,
+the tensor multiscript regression structure, and selected regression expectations.
 References for retained wording are also recorded in the
 [speech wording audit](Documentation/SpeechWordingAudit.md).
 
@@ -32,11 +33,13 @@ Licensed under Apache License, Version 2.0. The complete license is retained in
 [Licenses/SRE-Apache-2.0.txt](Licenses/SRE-Apache-2.0.txt), and the upstream NOTICE
 is retained unchanged in [Licenses/SRE-NOTICE.txt](Licenses/SRE-NOTICE.txt).
 
-Adapted material: selected accent and operator names from the French, German, Spanish
-and Italian `mathmaps` files; German overbar wording; Italian ClearSpeak bar wording;
-French left-script labels and German/Spanish/Italian positional script labels;
-and selected regression expectations. French right-side counterparts and compound
-closing phrases are composed for MathMLLayout, and its reading order follows source order.
+Adapted material: selected accent and operator names from the English, French, German, Spanish
+and Italian `mathmaps` files; underbar actions, brace names and Italian caron wording;
+bounded ordinal/digit vocabulary from number maps and number rules; punctuation and space names;
+German overbar wording; Italian ClearSpeak bar wording;
+French left- and right-script labels and German/Spanish/Italian positional script labels;
+and selected regression expectations, including root readings. Compound closing phrases
+are composed for MathMLLayout, and its reading order follows source order.
 In MathMLLayout these are incorporated into Swift
 phrase templates and isolated test formulas, with existing operand and alias handling.
 The affected vocabulary and test files prominently identify this adaptation.
@@ -46,6 +49,8 @@ These adaptations retain the Apache license and notice obligations.
 The adapted ClearSpeak fixtures also carry these attribution notices, retained here
 from the pinned source files:
 
+- German [root fixtures](https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/expected/de/clearspeak/clearspeak_roots.json): "This work was sponsored by ETH Zurich".
+- Italian [root fixtures](https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/expected/it/clearspeak/clearspeak_roots.json): "With support from TextHelp."
 - German [adornments fixtures](https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/expected/de/clearspeak/clearspeak_part3_adornments.json): "This work was sponsored by ETH Zurich".
 - Italian [adornments fixtures](https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/expected/it/clearspeak/clearspeak_part3_adornments.json): "With support from TextHelp."
 

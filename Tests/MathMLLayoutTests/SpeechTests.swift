@@ -47,11 +47,11 @@ final class SpeechTests: MathTestCase {
          ["the cube root of x end root", "racine cubique de x fin de racine", "Kubikwurzel aus x Ende Wurzel",
           "raíz cúbica de x fin de raíz", "radice cubica di x fine radice"]),
         ("<mroot><mi>x</mi><mi>n</mi></mroot>",
-         ["the root with index n of x end root", "racine d'indice n de x fin de racine",
-          "Wurzel mit Wurzelexponent n aus x Ende Wurzel", "raíz de índice n de x fin de raíz",
-          "radice di indice n di x fine radice"]),
+         ["the n-th root of x end root", "racine n-ième de x fin de racine",
+          "n-te Wurzel aus x Ende Wurzel", "raíz de índice n de x fin de raíz",
+          "radice n-esima di x fine radice"]),
         ("<munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msup><mi>i</mi><mn>2</mn></msup>",
-         ["the sum from i equals 1 to n i squared", "la somme de i égale 1 à n i au carré",
+         ["the sum from i equals 1 to n i squared", "la somme d'i égale 1 à n i au carré",
           "die Summe von i gleich 1 bis n i Quadrat", "la suma desde i igual a 1 hasta n i al cuadrado",
           "la sommatoria da i uguale a 1 fino a n i al quadrato"]),
         ("<munder><mi>lim</mi><mrow><mi>n</mi><mo>→</mo><mo>∞</mo></mrow></munder>",
@@ -65,7 +65,7 @@ final class SpeechTests: MathTestCase {
         // Most languages name a vector before its letter.
         ("<mover><mi>v</mi><mo>→</mo></mover>", ["v vector", "vecteur v", "Vektor v", "vector v", "vettore v"]),
         ("<mmultiscripts><mi>C</mi><mi>k</mi><none/><mprescripts/><mi>n</mi><none/></mmultiscripts>",
-         ["C right subscript k left subscript n", "C indice droit k indice gauche n",
+         ["C right subscript k left subscript n", "C indice droite k indice gauche n",
           "C rechter unterer Index k linker unterer Index n", "C subíndice derecho k subíndice izquierdo n",
           "C pedice destro k pedice sinistro n"]),
         ("<mtable><mtr><mtd><mi>a</mi></mtd><mtd><mi>b</mi></mtd></mtr><mtr><mtd><mi>c</mi></mtd><mtd><mi>d</mi></mtd></mtr></mtable>",
@@ -94,29 +94,29 @@ final class SpeechTests: MathTestCase {
           "x pertenece a A unión B implica x es menor que 5 factorial",
           "x appartiene a A unione B implica x è minore di 5 fattoriale"]),
         ("<mstack><mscarries><mn>1</mn><mn>1</mn><none/></mscarries><mn>456</mn><msrow><mo>+</mo><mn>278</mn></msrow><msline/><mn>734</mn></mstack>",
-         ["stack with 3 rows carries: 1 , 1 , blank row 1: 456 row 2: plus 278 line row 3: 734 end stack",
-          "opération posée de 3 lignes retenues : 1 , 1 , vide ligne 1 : 456 ligne 2 : plus 278 trait ligne 3 : 734 fin de l'opération",
-          "schriftliche Rechnung mit 3 Zeilen Überträge: 1 , 1 , leer Zeile 1: 456 Zeile 2: plus 278 Strich Zeile 3: 734 Ende der Rechnung",
-          "operación en columna de 3 filas acarreos: 1 , 1 , vacío fila 1: 456 fila 2: más 278 línea fila 3: 734 fin de la operación",
-          "operazione in colonna di 3 righe riporti: 1 , 1 , vuoto riga 1: 456 riga 2: più 278 linea riga 3: 734 fine dell'operazione"]),
+         ["stack with 3 rows alignment decimal point carries or borrows: column minus 3: above one column minus 2: above one column minus 1: blank row 1: column minus 3: four column minus 2: five column minus 1: six row 2: column minus 4: plus column minus 3: two column minus 2: seven column minus 1: eight line across the whole stack row 3: column minus 3: seven column minus 2: three column minus 1: four end stack",
+          "opération posée de 3 lignes alignement sur le séparateur décimal retenues ou emprunts : colonne moins 3: au-dessus un colonne moins 2: au-dessus un colonne moins 1: vide ligne 1 : colonne moins 3: quatre colonne moins 2: cinq colonne moins 1: six ligne 2 : colonne moins 4: plus colonne moins 3: deux colonne moins 2: sept colonne moins 1: huit trait sur toute la largeur de l’opération ligne 3 : colonne moins 3: sept colonne moins 2: trois colonne moins 1: quatre fin de l'opération",
+          "schriftliche Rechnung mit 3 Zeilen Ausrichtung am Dezimaltrennzeichen Überträge oder Entlehnungen: Spalte minus 3: oben eins Spalte minus 2: oben eins Spalte minus 1: leer Zeile 1: Spalte minus 3: vier Spalte minus 2: fünf Spalte minus 1: sechs Zeile 2: Spalte minus 4: plus Spalte minus 3: zwei Spalte minus 2: sieben Spalte minus 1: acht Strich über die gesamte Rechnung Zeile 3: Spalte minus 3: sieben Spalte minus 2: drei Spalte minus 1: vier Ende der Rechnung",
+          "operación en columna de 3 filas alineación en el separador decimal acarreos o préstamos: columna menos 3: arriba uno columna menos 2: arriba uno columna menos 1: vacío fila 1: columna menos 3: cuatro columna menos 2: cinco columna menos 1: seis fila 2: columna menos 4: más columna menos 3: dos columna menos 2: siete columna menos 1: ocho línea en todo el ancho de la operación fila 3: columna menos 3: siete columna menos 2: tres columna menos 1: cuatro fin de la operación",
+          "operazione in colonna di 3 righe allineamento al separatore decimale riporti o prestiti: colonna meno 3: sopra uno colonna meno 2: sopra uno colonna meno 1: vuoto riga 1: colonna meno 3: quattro colonna meno 2: cinque colonna meno 1: sei riga 2: colonna meno 4: più colonna meno 3: due colonna meno 2: sette colonna meno 1: otto linea su tutta la larghezza dell’operazione riga 3: colonna meno 3: sette colonna meno 2: tre colonna meno 1: quattro fine dell'operazione"]),
         ("<mstack><mscarries crossout=\"updiagonalstrike\"><mn>4</mn><none/></mscarries><mn>52</mn><msrow><mo>−</mo><mn>7</mn></msrow><msline/><mn>45</mn></mstack>",
-         ["stack with 3 rows carries: 4 with the digit below crossed out , blank row 1: 52 row 2: minus 7 line row 3: 45 end stack",
-          "opération posée de 3 lignes retenues : 4 avec le chiffre en dessous barré , vide ligne 1 : 52 ligne 2 : moins 7 trait ligne 3 : 45 fin de l'opération",
-          "schriftliche Rechnung mit 3 Zeilen Überträge: 4 mit durchgestrichener Ziffer darunter , leer Zeile 1: 52 Zeile 2: minus 7 Strich Zeile 3: 45 Ende der Rechnung",
-          "operación en columna de 3 filas acarreos: 4 con la cifra de abajo tachada , vacío fila 1: 52 fila 2: menos 7 línea fila 3: 45 fin de la operación",
-          "operazione in colonna di 3 righe riporti: 4 con la cifra sotto barrata , vuoto riga 1: 52 riga 2: meno 7 linea riga 3: 45 fine dell'operazione"]),
+         ["stack with 3 rows alignment decimal point carries or borrows: column minus 2: above four with the column's digit crossed out upward diagonal strike column minus 1: blank row 1: column minus 2: five column minus 1: two row 2: column minus 2: minus column minus 1: seven line across the whole stack row 3: column minus 2: four column minus 1: five end stack",
+          "opération posée de 3 lignes alignement sur le séparateur décimal retenues ou emprunts : colonne moins 2: au-dessus quatre avec le chiffre de la colonne barré trait diagonal montant colonne moins 1: vide ligne 1 : colonne moins 2: cinq colonne moins 1: deux ligne 2 : colonne moins 2: moins colonne moins 1: sept trait sur toute la largeur de l’opération ligne 3 : colonne moins 2: quatre colonne moins 1: cinq fin de l'opération",
+          "schriftliche Rechnung mit 3 Zeilen Ausrichtung am Dezimaltrennzeichen Überträge oder Entlehnungen: Spalte minus 2: oben vier mit durchgestrichener Ziffer in dieser Spalte aufsteigender diagonaler Strich Spalte minus 1: leer Zeile 1: Spalte minus 2: fünf Spalte minus 1: zwei Zeile 2: Spalte minus 2: minus Spalte minus 1: sieben Strich über die gesamte Rechnung Zeile 3: Spalte minus 2: vier Spalte minus 1: fünf Ende der Rechnung",
+          "operación en columna de 3 filas alineación en el separador decimal acarreos o préstamos: columna menos 2: arriba cuatro con la cifra de la columna tachada tachado diagonal ascendente columna menos 1: vacío fila 1: columna menos 2: cinco columna menos 1: dos fila 2: columna menos 2: menos columna menos 1: siete línea en todo el ancho de la operación fila 3: columna menos 2: cuatro columna menos 1: cinco fin de la operación",
+          "operazione in colonna di 3 righe allineamento al separatore decimale riporti o prestiti: colonna meno 2: sopra quattro con la cifra della colonna barrata barratura diagonale ascendente colonna meno 1: vuoto riga 1: colonna meno 2: cinque colonna meno 1: due riga 2: colonna meno 2: meno colonna meno 1: sette linea su tutta la larghezza dell’operazione riga 3: colonna meno 2: quattro colonna meno 1: cinque fine dell'operazione"]),
         ("<mlongdiv><mn>3</mn><mn>41</mn><mn>123</mn><mn>12</mn><msline/><mn>3</mn><mn>3</mn><msline/><mn>0</mn></mlongdiv>",
-         ["long division with 4 working rows divisor: 3 dividend: 123 result: 41 row 1: 12 line row 2: 3 row 3: 3 line row 4: 0 end long division",
-          "division posée avec 4 lignes de calcul diviseur : 3 dividende : 123 résultat : 41 ligne 1 : 12 trait ligne 2 : 3 ligne 3 : 3 trait ligne 4 : 0 fin de la division",
-          "schriftliche Division mit 4 Rechenzeilen Divisor: 3 Dividend: 123 Ergebnis: 41 Zeile 1: 12 Strich Zeile 2: 3 Zeile 3: 3 Strich Zeile 4: 0 Ende der Division",
-          "división larga con 4 filas de cálculo divisor: 3 dividendo: 123 resultado: 41 fila 1: 12 línea fila 2: 3 fila 3: 3 línea fila 4: 0 fin de la división",
-          "divisione in colonna con 4 righe di calcolo divisore: 3 dividendo: 123 risultato: 41 riga 1: 12 linea riga 2: 3 riga 3: 3 linea riga 4: 0 fine della divisione"]),
+         ["long division with 4 working rows divisor left, result above alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: column minus 2: four column minus 1: one row 1: column minus 2: one column minus 1: two line across the whole stack row 2: column minus 1: three row 3: column minus 1: three line across the whole stack row 4: column minus 1: zero end long division",
+          "division posée avec 4 lignes de calcul diviseur à gauche, résultat au-dessus alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois résultat : colonne moins 2: quatre colonne moins 1: un ligne 1 : colonne moins 2: un colonne moins 1: deux trait sur toute la largeur de l’opération ligne 2 : colonne moins 1: trois ligne 3 : colonne moins 1: trois trait sur toute la largeur de l’opération ligne 4 : colonne moins 1: zéro fin de la division",
+          "schriftliche Division mit 4 Rechenzeilen Divisor links, Ergebnis oben Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 3: eins Spalte minus 2: zwei Spalte minus 1: drei Ergebnis: Spalte minus 2: vier Spalte minus 1: eins Zeile 1: Spalte minus 2: eins Spalte minus 1: zwei Strich über die gesamte Rechnung Zeile 2: Spalte minus 1: drei Zeile 3: Spalte minus 1: drei Strich über die gesamte Rechnung Zeile 4: Spalte minus 1: null Ende der Division",
+          "división larga con 4 filas de cálculo divisor a la izquierda, resultado arriba alineación en el separador decimal divisor: tres dividendo: columna menos 3: uno columna menos 2: dos columna menos 1: tres resultado: columna menos 2: cuatro columna menos 1: uno fila 1: columna menos 2: uno columna menos 1: dos línea en todo el ancho de la operación fila 2: columna menos 1: tres fila 3: columna menos 1: tres línea en todo el ancho de la operación fila 4: columna menos 1: cero fin de la división",
+          "divisione in colonna con 4 righe di calcolo divisore a sinistra, risultato sopra allineamento al separatore decimale divisore: tre dividendo: colonna meno 3: uno colonna meno 2: due colonna meno 1: tre risultato: colonna meno 2: quattro colonna meno 1: uno riga 1: colonna meno 2: uno colonna meno 1: due linea su tutta la larghezza dell’operazione riga 2: colonna meno 1: tre riga 3: colonna meno 1: tre linea su tutta la larghezza dell’operazione riga 4: colonna meno 1: zero fine della divisione"]),
         ("<mlongdiv><mn>3</mn><none/><mn>6</mn><mn>6</mn></mlongdiv>",
-         ["long division with 1 working row divisor: 3 dividend: 6 row 1: 6 end long division",
-          "division posée avec 1 ligne de calcul diviseur : 3 dividende : 6 ligne 1 : 6 fin de la division",
-          "schriftliche Division mit 1 Rechenzeile Divisor: 3 Dividend: 6 Zeile 1: 6 Ende der Division",
-          "división larga con 1 fila de cálculo divisor: 3 dividendo: 6 fila 1: 6 fin de la división",
-          "divisione in colonna con 1 riga di calcolo divisore: 3 dividendo: 6 riga 1: 6 fine della divisione"]),
+         ["long division with 1 working row divisor left, result above alignment decimal point divisor: three dividend: column minus 1: six row 1: column minus 1: six end long division",
+          "division posée avec 1 ligne de calcul diviseur à gauche, résultat au-dessus alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 1: six ligne 1 : colonne moins 1: six fin de la division",
+          "schriftliche Division mit 1 Rechenzeile Divisor links, Ergebnis oben Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 1: sechs Zeile 1: Spalte minus 1: sechs Ende der Division",
+          "división larga con 1 fila de cálculo divisor a la izquierda, resultado arriba alineación en el separador decimal divisor: tres dividendo: columna menos 1: seis fila 1: columna menos 1: seis fin de la división",
+          "divisione in colonna con 1 riga di calcolo divisore a sinistra, risultato sopra allineamento al separatore decimale divisore: tre dividendo: colonna meno 1: sei riga 1: colonna meno 1: sei fine della divisione"]),
     ]
 
     func testReadsEveryKindOfPhraseInEachLanguage() throws {
@@ -160,7 +160,7 @@ final class SpeechTests: MathTestCase {
             "^": "hat", "ˆ": "hat", "\u{0302}": "hat", "~": "tilde", "˜": "tilde", "\u{0303}": "tilde",
             "¯": "bar", "‾": "bar", "\u{0305}": "bar", "_": "underbar", "˙": "dot", "\u{0307}": "dot",
             "¨": "double dot", "\u{0308}": "double dot", "→": "vector", "\u{20D7}": "vector", "ˇ": "check",
-            "˘": "breve", "⏞": "overbrace", "⏟": "underbrace",
+            "˘": "breve", "⏞": "top brace", "⏟": "bottom brace",
         ]
         for (text, name) in operators {
             XCTAssertEqual(english(MathMLNode(name: "mo", text: text)), name, text)
@@ -297,9 +297,9 @@ final class SpeechTests: MathTestCase {
         }
         let english = words("en")
         XCTAssertGreaterThan(english.count, 90)
-        let shared = ["fr": ["contour", "cube", "division", "double", "fraction", "nabla", "plus", "prime", "tilde", "union"],
-                      "de": ["minus", "plus", "proportional"], "it": ["a", "breve", "in", "nabla", "tilde"],
-                      "es": ["a", "breve", "divisor:", "factorial", "integral", "nabla", "sub", "tilde", "vector", "vertical"]]
+        let shared = ["fr": ["contour", "cube", "diagonal", "division", "double", "fraction", "nabla", "plus", "point", "prime", "tilde", "union"],
+                      "de": ["in", "minus", "plus", "proportional"], "it": ["a", "breve", "in", "nabla", "tilde"],
+                      "es": ["a", "breve", "decimal", "diagonal", "divisor", "divisor:", "factorial", "integral", "nabla", "sub", "tilde", "vector", "vertical"]]
         for (language, cognates) in shared {
             let own = words(language)
             XCTAssertGreaterThan(own.count, 90, language)
@@ -475,15 +475,13 @@ final class SpeechTests: MathTestCase {
           <mn>1,171</mn>
         </mstack>
         """
-        XCTAssertEqual(try reading(borrows, "en"), "stack with 3 rows carries: 2 with the digit below crossed out , "
-            + "12 with the digit below crossed out , blank row 1: 2,327 row 2: minus 1,156 line row 3: 1,171 end stack")
+        XCTAssertEqual(try reading(borrows, "en"), "stack with 3 rows alignment decimal point carries or borrows: column minus 3: above two with the column's digit crossed out upward diagonal strike column minus 2: above one two with the column's digit crossed out upward diagonal strike column minus 1: above blank row 1: column minus 5: two column minus 4: comma column minus 3: three column minus 2: two column minus 1: seven row 2: column minus 6: minus column minus 5: one column minus 4: comma column minus 3: one column minus 2: five column minus 1: six line across the whole stack row 3: column minus 5: one column minus 4: comma column minus 3: one column minus 2: seven column minus 1: one end stack")
         // A carry may cross out without replacing, or override the row's crossout.
         let crossouts = """
         <mstack><mscarries><mscarry crossout="updiagonalstrike"><none/></mscarry><mscarry crossout="none verticalstrike"><mn>10</mn></mscarry><mn>1</mn></mscarries><mn>523</mn></mstack>
         """
-        XCTAssertEqual(try reading(crossouts, "en"), "stack with 1 row carries: blank with the digit below crossed out , "
-            + "10 with the digit below crossed out , 1 row 1: 523 end stack")
-        // Its multiplication: groups only shift their rows, which are read and numbered straight through.
+        XCTAssertEqual(try reading(crossouts, "en"), "stack with 1 row alignment decimal point carries or borrows: column minus 3: above blank with the column's digit crossed out upward diagonal strike column minus 2: above one zero with the column's digit crossed out vertical strike column minus 1: above one row 1: column minus 3: five column minus 2: two column minus 1: three end stack")
+        // Its multiplication: groups shift their rows, whose logical columns retain those positions.
         let product = """
         <mstack>
           <msgroup><mn>123</mn><msrow><mo>×</mo><mn>321</mn></msrow></msgroup>
@@ -494,18 +492,17 @@ final class SpeechTests: MathTestCase {
         </mstack>
         """
         XCTAssertEqual(try reading(product, "en"),
-                       "stack with 6 rows row 1: 123 row 2: times 321 line row 3: 123 row 4: 246 row 5: 369 line row 6: 39483 end stack")
-        XCTAssertEqual(try reading(product, "fr"), "opération posée de 6 lignes ligne 1 : 123 ligne 2 : fois 321 trait "
-            + "ligne 3 : 123 ligne 4 : 246 ligne 5 : 369 trait ligne 6 : 39483 fin de l'opération")
-        // Empty columns say nothing in a row of digits; a row of nothing else is blank.
+                       "stack with 6 rows alignment decimal point row 1: column minus 3: one column minus 2: two column minus 1: three row 2: column minus 4: times column minus 3: three column minus 2: two column minus 1: one line across the whole stack row 3: column minus 3: one column minus 2: two column minus 1: three row 4: column minus 4: two column minus 3: four column minus 2: six row 5: column minus 5: three column minus 4: six column minus 3: nine line across the whole stack row 6: column minus 5: three column minus 4: nine column minus 3: four column minus 2: eight column minus 1: three end stack")
+        XCTAssertEqual(try reading(product, "fr"), "opération posée de 6 lignes alignement sur le séparateur décimal ligne 1 : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois ligne 2 : colonne moins 4: fois colonne moins 3: trois colonne moins 2: deux colonne moins 1: un trait sur toute la largeur de l’opération ligne 3 : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois ligne 4 : colonne moins 4: deux colonne moins 3: quatre colonne moins 2: six ligne 5 : colonne moins 5: trois colonne moins 4: six colonne moins 3: neuf trait sur toute la largeur de l’opération ligne 6 : colonne moins 5: trois colonne moins 4: neuf colonne moins 3: quatre colonne moins 2: huit colonne moins 1: trois fin de l'opération")
+        // Empty columns are explicit; an empty row is blank.
         XCTAssertEqual(try reading("<mstack><msrow><mo>+</mo><none/><mn>33</mn></msrow><msrow/><none/><msrow><none/></msrow></mstack>", "en"),
-                       "stack with 4 rows row 1: plus 33 row 2: blank row 3: blank row 4: blank end stack")
-        XCTAssertEqual(try reading("<mstack/>", "en"), "stack with 0 rows end stack")
+                       "stack with 4 rows alignment decimal point row 1: column minus 4: plus column minus 3: blank column minus 2: three column minus 1: three row 2: blank row 3: column minus 1: blank row 4: column minus 1: blank end stack")
+        XCTAssertEqual(try reading("<mstack/>", "en"), "stack with 0 rows alignment decimal point end stack")
         XCTAssertEqual(try reading("<mstack><msline length=\"1\"/><mn>0.3333</mn></mstack>", "en"),
-                       "stack with 1 row line row 1: 0.3333 end stack")
+                       "stack with 1 row alignment decimal point line column minus 1: column minus 1: row 1: column minus 1: zero column 0: point column 1: three column 2: three column 3: three column 4: three end stack")
         // A stack is one operand of what holds it.
         XCTAssertEqual(try reading("<mstack><mn>1</mn><mn>2</mn></mstack><mo>=</mo><mn>3</mn>", "en"),
-                       "stack with 2 rows row 1: 1 row 2: 2 end stack equals 3")
+                       "stack with 2 rows alignment decimal point row 1: column minus 1: one row 2: column minus 1: two end stack equals 3")
     }
 
     func testLongDivisionNamesItsParts() throws {
@@ -523,23 +520,20 @@ final class SpeechTests: MathTestCase {
           </msgroup>
         </mlongdiv>
         """
-        XCTAssertEqual(try reading(division, "en"), "long division with 8 working rows divisor: 3 dividend: 1306 result: 435.3 "
-            + "row 1: 12 line row 2: 10 row 3: 9 line row 4: 16 row 5: 15 line row 6: 1.0 row 7: 9 line row 8: 1 end long division")
-        XCTAssertEqual(try reading(division, "de"), "schriftliche Division mit 8 Rechenzeilen Divisor: 3 Dividend: 1306 Ergebnis: 435.3 "
-            + "Zeile 1: 12 Strich Zeile 2: 10 Zeile 3: 9 Strich Zeile 4: 16 Zeile 5: 15 Strich Zeile 6: 1.0 Zeile 7: 9 Strich "
-            + "Zeile 8: 1 Ende der Division")
+        XCTAssertEqual(try reading(division, "en"), "long division with 8 working rows divisor left, result above alignment decimal point divisor: three dividend: column minus 4: one column minus 3: three column minus 2: zero column minus 1: six result: column minus 3: four column minus 2: three column minus 1: five column 0: point column 1: three row 1: column minus 4: one column minus 3: two line column minus 4: column minus 3: row 2: column minus 3: one column minus 2: zero row 3: column minus 2: nine line column minus 3: column minus 2: row 4: column minus 2: one column minus 1: six row 5: column minus 2: one column minus 1: five line column minus 2: column minus 1: row 6: column minus 1: one column 0: point column 1: zero row 7: column 1: nine line column minus 1: column 1: row 8: column 1: one end long division")
+        XCTAssertEqual(try reading(division, "de"), "schriftliche Division mit 8 Rechenzeilen Divisor links, Ergebnis oben Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 4: eins Spalte minus 3: drei Spalte minus 2: null Spalte minus 1: sechs Ergebnis: Spalte minus 3: vier Spalte minus 2: drei Spalte minus 1: fünf Spalte 0: Punkt Spalte 1: drei Zeile 1: Spalte minus 4: eins Spalte minus 3: zwei Strich Spalte minus 4: Spalte minus 3: Zeile 2: Spalte minus 3: eins Spalte minus 2: null Zeile 3: Spalte minus 2: neun Strich Spalte minus 3: Spalte minus 2: Zeile 4: Spalte minus 2: eins Spalte minus 1: sechs Zeile 5: Spalte minus 2: eins Spalte minus 1: fünf Strich Spalte minus 2: Spalte minus 1: Zeile 6: Spalte minus 1: eins Spalte 0: Punkt Spalte 1: null Zeile 7: Spalte 1: neun Strich Spalte minus 1: Spalte 1: Zeile 8: Spalte 1: eins Ende der Division")
         // No working, and parts the markup leaves out, are not announced.
         XCTAssertEqual(try reading("<mlongdiv><mn>3</mn><mn>41</mn><mn>123</mn></mlongdiv>", "en"),
-                       "long division divisor: 3 dividend: 123 result: 41 end long division")
-        XCTAssertEqual(try reading("<mlongdiv><none/><none/><mn>123</mn></mlongdiv>", "en"), "long division dividend: 123 end long division")
-        XCTAssertEqual(try reading("<mlongdiv><mn>3</mn></mlongdiv>", "en"), "long division divisor: 3 end long division")
-        XCTAssertEqual(try reading("<mlongdiv/>", "en"), "long division end long division")
+                       "long division divisor left, result above alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: column minus 2: four column minus 1: one end long division")
+        XCTAssertEqual(try reading("<mlongdiv><none/><none/><mn>123</mn></mlongdiv>", "en"), "long division divisor left, result above alignment decimal point dividend: column minus 3: one column minus 2: two column minus 1: three end long division")
+        XCTAssertEqual(try reading("<mlongdiv><mn>3</mn></mlongdiv>", "en"), "long division divisor left, result above alignment decimal point divisor: three end long division")
+        XCTAssertEqual(try reading("<mlongdiv/>", "en"), "long division divisor left, result above alignment decimal point end long division")
         // Borrows marked above the dividend are read before it; the dividend is the first row of digits.
         XCTAssertEqual(try reading("<mlongdiv><mn>7</mn><mn>14</mn><mscarries><mn>1</mn><none/></mscarries><mn>98</mn><mn>7</mn></mlongdiv>", "en"),
-                       "long division with 1 working row divisor: 7 carries: 1 , blank dividend: 98 result: 14 row 1: 7 end long division")
-        // Operands are read like any other formula.
+                       "long division with 1 working row divisor left, result above alignment decimal point divisor: seven carries or borrows: column minus 2: above one column minus 1: blank dividend: column minus 2: nine column minus 1: eight result: column minus 2: one column minus 1: four row 1: column minus 1: seven end long division")
+        // Compound operands retain their mathematical structure.
         XCTAssertEqual(try reading("<mlongdiv><msup><mi>x</mi><mn>2</mn></msup><mi>q</mi><msrow><mi>x</mi><mo>+</mo><mn>1</mn></msrow></mlongdiv>", "it"),
-                       "divisione in colonna divisore: x al quadrato dividendo: x più 1 risultato: q fine della divisione")
+                       "divisione in colonna divisore a sinistra, risultato sopra allineamento al separatore decimale divisore: x al quadrato dividendo: colonna meno 3: x colonna meno 2: più colonna meno 1: uno risultato: q fine della divisione")
     }
 
     // MARK: Bounds
@@ -556,15 +550,15 @@ final class SpeechTests: MathTestCase {
             XCTAssertLessThan(words(MathMLNode(name: name, children: [deep, deep, deep])), 20, name)
         }
         let groups = (0..<10_000).reduce(one) { inner, _ in MathMLNode(name: "msgroup", children: [inner, inner]) }
-        XCTAssertLessThan(words(MathMLNode(name: "mstack", children: [groups])), 12)
+        XCTAssertLessThan(words(MathMLNode(name: "mstack", children: [groups])), 20)
         // Large: reading stops at the node bound.
         let limit = MathLimits.nodes
         XCTAssertEqual(words(MathMLNode(name: "math", children: Array(repeating: x, count: 300_000))), limit - 1)
         let rows = Array(repeating: one, count: 300_000)
-        XCTAssertLessThanOrEqual(words(MathMLNode(name: "mstack", children: rows)), 5 * limit)
-        XCTAssertLessThanOrEqual(words(MathMLNode(name: "mlongdiv", children: rows)), 5 * limit)
+        XCTAssertLessThanOrEqual(words(MathMLNode(name: "mstack", children: rows)), 12 * limit)
+        XCTAssertLessThanOrEqual(words(MathMLNode(name: "mlongdiv", children: rows)), 12 * limit)
         let carries = MathMLNode(name: "mscarries", attributes: ["crossout": "updiagonalstrike"], children: rows)
-        XCTAssertLessThanOrEqual(words(MathMLNode(name: "mstack", children: [carries, one])), 10 * limit)
+        XCTAssertLessThanOrEqual(words(MathMLNode(name: "mstack", children: [carries, one])), 20 * limit)
         let glyphs = Array(repeating: MathMLNode(name: "mglyph", attributes: ["alt": "g"]), count: 300_000)
         XCTAssertLessThanOrEqual(words(MathMLNode(name: "mtext", children: glyphs, text: String(repeating: "\u{FFFC}", count: 1_000))), limit)
         // Shared subtrees make a tree larger than its memory: 400 million rows here.
@@ -575,9 +569,9 @@ final class SpeechTests: MathTestCase {
         // Both fill the same row budget in their first branch. The 400-fold increase in
         // implied group occurrences must not multiply the amount of reading work.
         assertCPUScaling(factor: 5, "shared groups past the row budget", baseline: {
-            XCTAssertLessThanOrEqual(words(small), 5 * limit)
+            XCTAssertLessThanOrEqual(words(small), 12 * limit)
         }, larger: {
-            XCTAssertLessThanOrEqual(words(large), 5 * limit)
+            XCTAssertLessThanOrEqual(words(large), 12 * limit)
         })
     }
 }

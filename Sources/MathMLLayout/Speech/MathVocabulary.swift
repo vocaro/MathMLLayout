@@ -12,6 +12,9 @@ protocol MathVocabulary: Sendable {
     static var language: String { get }
     static var symbols: MathSymbols { get }
     static var accents: MathAccents { get }
+    static var spatial: MathSpatialWords { get }
+    static var ordinalRoots: [String: String] { get }
+    static func ordinalRoot(_ radicand: String, ordinal: String) -> String
 
     /// `simple` when both parts are single tokens, which speech need not bracket.
     static func fraction(_ numerator: String, _ denominator: String, simple: Bool) -> String
@@ -45,7 +48,7 @@ protocol MathVocabulary: Sendable {
     static func carries(_ carries: String) -> String
     /// A column without a carry, or a row without digits.
     static var blank: String { get }
-    /// A carry whose `crossout` strikes the digit under it.
+    /// A carry whose `crossout` strikes the annotated column’s digit.
     static func crossedOut(_ carry: String) -> String
     /// Opens an `mlongdiv` with `rows` digit rows of working under its dividend.
     static func longDivision(rows: Int) -> String
@@ -102,7 +105,7 @@ enum MathAccent: Sendable {
     }
 }
 
-/// The accents an `mover` is read with in one language.
+/// The recognized over- and under-accents in one language.
 struct MathAccents: Sendable {
     var hat, tilde, bar, underbar, dot, doubleDot, vector, check, breve, overbrace, underbrace: MathAccent
 
@@ -111,7 +114,7 @@ struct MathAccents: Sendable {
 
     static let names: [String: KeyPath<MathAccents, MathAccent> & Sendable] = [
         "^": \.hat, "ˆ": \.hat, "\u{0302}": \.hat, "~": \.tilde, "˜": \.tilde, "\u{0303}": \.tilde,
-        "¯": \.bar, "‾": \.bar, "\u{0305}": \.bar, "_": \.underbar, "˙": \.dot, "\u{0307}": \.dot,
+        "¯": \.bar, "‾": \.bar, "\u{0305}": \.bar, "_": \.underbar, "\u{0332}": \.underbar, "˙": \.dot, "\u{0307}": \.dot,
         "¨": \.doubleDot, "\u{0308}": \.doubleDot, "→": \.vector, "\u{20D7}": \.vector, "ˇ": \.check,
         "˘": \.breve, "⏞": \.overbrace, "⏟": \.underbrace,
     ]

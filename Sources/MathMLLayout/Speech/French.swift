@@ -25,10 +25,10 @@ enum FrenchVocabulary: MathVocabulary {
         forAll: "pour tout", exists: "il existe", not: "non", and: "et", or: "ou")
 
     static let accents = MathAccents(
-        hat: .after("accent circonflexe"), tilde: .after("tilde"), bar: .after("barre"), underbar: .after("souligné"),
+        hat: .after("accent circonflexe"), tilde: .after("tilde"), bar: .after("barre"), underbar: .after("trait souscrit"),
         dot: .after("point"), doubleDot: .after("tréma"), vector: .before("vecteur"), check: .after("caron"),
-        breve: .after("brève"), overbrace: .after("avec accolade au-dessus"),
-        underbrace: .after("avec accolade en dessous"))
+        breve: .after("brève"), overbrace: .after("accolade supérieure"),
+        underbrace: .after("accolade inférieure"))
 
     static func fraction(_ numerator: String, _ denominator: String, simple: Bool) -> String {
         simple ? phrase(numerator, "sur", denominator)
@@ -42,24 +42,24 @@ enum FrenchVocabulary: MathVocabulary {
     }
     static func subscripted(_ base: String, _ script: String) -> String { phrase(base, "indice", script) }
     static func squareRoot(_ radicand: String, closed: Bool) -> String {
-        phrase("racine carrée de", radicand, closed ? "fin de racine" : "")
+        phrase("racine carrée", de(radicand), closed ? "fin de racine" : "")
     }
-    static func cubeRoot(_ radicand: String) -> String { phrase("racine cubique de", radicand, "fin de racine") }
+    static func cubeRoot(_ radicand: String) -> String { phrase("racine cubique", de(radicand), "fin de racine") }
     static func root(_ radicand: String, index: String) -> String {
-        phrase("racine d'indice", index, "de", radicand, "fin de racine")
+        phrase("racine d'indice", index, de(radicand), "fin de racine")
     }
     static func under(_ base: String, _ script: String) -> String { phrase(base, "avec en dessous", script) }
     static func over(_ base: String, _ script: String) -> String { phrase(base, "avec au-dessus", script) }
     static func limits(_ base: String, from lower: String, to upper: String) -> String {
-        phrase(base, "de", lower, "à", upper)
+        phrase(base, de(lower), "à", upper)
     }
     // Positional script names adapted from pinned MathCAT/SRE; compound closing
     // phrases composed for MathMLLayout. See Documentation/SpeechWordingAudit.md.
     static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String {
         let label: String, end: String
         switch position {
-        case .rightSubscript: label = "indice droit"; end = "fin d'indice"
-        case .rightSuperscript: label = "exposant droit"; end = "fin d'exposant"
+        case .rightSubscript: label = "indice droite"; end = "fin d'indice"
+        case .rightSuperscript: label = "exposant droite"; end = "fin d'exposant"
         case .leftSubscript: label = "indice gauche"; end = "fin d'indice"
         case .leftSuperscript: label = "exposant gauche"; end = "fin d'exposant"
         }
@@ -74,7 +74,7 @@ enum FrenchVocabulary: MathVocabulary {
     static let line = "trait"
     static func carries(_ carries: String) -> String { phrase("retenues :", carries) }
     static let blank = "vide"
-    static func crossedOut(_ carry: String) -> String { phrase(carry, "avec le chiffre en dessous barré") }
+    static func crossedOut(_ carry: String) -> String { phrase(carry, "avec le chiffre de la colonne barré") }
     static func longDivision(rows: Int) -> String {
         rows == 0 ? "division posée" : "division posée avec \(rows) \(rows < 2 ? "ligne" : "lignes") de calcul"
     }
@@ -82,4 +82,61 @@ enum FrenchVocabulary: MathVocabulary {
     static func dividend(_ dividend: String) -> String { phrase("dividende :", dividend) }
     static func result(_ result: String) -> String { phrase("résultat :", result) }
     static let endLongDivision = "fin de la division"
+    static let spatial = MathSpatialWords(
+        digits: ["zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf"],
+        point: "point", comma: "virgule", space: "espace", colon: "deux-points", semicolon: "point-virgule",
+        column: "colonne", alignment: "alignement", fullWidth: "sur toute la largeur de l’opération", carriesOrBorrows: "retenues ou emprunts :",
+        alignments: [
+            .left: "à gauche",
+            .center: "au centre",
+            .right: "à droite",
+            .decimalPoint: "sur le séparateur décimal",
+        ],
+        locations: [
+            .w: "à gauche",
+            .nw: "en haut à gauche",
+            .n: "au-dessus",
+            .ne: "en haut à droite",
+            .e: "à droite",
+            .se: "en bas à droite",
+            .s: "en dessous",
+            .sw: "en bas à gauche",
+        ],
+        strikes: [
+            "updiagonalstrike": "trait diagonal montant",
+            "downdiagonalstrike": "trait diagonal descendant",
+            "verticalstrike": "trait vertical",
+            "horizontalstrike": "trait horizontal",
+        ],
+        frames: [
+            .leftTop: "diviseur à gauche, résultat au-dessus",
+            .stackedRightRight: "diviseur et résultat à droite, trait vertical complet",
+            .mediumStackedRightRight: "diviseur et résultat à droite, trait vertical moyen",
+            .shortStackedRightRight: "diviseur et résultat à droite, trait vertical court",
+            .rightTop: "diviseur à droite, résultat au-dessus",
+            .leftSlashRight: "diviseur à gauche d’une barre oblique, résultat à droite d’une barre oblique inverse",
+            .leftParenRight: "diviseur à gauche d’une parenthèse fermante, résultat à droite d’une parenthèse ouvrante",
+            .colonRightEqualsRight: "diviseur à droite des deux-points, résultat à droite du signe égal",
+            .stackedLeftLeft: "diviseur et résultat à gauche",
+            .stackedLeftLineTop: "diviseur à gauche, résultat au-dessus avec trait vertical à gauche",
+        ])
+
+    // Bounded ordinal names adapted from pinned SRE number rules and MathCAT root rules.
+    // See Documentation/SpeechWordingAudit.md; compound indices retain explicit labels.
+    static let ordinalRoots = ["1": "première", "4": "quatrième", "5": "cinquième", "6": "sixième", "7": "septième", "8": "huitième", "9": "neuvième", "10": "dixième", "n": "n-ième"]
+    static func ordinalRoot(_ radicand: String, ordinal: String) -> String {
+        phrase("racine", ordinal, de(radicand), "fin de racine")
+    }
+
+    /// Elide before an explicit vowel. Silent/aspirated h and letter names that
+    /// differ from their written token require author-supplied alttext.
+    private static func de(_ operand: String) -> String {
+        guard let first = operand.first else { return "" }
+        let opening = operand.split(separator: " ", maxSplits: 1).first?.lowercased() ?? ""
+        // Preserve the disjunctive words identified by the Canadian elision guide.
+        if ["oui", "onze", "onzième"].contains(opening) { return phrase("de", operand) }
+        return "aàâäeéèêëiîïoôöuùûü".contains(first.lowercased())
+            ? "d'" + operand : phrase("de", operand)
+    }
+
 }

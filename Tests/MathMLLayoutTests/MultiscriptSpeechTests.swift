@@ -12,7 +12,7 @@ final class MultiscriptSpeechTests: MathTestCase {
     private let labels: [(language: String, corners: [String], ends: [String], plus: String)] = [
         ("en", ["right subscript", "right superscript", "left subscript", "left superscript"],
          ["end subscript", "end superscript", "end subscript", "end superscript"], "plus"),
-        ("fr", ["indice droit", "exposant droit", "indice gauche", "exposant gauche"],
+        ("fr", ["indice droite", "exposant droite", "indice gauche", "exposant gauche"],
          ["fin d'indice", "fin d'exposant", "fin d'indice", "fin d'exposant"], "plus"),
         ("de", ["rechter unterer Index", "rechter oberer Index", "linker unterer Index", "linker oberer Index"],
          ["Ende Index", "Ende Index", "Ende Index", "Ende Index"], "plus"),

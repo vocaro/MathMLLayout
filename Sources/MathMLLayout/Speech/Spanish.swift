@@ -24,9 +24,9 @@ enum SpanishVocabulary: MathVocabulary {
         forAll: "para todo", exists: "existe", not: "no", and: "y", or: "o")
 
     static let accents = MathAccents(
-        hat: .after("circunflejo"), tilde: .after("tilde"), bar: .after("barra"), underbar: .after("subrayado"),
+        hat: .after("circunflejo"), tilde: .after("tilde"), bar: .after("barra"), underbar: .after("subbarra"),
         dot: .after("punto"), doubleDot: .after("diéresis"), vector: .before("vector"), check: .after("carón"),
-        breve: .after("breve"), overbrace: .after("con llave encima"), underbrace: .after("con llave debajo"))
+        breve: .after("breve"), overbrace: .after("corchete rizado superior"), underbrace: .after("corchete rizado inferior"))
 
     static func fraction(_ numerator: String, _ denominator: String, simple: Bool) -> String {
         simple ? phrase(numerator, "sobre", denominator)
@@ -71,7 +71,7 @@ enum SpanishVocabulary: MathVocabulary {
     static let line = "línea"
     static func carries(_ carries: String) -> String { phrase("acarreos:", carries) }
     static let blank = "vacío"
-    static func crossedOut(_ carry: String) -> String { phrase(carry, "con la cifra de abajo tachada") }
+    static func crossedOut(_ carry: String) -> String { phrase(carry, "con la cifra de la columna tachada") }
     static func longDivision(rows: Int) -> String {
         rows == 0 ? "división larga" : "división larga con \(rows) \(rows == 1 ? "fila" : "filas") de cálculo"
     }
@@ -79,4 +79,51 @@ enum SpanishVocabulary: MathVocabulary {
     static func dividend(_ dividend: String) -> String { phrase("dividendo:", dividend) }
     static func result(_ result: String) -> String { phrase("resultado:", result) }
     static let endLongDivision = "fin de la división"
+    static let spatial = MathSpatialWords(
+        digits: ["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"],
+        point: "punto", comma: "coma", space: "espacio", colon: "dos puntos", semicolon: "punto y coma",
+        column: "columna", alignment: "alineación", fullWidth: "en todo el ancho de la operación", carriesOrBorrows: "acarreos o préstamos:",
+        alignments: [
+            .left: "a la izquierda",
+            .center: "en el centro",
+            .right: "a la derecha",
+            .decimalPoint: "en el separador decimal",
+        ],
+        locations: [
+            .w: "a la izquierda",
+            .nw: "arriba a la izquierda",
+            .n: "arriba",
+            .ne: "arriba a la derecha",
+            .e: "a la derecha",
+            .se: "abajo a la derecha",
+            .s: "abajo",
+            .sw: "abajo a la izquierda",
+        ],
+        strikes: [
+            "updiagonalstrike": "tachado diagonal ascendente",
+            "downdiagonalstrike": "tachado diagonal descendente",
+            "verticalstrike": "tachado vertical",
+            "horizontalstrike": "tachado horizontal",
+        ],
+        frames: [
+            .leftTop: "divisor a la izquierda, resultado arriba",
+            .stackedRightRight: "divisor y resultado a la derecha, línea vertical completa",
+            .mediumStackedRightRight: "divisor y resultado a la derecha, línea vertical media",
+            .shortStackedRightRight: "divisor y resultado a la derecha, línea vertical corta",
+            .rightTop: "divisor a la derecha, resultado arriba",
+            .leftSlashRight: "divisor a la izquierda de la barra, resultado a la derecha de la barra inversa",
+            .leftParenRight: "divisor a la izquierda del paréntesis de cierre, resultado a la derecha del paréntesis de apertura",
+            .colonRightEqualsRight: "divisor a la derecha de los dos puntos, resultado a la derecha del signo igual",
+            .stackedLeftLeft: "divisor y resultado a la izquierda",
+            .stackedLeftLineTop: "divisor a la izquierda, resultado arriba con línea vertical izquierda",
+        ])
+
+    // Bounded ordinal names adapted from pinned SRE number rules and MathCAT root rules.
+    // See Documentation/SpeechWordingAudit.md; compound indices retain explicit labels.
+    // No matching Spanish variable-root ordinal was found; n keeps the index template.
+    static let ordinalRoots = ["1": "primera", "4": "cuarta", "5": "quinta", "6": "sexta", "7": "séptima", "8": "octava", "9": "novena", "10": "décima"]
+    static func ordinalRoot(_ radicand: String, ordinal: String) -> String {
+        phrase(ordinal, "raíz de", radicand, "fin de raíz")
+    }
+
 }

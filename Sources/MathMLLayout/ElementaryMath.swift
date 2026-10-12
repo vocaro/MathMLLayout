@@ -3,7 +3,7 @@ import CoreText
 import Foundation
 
 /// Where a carry goes around the character it annotates (MathML 3, 3.6.5.2): a compass point.
-private enum CarryLocation: String {
+enum CarryLocation: String, CaseIterable, Sendable {
     case w, nw, n, ne, e, se, s, sw
 
     init?(attribute: String?) {
@@ -13,7 +13,7 @@ private enum CarryLocation: String {
 }
 
 /// How the character under a carry is struck out (3.6.5.2). Several may be drawn at once.
-private struct Crossout: OptionSet {
+struct Crossout: OptionSet, Sendable {
     let rawValue: UInt8
     static let up = Crossout(rawValue: 1), down = Crossout(rawValue: 2)
     static let vertical = Crossout(rawValue: 4), horizontal = Crossout(rawValue: 8)
@@ -84,7 +84,7 @@ private struct StackLine {
 
 /// What an `mstack` or `mlongdiv` settles for all its lines (3.6.1.2).
 private struct StackStyle {
-    enum Align { case left, center, right, decimalPoint }
+    typealias Align = MathStackAlignment
     var align = Align.decimalPoint
     /// Where a cell narrower than its column goes: 0 left, 0.5 centre, 1 right (`charalign`).
     var charAlign: CGFloat = 1
@@ -104,13 +104,7 @@ private struct StackStyle {
     /// towards the tens (3.6.3.2). `decimalPoint` is the cell holding the point, or the one
     /// after the first number when the point is implied; a line with neither ends at the point.
     func firstColumn(count: Int, decimalPoint: Int?, position: Int) -> Int {
-        let anchor = switch align {
-        case .left: 0
-        case .center: count / 2
-        case .right: count
-        case .decimalPoint: decimalPoint ?? count
-        }
-        return -anchor - position
+        align.firstColumn(count: count, decimalPoint: decimalPoint, position: position)
     }
 
     /// Whether a cell's text is the decimal point: the `decimalpoint` in effect, else "." (the
@@ -152,7 +146,7 @@ private struct Stack {
 }
 
 /// `longdivstyle` (3.6.2.2): where the divisor and the result go around the dividend.
-private enum LongDivision: String {
+enum LongDivision: String, CaseIterable, Sendable {
     case leftTop = "lefttop", stackedRightRight = "stackedrightright"
     case mediumStackedRightRight = "mediumstackedrightright", shortStackedRightRight = "shortstackedrightright"
     case rightTop = "righttop", leftSlashRight = "left/\\right", leftParenRight = "left)(right"
@@ -214,8 +208,7 @@ extension LayoutEngine {
     /// An attribute that counts columns (`position`, `shift`, `length`), bounded so that sums
     /// of them cannot overflow. What a stack may span is bounded in `arrange`.
     private static func columns(_ node: MathMLNode, _ name: String) -> Int {
-        let value = node.attributes[name].flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } ?? 0
-        return min(max(value, -(1 << 31)), 1 << 31)
+        MathStackAlignment.columns(node, name)
     }
 
     /// A token's characters for the grid: whitespace collapsed and trimmed, without the marker

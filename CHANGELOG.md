@@ -33,6 +33,14 @@ Line breaking, `mglyph`, elementary math and localized readings
 
 ### Fixed
 
+- Spoken readings now describe stack columns, shifted rows, carry/borrow locations and
+  crossout styles, and long-division frames. Stack digits and punctuation are explicit.
+  Large-operator side limits, under-accents, multiple primes, configured fence separators,
+  identifier symbols and simple ordinal roots are read in all five languages; French vowel
+  elision is explicit. Fresh linguistic review is limited to novel descriptions in the
+  [speech audit](Documentation/SpeechWordingAudit.md#structural-follow-up-for-31)
+  ([#31](https://github.com/vocaro/MathMLLayout/issues/31)).
+
 - `mmultiscripts` spoken readings distinguish right/left subscripts and superscripts
   in all five languages. Pairs follow source order after the base, including silent
   placeholders, and compound scripts announce their end. The speech guide and
@@ -44,8 +52,10 @@ Line breaking, `mglyph`, elementary math and localized readings
 - Selected French, German, Spanish and Italian spoken names now follow pinned MathCAT and
   Speech Rule Engine rules and fixtures, including double-dot accents, several hat/bar
   accents, partial derivatives and the German contour integral. French `<` and `>` readings
-  omit `strictement`. The [wording audit](Documentation/SpeechWordingAudit.md) records sources
-  and unresolved terminology; these readings have not been validated by native speakers
+  omit `strictement`. The [wording audit](Documentation/SpeechWordingAudit.md) records
+  accepted source-backed wording and the limited review queue for novel descriptions.
+  Underbars, brace names, Italian caron and bounded ordinals also follow upstream evidence;
+  Spanish variable roots retain explicit indices
   ([#31](https://github.com/vocaro/MathMLLayout/issues/31)).
 - Neighbouring wrapping parts receive independent width budgets when a shared budget overflows.
   The reported `widestUnbreakableWidth` is verified by laying out at that width, including

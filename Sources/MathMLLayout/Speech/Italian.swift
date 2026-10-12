@@ -25,9 +25,9 @@ enum ItalianVocabulary: MathVocabulary {
         not: "non", and: "e", or: "o")
 
     static let accents = MathAccents(
-        hat: .after("accento circonflesso"), tilde: .after("tilde"), bar: .after("barra sopra"), underbar: .after("sottolineato"),
-        dot: .after("punto"), doubleDot: .after("dieresi"), vector: .before("vettore"), check: .after("caron"),
-        breve: .after("breve"), overbrace: .after("con graffa sopra"), underbrace: .after("con graffa sotto"))
+        hat: .after("accento circonflesso"), tilde: .after("tilde"), bar: .after("barra sopra"), underbar: .after("con barra sotto"),
+        dot: .after("punto"), doubleDot: .after("dieresi"), vector: .before("vettore"), check: .after("con caron"),
+        breve: .after("breve"), overbrace: .after("parentesi graffa superiore"), underbrace: .after("parentesi graffa inferiore"))
 
     static func fraction(_ numerator: String, _ denominator: String, simple: Bool) -> String {
         simple ? phrase(numerator, "fratto", denominator)
@@ -72,7 +72,7 @@ enum ItalianVocabulary: MathVocabulary {
     static let line = "linea"
     static func carries(_ carries: String) -> String { phrase("riporti:", carries) }
     static let blank = "vuoto"
-    static func crossedOut(_ carry: String) -> String { phrase(carry, "con la cifra sotto barrata") }
+    static func crossedOut(_ carry: String) -> String { phrase(carry, "con la cifra della colonna barrata") }
     static func longDivision(rows: Int) -> String {
         rows == 0 ? "divisione in colonna"
             : "divisione in colonna con \(rows) \(rows == 1 ? "riga" : "righe") di calcolo"
@@ -81,4 +81,50 @@ enum ItalianVocabulary: MathVocabulary {
     static func dividend(_ dividend: String) -> String { phrase("dividendo:", dividend) }
     static func result(_ result: String) -> String { phrase("risultato:", result) }
     static let endLongDivision = "fine della divisione"
+    static let spatial = MathSpatialWords(
+        digits: ["zero", "uno", "due", "tre", "quattro", "cinque", "sei", "sette", "otto", "nove"],
+        point: "punto", comma: "virgola", space: "spazio", colon: "due punti", semicolon: "punto e virgola",
+        column: "colonna", alignment: "allineamento", fullWidth: "su tutta la larghezza dell’operazione", carriesOrBorrows: "riporti o prestiti:",
+        alignments: [
+            .left: "a sinistra",
+            .center: "al centro",
+            .right: "a destra",
+            .decimalPoint: "al separatore decimale",
+        ],
+        locations: [
+            .w: "a sinistra",
+            .nw: "in alto a sinistra",
+            .n: "sopra",
+            .ne: "in alto a destra",
+            .e: "a destra",
+            .se: "in basso a destra",
+            .s: "sotto",
+            .sw: "in basso a sinistra",
+        ],
+        strikes: [
+            "updiagonalstrike": "barratura diagonale ascendente",
+            "downdiagonalstrike": "barratura diagonale discendente",
+            "verticalstrike": "barratura verticale",
+            "horizontalstrike": "barratura orizzontale",
+        ],
+        frames: [
+            .leftTop: "divisore a sinistra, risultato sopra",
+            .stackedRightRight: "divisore e risultato a destra, linea verticale completa",
+            .mediumStackedRightRight: "divisore e risultato a destra, linea verticale media",
+            .shortStackedRightRight: "divisore e risultato a destra, linea verticale corta",
+            .rightTop: "divisore a destra, risultato sopra",
+            .leftSlashRight: "divisore a sinistra della barra, risultato a destra della barra inversa",
+            .leftParenRight: "divisore a sinistra della parentesi chiusa, risultato a destra della parentesi aperta",
+            .colonRightEqualsRight: "divisore a destra dei due punti, risultato a destra del segno uguale",
+            .stackedLeftLeft: "divisore e risultato a sinistra",
+            .stackedLeftLineTop: "divisore a sinistra, risultato sopra con linea verticale sinistra",
+        ])
+
+    // Bounded ordinal names adapted from pinned SRE number rules and MathCAT root rules.
+    // See Documentation/SpeechWordingAudit.md; compound indices retain explicit labels.
+    static let ordinalRoots = ["1": "prima", "4": "quarta", "5": "quinta", "6": "sesta", "7": "settima", "8": "ottava", "9": "nona", "10": "decima", "n": "n-esima"]
+    static func ordinalRoot(_ radicand: String, ordinal: String) -> String {
+        phrase("radice", ordinal, "di", radicand, "fine radice")
+    }
+
 }
