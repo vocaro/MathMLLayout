@@ -6,6 +6,15 @@ Layouts are immutable and thread-safe, so you can prepare formulas off the main 
 
 Requires iOS/iPadOS or macOS 27+, Swift 6.2 and Xcode 27.
 
+## Features
+
+- Native drawing with CoreText and CoreGraphics.
+- Fractions, radicals, scripts, stretchy operators, tables and elementary math.
+- Automatic line breaking and individual rows for inline placement.
+- Host-supplied images for `mglyph`.
+- Spoken readings in English, French, German, Spanish and Italian.
+- Immutable layouts and bounded parsing of untrusted MathML.
+
 ## Quick start
 
 Parse a formula, create a layout, then draw it into a context whose y axis points up:
@@ -25,6 +34,61 @@ layout.draw(in: context, baselineOrigin: CGPoint(x: 0, y: layout.descent))
 
 See the [usage guide](doc/usage.md) and [complete drawing example](doc/examples/Drawing.swift)
 for layout bounds, parsing and spoken readings.
+
+## Rendering examples
+
+Rendered by MathMLLayout on macOS 27 with STIX Two Math at 28 points.
+The PNGs use a white background and 2× resolution.
+
+<table>
+<tr><th align="left">MathML</th><th align="center">macOS rendering</th></tr>
+<tr>
+<td><strong>Fractions, radicals and scripts</strong><pre><code>&lt;math display="block"&gt;
+  &lt;mi&gt;x&lt;/mi&gt;&lt;mo&gt;=&lt;/mo&gt;
+  &lt;mfrac&gt;
+    &lt;mrow&gt;
+      &lt;mo&gt;−&lt;/mo&gt;&lt;mi&gt;b&lt;/mi&gt;&lt;mo&gt;±&lt;/mo&gt;
+      &lt;msqrt&gt;
+        &lt;msup&gt;&lt;mi&gt;b&lt;/mi&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;/msup&gt;
+        &lt;mo&gt;−&lt;/mo&gt;&lt;mn&gt;4&lt;/mn&gt;&lt;mi&gt;a&lt;/mi&gt;&lt;mi&gt;c&lt;/mi&gt;
+      &lt;/msqrt&gt;
+    &lt;/mrow&gt;
+    &lt;mrow&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;mi&gt;a&lt;/mi&gt;&lt;/mrow&gt;
+  &lt;/mfrac&gt;
+&lt;/math&gt;</code></pre></td>
+<td align="center"><img src="doc/renderings/quadratic.png" width="320" height="120" alt="Quadratic formula with a fraction, square root and superscript"></td>
+</tr>
+<tr>
+<td><strong>Tables and stretchy fences</strong><pre><code>&lt;math display="block"&gt;
+  &lt;mi&gt;A&lt;/mi&gt;&lt;mo&gt;=&lt;/mo&gt;
+  &lt;mfenced open="[" close="]"&gt;
+    &lt;mtable&gt;
+      &lt;mtr&gt;
+        &lt;mtd&gt;&lt;mi&gt;a&lt;/mi&gt;&lt;/mtd&gt;&lt;mtd&gt;&lt;mi&gt;b&lt;/mi&gt;&lt;/mtd&gt;
+      &lt;/mtr&gt;
+      &lt;mtr&gt;
+        &lt;mtd&gt;&lt;mi&gt;c&lt;/mi&gt;&lt;/mtd&gt;&lt;mtd&gt;&lt;mi&gt;d&lt;/mi&gt;&lt;/mtd&gt;
+      &lt;/mtr&gt;
+    &lt;/mtable&gt;
+  &lt;/mfenced&gt;
+&lt;/math&gt;</code></pre></td>
+<td align="center"><img src="doc/renderings/matrix.png" width="320" height="120" alt="A equals a two by two matrix with entries a, b, c and d"></td>
+</tr>
+<tr>
+<td><strong>Annotated stretchy operators</strong><pre><code>&lt;math display="block"&gt;
+  &lt;mi&gt;A&lt;/mi&gt;
+  &lt;mover&gt;
+    &lt;mo&gt;→&lt;/mo&gt;
+    &lt;mtext&gt;reaction&lt;/mtext&gt;
+  &lt;/mover&gt;
+  &lt;mi&gt;B&lt;/mi&gt;
+&lt;/math&gt;</code></pre></td>
+<td align="center"><img src="doc/renderings/annotated-arrow.png" width="320" height="120" alt="A reaction arrow from A to B with reaction written above it"></td>
+</tr>
+</table>
+
+The [MathML files](doc/examples/mathml) and [macOS renderer](doc/examples/RenderGallery.swift)
+are included; see [how to regenerate the images](doc/usage.md#regenerating-the-readme-gallery).
 
 ## Documentation
 
