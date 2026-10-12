@@ -83,7 +83,7 @@ public enum MathLayoutError: Error, Equatable, Sendable {
 /// It is one row unless the markup forces a line break or `maximumWidth` requires one. Its box
 /// covers everything it draws, and each row's box everything that row draws, as laid out. A
 /// bitmap context moves each glyph onto its pixel grid and on macOS thickens it, so a host that
-/// clips to a box allows two device pixels around it (see the README's "Clipping").
+/// clips to a box allows two device pixels around it (see doc/line-breaking.md, "Clipping").
 public final class MathLayout: @unchecked Sendable {
     // Unchecked: the box trees are never mutated after init, and the CoreText fonts and
     // CoreGraphics paths and images they hold are immutable and thread-safe.

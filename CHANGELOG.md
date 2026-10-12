@@ -155,7 +155,7 @@ Line breaking, `mglyph`, elementary math and localized readings
   Core's text still has them from the ink.
 - `MathMLNode.parse(xml:)` keeps the attributes of a token's element children, and marks each
   `mglyph`'s place in the token's `text` with U+FFFC. Hosts that build nodes themselves should
-  do the same; the README's Images section has the details.
+  do the same; [doc/images.md](doc/images.md) has the details.
 
 ### For EPUBLib
 
@@ -183,5 +183,5 @@ Each workaround that [vocaro/EPUBLib#61](https://github.com/vocaro/EPUBLib/pull/
   was written for the native EPUB viewer
   ([vocaro/EPUBLib#3](https://github.com/vocaro/EPUBLib/issues/3)).
 - Presentation-MathML layout and drawing with CoreText and the OpenType MATH table; parser,
-  spoken readings, bounds on untrusted input. See the [README](README.md) for what is supported.
+  spoken readings, bounds on untrusted input. See [doc/markup.md](doc/markup.md) for what is supported.
 - Every one of the 1,798 formulas in EPUBLib's real-book corpus lays out without a fallback.

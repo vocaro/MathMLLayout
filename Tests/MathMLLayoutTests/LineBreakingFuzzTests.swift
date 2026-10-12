@@ -334,8 +334,7 @@ final class LineBreakingFuzzTests: MathTestCase {
     static func marks(_ box: MathBox, at origin: CGPoint = .zero, into marks: inout [Mark],
                       preservingFences: Bool = false, inFence: Bool = false, inCore: Bool = false) {
         let inFence = inFence || preservingFences && box.fenceLayout != nil
-        let inCore = inCore || preservingFences && box.fenceLayout?.node.name == "mo"
-            && box.fenceLayout?.node.children.contains(where: { $0.name == "mglyph" }) != true
+        let inCore = inCore || preservingFences && box.fenceLayout?.isCoreGeometry == true
         for item in box.items {
             switch item {
             case .glyphs(let run):

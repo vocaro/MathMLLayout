@@ -96,7 +96,7 @@ final class ParserTests: XCTestCase {
         for document in documents { assertInvalid(document) }
     }
 
-    /// README: "refuses document type declarations, so no entity expands and nothing external loads".
+    /// doc/limits.md: "refuses document type declarations, so no entity expands and nothing external loads".
     func testDocumentTypeDeclarationsAreRefused() {
         let internalSubset = #"<!DOCTYPE math [<!ENTITY a "aaaa">]><math><mi>&a;</mi></math>"#
         let external = #"<!DOCTYPE math PUBLIC "-//W3C//DTD MathML 3.0//EN" "http://www.w3.org/Math/DTD/mathml3/mathml3.dtd"><math><mi>x</mi></math>"#

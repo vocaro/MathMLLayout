@@ -167,6 +167,42 @@ final class RowFenceRegressionTests: MathTestCase {
         assertInk(green, coloredInk(plain.rows[0].box, "green"))
     }
 
+    func testTransparentWrappersKeepCoreFenceGeometryProvenance() throws {
+        for wrapper in ["maction", "semantics"] {
+            // The wrapper returns its child's drawing box directly. Its retained source is the
+            // wrapper, but the tall assembly glyphs remain the core fence's replaceable geometry.
+            let body = "<mfenced><mrow><\(wrapper)><mo separator=\"true\">]</mo></\(wrapper)>"
+                + "<mpadded depth=\"1000em\"/></mrow></mfenced>"
+            let root = try node(body)
+            let style = MathStyle(fontSize: 20, color: black)
+            let original = try LayoutEngine(fontName: nil).layoutRoot(root, style: style)
+            let broken = try LayoutEngine.lines(root, style: style, maximumWidth: 0, firstRowMaximumWidth: nil)
+            XCTAssertEqual(broken.rows.count, 2)
+            XCTAssertGreaterThan(LineBreakingFuzzTests.marks([original]).count,
+                                 LineBreakingFuzzTests.marks(broken.rows.map(\.box)).count + 100)
+            XCTAssertEqual(LineBreakingFuzzTests.marks([original], preservingFences: true),
+                           LineBreakingFuzzTests.marks(broken.rows.map(\.box), preservingFences: true))
+            XCTAssertTrue(LineBreakingFuzzTests.violations(root, style: style, width: 0, first: nil).isEmpty)
+
+            // A transparent wrapper around an embellished fence must keep its script drawings:
+            // their operator, image, fraction rule and background are not core fence geometry.
+            let scripted = "<\(wrapper)><msup><mo mathcolor=\"red\" mathbackground=\"yellow\">(</mo>"
+                + "<mfrac><mrow><mo mathcolor=\"green\">+</mo><mglyph src=\"image\"/></mrow>"
+                + "<mi mathcolor=\"blue\">a</mi></mfrac></msup></\(wrapper)>"
+                + "<mi>x</mi><mo mathcolor=\"red\">)</mo>"
+            let scriptedRoot = try node(tall + newline + scripted)
+            let imageStyle = LineBreakingFuzzTests.style(20)
+            let scriptedOriginal = try LayoutEngine(fontName: nil).layoutRoot(scriptedRoot, style: imageStyle)
+            let scriptedRows = try LayoutEngine.lines(scriptedRoot, style: imageStyle,
+                                                       maximumWidth: .infinity, firstRowMaximumWidth: nil)
+            let drawn = LineBreakingFuzzTests.marks(scriptedRows.rows.map(\.box), preservingFences: true)
+            XCTAssertEqual(LineBreakingFuzzTests.marks([scriptedOriginal], preservingFences: true), drawn)
+            XCTAssertEqual(drawn.filter { $0.kind == -3 }.count, 1, "script image")
+            XCTAssertGreaterThanOrEqual(drawn.filter { $0.kind == -1 }.count, 2, "background and fraction rule")
+            XCTAssertNotNil(coloredInk(scriptedRows.rows[1].box, "green"), "script operator")
+        }
+    }
+
     func testShiftedContentKeepsNegativeRowExtents() throws {
         for shift in ["3em", "-3em"] {
             let height = shift.hasPrefix("-") ? shift : "+" + shift

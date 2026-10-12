@@ -853,7 +853,7 @@ final class GlyphTests: MathTestCase {
         assertColor(pixel(25, 42), [0, 0, 0, 0], "above it, where a height of the bound would reach")
     }
 
-    /// README: "A formula … larger than 20,000 nodes … throws `MathLayoutError.limitExceeded`."
+    /// doc/limits.md: "A formula … larger than 20,000 nodes … throws `MathLayoutError.limitExceeded`."
     /// A row-level `mglyph` is one of them, like the `mtext` it is laid out as.
     func testRowLevelGlyphCountsAsOneNode() throws {
         let images = provider(["g": quarters(2, 2)])

@@ -86,12 +86,17 @@ final class FenceLayout {
     let wrapWidth: CGFloat
     let wrapParts: Range<Int>
     let wrapOverrides: [Int: CGFloat]
+    /// This box directly draws the core fence, including through `semantics` or `maction`.
+    /// Other embellished boxes contain their core as a child and also draw scripts or labels.
+    let isCoreGeometry: Bool
 
     init(node: MathMLNode, context: LayoutContext, form: OperatorForm?, engine: LayoutEngine,
-         lineWidth: CGFloat, wrapWidth: CGFloat, wrapParts: Range<Int>, wrapOverrides: [Int: CGFloat]) {
+         lineWidth: CGFloat, wrapWidth: CGFloat, wrapParts: Range<Int>, wrapOverrides: [Int: CGFloat],
+         isCoreGeometry: Bool) {
         self.node = node; self.context = context; self.form = form; self.engine = engine
         self.lineWidth = lineWidth; self.wrapWidth = wrapWidth
         self.wrapParts = wrapParts; self.wrapOverrides = wrapOverrides
+        self.isCoreGeometry = isCoreGeometry
     }
 
     func box(ascent: CGFloat, descent: CGFloat) -> MathBox? {
@@ -379,9 +384,11 @@ final class LayoutEngine {
         }
         if box.op?.has(.fence) == true, case .vertical = embellishment.stretch,
            isStretchy(node, form: embellishment.form, horizontal: false) {
+            let isCoreGeometry = node.name == "mo" && !children.contains(where: { $0.name == "mglyph" })
+                || box.fenceLayout?.isCoreGeometry == true
             box.fenceLayout = FenceLayout(node: node, context: outer, form: embellishment.form, engine: self,
                                           lineWidth: lineWidth, wrapWidth: wrapWidth, wrapParts: wrapStart..<wrapParts.count,
-                                          wrapOverrides: wrapOverrides)
+                                          wrapOverrides: wrapOverrides, isCoreGeometry: isCoreGeometry)
         }
         return box
     }

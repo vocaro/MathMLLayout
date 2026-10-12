@@ -393,7 +393,7 @@ final class MathMLLayoutTests: MathTestCase {
                        "x sub 1 equals minus 3")
     }
 
-    /// The README's usage example, verbatim, so it keeps compiling and its comment stays true.
+    /// The README's usage statements and doc/examples/Drawing.swift, so they keep compiling.
     func testReadmeExample() throws {
         let context = try XCTUnwrap(CGContext(data: nil, width: 400, height: 200, bitsPerComponent: 8, bytesPerRow: 0,
                                               space: CGColorSpaceCreateDeviceRGB(),
@@ -409,7 +409,7 @@ final class MathMLLayoutTests: MathTestCase {
         XCTAssertEqual(formula.accessibilityDescription, "start fraction a over b squared end fraction")
     }
 
-    /// The README's line-breaking, image and reading examples, verbatim, for the same reason.
+    /// The Swift examples in doc/examples for line breaking, images and readings, verbatim.
     func testReadmeFeatureExamples() throws {
         func drawBroken(_ formula: MathMLNode, style: MathStyle, in context: CGContext) throws {
             // A display formula in a 320-point column: every row, stacked under the first row's baseline.
