@@ -1,3 +1,6 @@
+// Selected localized expectations adapted from MathCAT (MIT) and Speech Rule Engine
+// (Apache-2.0), modified for MathMLLayout; see THIRD_PARTY_NOTICES.md and
+// Documentation/SpeechWordingAudit.md for attribution and pinned sources.
 import Foundation
 @testable import MathMLLayout
 import XCTest
@@ -57,8 +60,8 @@ final class SpeechTests: MathTestCase {
         ("<mover><mi>a</mi><mi>b</mi></mover>",
          ["a over b", "a avec au-dessus b", "a darüber b", "a y encima b", "a con sopra b"]),
         ("<mover><mi>x</mi><mo>^</mo></mover><mo>=</mo><mover><mi>y</mi><mo>¯</mo></mover>",
-         ["x hat equals y bar", "x chapeau égale y barre", "x Dach gleich y quer", "x circunflejo igual a y barra",
-          "x cappuccio uguale a y segnato"]),
+         ["x hat equals y bar", "x accent circonflexe égale y barre", "x Zirkumflex gleich y Überstrich", "x circunflejo igual a y barra",
+          "x accento circonflesso uguale a y barra sopra"]),
         // Most languages name a vector before its letter.
         ("<mover><mi>v</mi><mo>→</mo></mover>", ["v vector", "vecteur v", "Vektor v", "vector v", "vettore v"]),
         ("<mmultiscripts><mi>C</mi><mi>k</mi><none/><mprescripts/><mi>n</mi><none/></mmultiscripts>",
@@ -84,7 +87,7 @@ final class SpeechTests: MathTestCase {
           "a es menor o igual que b por c es distinto de menos 3", "a è minore o uguale a b per c è diverso da meno 3"]),
         ("<mi>x</mi><mo>∈</mo><mi>A</mi><mo>∪</mo><mi>B</mi><mo>⇒</mo><mi>x</mi><mo>&lt;</mo><mn>5</mn><mo>!</mo>",
          ["x is in A union B implies x is less than 5 factorial",
-          "x appartient à A union B implique x est strictement inférieur à 5 factorielle",
+          "x appartient à A union B implique x est inférieur à 5 factorielle",
           "x Element von A vereinigt mit B impliziert x kleiner als 5 Fakultät",
           "x pertenece a A unión B implica x es menor que 5 factorial",
           "x appartiene a A unione B implica x è minore di 5 fattoriale"]),
