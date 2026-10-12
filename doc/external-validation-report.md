@@ -181,7 +181,7 @@ import commands and measurement/review data; local outputs retain the original l
 and attribution. No ar5iv license agreement or dataset access was needed.
 
 Validation: the six selected XCTest methods (standards, corpus and required independent
-font oracle) pass in debug, without skips. All eleven tooling tests, including native/Chromium
+font oracle) pass in debug, without skips. All twelve tooling tests, including native/Chromium
 integrations, pass. Corpus and supplemental WPT reimports reproduce their manifests
 byte-for-byte. Release verification could not finish: the build ran out of disk space
 during compilation; no release-test result is claimed for this follow-up. Production

@@ -16,7 +16,9 @@ from sample_corpus import sample
 def import_corpus(inputs, output):
     pins = json.loads((Path(__file__).parent / 'openstax-pins.json').read_text())
     sources = {s['file']: s for s in pins['sources']}
-    actual_files = {p.name for p in inputs.glob('*.cnxml')}
+    # Match the sampler's recursive XML discovery, so every imported file is pinned.
+    actual_files = {str(p.relative_to(inputs)) for p in inputs.rglob('*')
+                    if p.suffix.lower() in {'.xml', '.cnxml'}}
     if actual_files != set(sources):
         raise ValueError('Supply exactly the six pinned CNXML modules')
     for filename, expected in [(s['file'], s['sha256']) for s in sources.values()] + [('LICENSE', pins['licenseSHA256'])]:

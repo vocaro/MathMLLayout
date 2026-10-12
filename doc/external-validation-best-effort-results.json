@@ -4816,7 +4816,7 @@
   },
   "validation": {
     "debug": "Six selected XCTest methods passed without skips; strict standards and required font oracle enabled.",
-    "tooling": "Eleven tests passed, including native and Chromium integrations.",
+    "tooling": "Twelve tests passed, including native and Chromium integrations and pinned-input rejection.",
     "reimport": "Corpus and supplemental WPT manifests reproduced byte-for-byte.",
     "release": "Incomplete: compilation ran out of disk space. No release-test result claimed."
   }

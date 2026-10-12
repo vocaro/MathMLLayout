@@ -9,12 +9,27 @@ import unittest
 from pathlib import Path
 from lxml import etree
 from sample_corpus import sample
+from import_openstax import import_corpus
 from import_wpt import number, apply_reviewed
 from gallery import aligned, outcome, validate_reports
 from PIL import Image
 
 
 class ExternalToolTests(unittest.TestCase):
+    def testPinnedOpenStaxImporterRejectsExtraXMLBeforeSampling(self):
+        pins = json.loads((Path(__file__).parent / 'openstax-pins.json').read_text())
+        for extra in ['extra.xml', 'nested/extra.cnxml', 'nested/extra.XML']:
+            with self.subTest(extra=extra), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp); inputs = root/'inputs'; inputs.mkdir()
+                for source in pins['sources']:
+                    (inputs/source['file']).write_text('<document/>')
+                unexpected = inputs/extra
+                unexpected.parent.mkdir(parents=True, exist_ok=True)
+                unexpected.write_text('<document/>')
+                with self.assertRaisesRegex(ValueError, 'Supply exactly the six pinned'):
+                    import_corpus(inputs, root/'out')
+                self.assertFalse((root/'out').exists())
+
     def testCNXMLPreservesNamespacesAndInfersDisplayWithoutResolvingEntities(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); inputs = root/'inputs'; inputs.mkdir()
