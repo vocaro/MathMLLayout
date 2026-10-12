@@ -1,0 +1,7 @@
+{
+  "name": "mathml-external-validation",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": { "playwright": "1.62.1" },
+  "scripts": { "references": "node references.cjs" }
+}

@@ -1,0 +1,39 @@
+name: External MathML validation
+# This package requires macOS 27. Hosted macOS 26 images cannot execute it.
+# Configure the labelled runner before invoking this workflow, or call it with another
+# supported runner label set from the repository's normal CI workflow.
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        default: '["self-hosted", "macOS", "mathml-xcode27"]'
+permissions:
+  contents: read
+jobs:
+  standards:
+    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted", "macOS", "mathml-xcode27"]') }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check supported runtime
+        run: |
+          swift --version
+          xcodebuild -version
+          test "$(sw_vers -productVersion | cut -d. -f1)" -ge 27
+      - name: Pinned standards and font oracle (debug)
+        env:
+          MATHML_REQUIRE_FONT_ORACLE: "1"
+          MATHML_EXTERNAL_REPORT: external-debug.json
+        run: swift test --filter 'ExternalValidationTests|IndependentFontTests'
+      - name: Pinned standards and font oracle (release)
+        env:
+          MATHML_REQUIRE_FONT_ORACLE: "1"
+          MATHML_EXTERNAL_REPORT: external-release.json
+        run: swift test -c release -Xswiftc -enable-testing --filter 'ExternalValidationTests|IndependentFontTests'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: external-standards-results
+          path: external-*.json

@@ -100,6 +100,7 @@ are included; see [how to regenerate the images](doc/usage.md#regenerating-the-r
 - [Fonts](doc/fonts.md): font selection and fallbacks.
 - [Bounds and limitations](doc/limits.md): input limits and unsupported behavior.
 - [Testing](doc/testing.md): debug, release, simulator and fuzz testing.
+- [External validation](doc/external-validation.md): pinned standards, reference rendering, font checks and corpus sampling.
 - [Notices](doc/notices.md): specification and font acknowledgments.
 - [Swift examples](doc/examples): source code linked from the guides.
 - [Changelog](CHANGELOG.md): release history.

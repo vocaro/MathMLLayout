@@ -1,0 +1,1225 @@
+{
+  "features": {
+    "fractions": {
+      "pass": 33
+    },
+    "scripts": {
+      "pass": 30,
+      "bug": 8
+    },
+    "radicals": {
+      "pass": 10
+    }
+  },
+  "exclusions": [
+    {
+      "feature": "radicals/root-parameters-1.html",
+      "upstreamTest": "RadicalKernAfterDegree",
+      "classification": "unsuitable reference/test",
+      "reason": "This initial importer handles rectangle differences; symbolic radical-width expressions await a reviewed port."
+    },
+    {
+      "feature": "DOM/CSS integration",
+      "classification": "unsuitable reference/test",
+      "reason": "Events, CSS cascading, dynamic mutation and browser line boxes are outside the API."
+    },
+    {
+      "feature": "mtable spans",
+      "classification": "unsupported feature",
+      "reason": "rowspan/columnspan ignored (doc/limits.md); no span test imported."
+    },
+    {
+      "feature": "unary/lone operator spacing, ordinary delimiter sizing",
+      "classification": "intentional difference",
+      "reason": "Specific TeX choices documented in doc/markup.md; not counted as passes."
+    },
+    {
+      "feature": "stretchy arrow labels",
+      "classification": "intentional difference",
+      "reason": "Uses OpenType baseline shifts; doc/markup.md and existing ScriptAndLimitTests."
+    },
+    {
+      "feature": "MathKernInfo",
+      "classification": "unsupported feature",
+      "reason": "No MathKernInfo positioning (doc/limits.md)."
+    }
+  ],
+  "engines": [
+    {
+      "boxMeaning": "root ink-covering bounds; rows use layout advances",
+      "coordinates": "points, baseline-relative, y-down",
+      "engine": "MathMLLayout",
+      "fonts": [
+        {
+          "path": "fonts/fraction-axisheight7000-rulethickness1000.otf",
+          "postScriptName": "fraction-axisheight7000-rulethickness1000",
+          "sha256": "2212d57d184e2963125a8041e9d5164c3f32754bcc887d5b577178523af12657"
+        },
+        {
+          "path": "fonts/fraction-denominatordisplaystylegapmin5000-rulethickness1000.otf",
+          "postScriptName": "fraction-denominatordisplaystylegapmin5000-rulethickness1000",
+          "sha256": "639f8e859b503b1de0c77e737395ab5802b7728a7eb71bc651915807e22c5c62"
+        },
+        {
+          "path": "fonts/fraction-denominatordisplaystyleshiftdown6000-axisheight1000-rulethickness1000.otf",
+          "postScriptName": "fraction-denominatordisplaystyleshiftdown6000-axisheight1000-rulethickness1000",
+          "sha256": "a4699b10329910f75613d8a69503b202eae3bd95e930adaf5626ff6571498aaf"
+        },
+        {
+          "path": "fonts/fraction-denominatorgapmin4000-rulethickness1000.otf",
+          "postScriptName": "fraction-denominatorgapmin4000-rulethickness1000",
+          "sha256": "0813302b9000c47181fb1b9b179291c6cb0c0234301af54646e79350be541559"
+        },
+        {
+          "path": "fonts/fraction-denominatorshiftdown3000-axisheight1000-rulethickness1000.otf",
+          "postScriptName": "fraction-denominatorshiftdown3000-axisheight1000-rulethickness1000",
+          "sha256": "c4e69dadfdddae6c91fb87d8c6f2a68de6cceb9e839397bca59d27b1f72f7f4e"
+        },
+        {
+          "path": "fonts/fraction-numeratordisplaystylegapmin8000-rulethickness1000.otf",
+          "postScriptName": "fraction-numeratordisplaystylegapmin8000-rulethickness1000",
+          "sha256": "2bba4cb5290ec85846efe2c705c5589c3188caa0c52cd46976f1d501fc43d8f3"
+        },
+        {
+          "path": "fonts/fraction-numeratordisplaystyleshiftup2000-axisheight1000-rulethickness1000.otf",
+          "postScriptName": "fraction-numeratordisplaystyleshiftup2000-axisheight1000-rulethickness1000",
+          "sha256": "817d6898d42504666787fe7764f87cfd3712500ac874c8bddea359c324a43363"
+        },
+        {
+          "path": "fonts/fraction-numeratorgapmin9000-rulethickness1000.otf",
+          "postScriptName": "fraction-numeratorgapmin9000-rulethickness1000",
+          "sha256": "bf025708369d61d4bb862c7f1e1c638e86637fa1a21263a3a8b0a4cd2a07e807"
+        },
+        {
+          "path": "fonts/fraction-numeratorshiftup11000-axisheight1000-rulethickness1000.otf",
+          "postScriptName": "fraction-numeratorshiftup11000-axisheight1000-rulethickness1000",
+          "sha256": "516a8c0bdaeba79de1b3d0a8ceb4479f1216550cdde65c2317483f7544712de4"
+        },
+        {
+          "path": "fonts/fraction-rulethickness10000.otf",
+          "postScriptName": "fraction-rulethickness10000",
+          "sha256": "ab7f99459524d7f568b994a9ff5c99f39a9d8f579fa2106ffef6299aade20186"
+        },
+        {
+          "path": "fonts/stack-bottomdisplaystyleshiftdown5000-axisheight1000.otf",
+          "postScriptName": "stack-bottomdisplaystyleshiftdown5000-axisheight1000",
+          "sha256": "151467fe1e89605317441793679352253da502cacdf8fe39a6dc4617abafb09e"
+        },
+        {
+          "path": "fonts/stack-bottomshiftdown6000-axisheight1000.otf",
+          "postScriptName": "stack-bottomshiftdown6000-axisheight1000",
+          "sha256": "f81534ea7b85998be5d594b5f8bc5ea009d9aded8ec9cc970412a7eaef105379"
+        },
+        {
+          "path": "fonts/stack-displaystylegapmin4000.otf",
+          "postScriptName": "stack-displaystylegapmin4000",
+          "sha256": "812c793b05f866062764e8afd401a4b2168adce0653124ddfda98ef1fdd65b42"
+        },
+        {
+          "path": "fonts/stack-gapmin8000.otf",
+          "postScriptName": "stack-gapmin8000",
+          "sha256": "e6200af268f49ecc4138fd398f5c155c544da1516e16e8f21cee1275038be8fa"
+        },
+        {
+          "path": "fonts/stack-topdisplaystyleshiftup3000-axisheight1000.otf",
+          "postScriptName": "stack-topdisplaystyleshiftup3000-axisheight1000",
+          "sha256": "3b0ddf095ff437e0a41ffe9193c3b67136cdf08fda56ea02850aa8ad72b8e40e"
+        },
+        {
+          "path": "fonts/stack-topshiftup9000-axisheight1000.otf",
+          "postScriptName": "stack-topshiftup9000-axisheight1000",
+          "sha256": "157bef463a463aeb5bc9dafe1ee17c51b2971a7abf6ad8c8c040d27be5cbbe0c"
+        },
+        {
+          "path": "fonts/scripts-spaceafterscript3000.otf",
+          "postScriptName": "scripts-spaceafterscript3000",
+          "sha256": "89a9e53b2f5db4784e6af79d02596d93e067c8e9707fd9db8c0af268887c6ed3"
+        },
+        {
+          "path": "fonts/scripts-superscriptshiftup7000.otf",
+          "postScriptName": "scripts-superscriptshiftup7000",
+          "sha256": "eb862b2218c8eae8e2f660aa7fd99a327eda3fddcd9712bd8aadf23665c7f6ba"
+        },
+        {
+          "path": "fonts/scripts-superscriptshiftupcramped5000.otf",
+          "postScriptName": "scripts-superscriptshiftupcramped5000",
+          "sha256": "06489699e2d8cd84b5d7a942c9c81c927e8dcf17c080629818062387182123f6"
+        },
+        {
+          "path": "fonts/scripts-subscriptshiftdown6000.otf",
+          "postScriptName": "scripts-subscriptshiftdown6000",
+          "sha256": "a61a2a8104e96c7458ead804c9da56c501349f7b30579180c0c563d4795e0b05"
+        },
+        {
+          "path": "fonts/scripts-subsuperscriptgapmin11000.otf",
+          "postScriptName": "scripts-subsuperscriptgapmin11000",
+          "sha256": "1d341dd2633487f5e4070d01a529105fce069a83227afe3c45a2ee9acbc9cd44"
+        },
+        {
+          "path": "fonts/scripts-subsuperscriptgapmin11000-superscriptbottommaxwithsubscript3000.otf",
+          "postScriptName": "scripts-subsuperscriptgapmin11000-superscriptbottommaxwithsubscript3000",
+          "sha256": "d0d5764cd411491ba0f8d3e7d41f834a8031cdaf9cea841c0d41c543ecc9a54b"
+        },
+        {
+          "path": "fonts/scripts-subscripttopmax4000.otf",
+          "postScriptName": "scripts-subscripttopmax4000",
+          "sha256": "d722fbd966b35c2bb9f3553de11de2b4bffecff0f8c1bf50215dfefa8ec63bc2"
+        },
+        {
+          "path": "fonts/scripts-superscriptbottommin8000.otf",
+          "postScriptName": "scripts-superscriptbottommin8000",
+          "sha256": "974d5bea1bc044808eda683b2ad945628721da3b2adafd834721572c022398fd"
+        },
+        {
+          "path": "fonts/scripts-subscriptbaselinedropmin9000.otf",
+          "postScriptName": "scripts-subscriptbaselinedropmin9000",
+          "sha256": "4ae661a459b9e89a9192a9d8071ffede82094e20fc44776138b30d48c5179698"
+        },
+        {
+          "path": "fonts/scripts-superscriptbaselinedropmax10000.otf",
+          "postScriptName": "scripts-superscriptbaselinedropmax10000",
+          "sha256": "87c45231fdfd57dc87c76a1ab3eb16bfadce41586627a0355a680d849c9a7181"
+        },
+        {
+          "path": "fonts/limits-lowerlimitbaselinedropmin3000.otf",
+          "postScriptName": "limits-lowerlimitbaselinedropmin3000",
+          "sha256": "ec18cb99cb367415f50e468a9bdf8c69b8824716643f59a064fe01edaf97dcc2"
+        },
+        {
+          "path": "fonts/limits-lowerlimitgapmin11000.otf",
+          "postScriptName": "limits-lowerlimitgapmin11000",
+          "sha256": "b3f69cd14fcf8e992181fd5f2f60aef81925d642fc2b452a7cca91fcf2341d49"
+        },
+        {
+          "path": "fonts/limits-upperlimitbaselinerisemin5000.otf",
+          "postScriptName": "limits-upperlimitbaselinerisemin5000",
+          "sha256": "dc503329f46760b7ce1f1a955d2b40f35ec84886a76bf0e4e1cee8ba22392744"
+        },
+        {
+          "path": "fonts/limits-upperlimitgapmin7000.otf",
+          "postScriptName": "limits-upperlimitgapmin7000",
+          "sha256": "c3627bf578d4aa576818eea5f4a9d31d6ba72c941fbf22057445ddadca506358"
+        },
+        {
+          "path": "fonts/radical-degreebottomraisepercent25-rulethickness1000.otf",
+          "postScriptName": "radical-degreebottomraisepercent25-rulethickness1000",
+          "sha256": "56eb6098adf170850de54d97a356486eec37aaa70465ab79584bfb4f0d986fd3"
+        },
+        {
+          "path": "fonts/radical-displaystyleverticalgap7000-rulethickness1000.otf",
+          "postScriptName": "radical-displaystyleverticalgap7000-rulethickness1000",
+          "sha256": "2c3dc67d322f3c4b8585e5ade8914930c1681d297ef3067a84fe64bb3cfde6e0"
+        },
+        {
+          "path": "fonts/radical-extraascender3000-rulethickness1000.otf",
+          "postScriptName": "radical-extraascender3000-rulethickness1000",
+          "sha256": "8beed9dd6aeed6936240502a796c601d8284819a4142925d7c20ecf9cd872afe"
+        },
+        {
+          "path": "fonts/radical-kernbeforedegree4000-rulethickness1000.otf",
+          "postScriptName": "radical-kernbeforedegree4000-rulethickness1000",
+          "sha256": "6cd6c86cb51868bdd149faa9937dfe003869509fc82e7e08dafc5baf41d49b02"
+        },
+        {
+          "path": "fonts/radical-rulethickness8000.otf",
+          "postScriptName": "radical-rulethickness8000",
+          "sha256": "e9c8633c9a7d3c058fcea8df7131eaf848cd28e17195bb6e2f2035b587746f8b"
+        },
+        {
+          "path": "fonts/radical-verticalgap6000-rulethickness1000.otf",
+          "postScriptName": "radical-verticalgap6000-rulethickness1000",
+          "sha256": "829bae5094cde90ade89e81868a7a73e1454533dff96e737f4c5f215220cd7c3"
+        }
+      ],
+      "fontSizeDefault": 20,
+      "manifestSHA256": "7bdf621adb630954ef4ff7b884b242385c3d4b21b6c81bac41944915170699aa",
+      "margin": 16,
+      "os": "Version 27.0 (Build 26A428)",
+      "scale": 4
+    },
+    {
+      "engine": "chromium",
+      "version": "151.0.7922.34",
+      "playwright": "1.62.1",
+      "manifestSHA256": "7bdf621adb630954ef4ff7b884b242385c3d4b21b6c81bac41944915170699aa",
+      "scale": 4,
+      "margin": 16,
+      "coordinates": "CSS pixels, baseline-relative, y-down",
+      "boxMeaning": "DOM MathML rectangles, distinct from ink bounds"
+    }
+  ],
+  "cases": [
+    {
+      "id": "frac-parameters-1-ref0001-num0001",
+      "classification": "pass",
+      "actual": 75,
+      "expected": 75.0,
+      "discrepancy": 0.0,
+      "referenceActual": 75,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-den0002-ref0002",
+      "classification": "pass",
+      "actual": 50,
+      "expected": 50.0,
+      "discrepancy": 0.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-den0003-ref0003",
+      "classification": "pass",
+      "actual": 60,
+      "expected": 60.0,
+      "discrepancy": 0.0,
+      "referenceActual": 60,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-den0002b-ref0002b",
+      "classification": "pass",
+      "actual": 50,
+      "expected": 50.0,
+      "discrepancy": 0.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-den0003b-ref0003b",
+      "classification": "pass",
+      "actual": 60,
+      "expected": 60.0,
+      "discrepancy": 0.0,
+      "referenceActual": 60,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-den0002c-ref0002c",
+      "classification": "pass",
+      "actual": 50,
+      "expected": 50.0,
+      "discrepancy": 0.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-den0003c-ref0003c",
+      "classification": "pass",
+      "actual": 60,
+      "expected": 60.0,
+      "discrepancy": 0.0,
+      "referenceActual": 60,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-den0004-ref0004",
+      "classification": "pass",
+      "actual": 40,
+      "expected": 40.0,
+      "discrepancy": 0.0,
+      "referenceActual": 40,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-den0005-ref0005",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-den0004b-ref0004b",
+      "classification": "pass",
+      "actual": 40,
+      "expected": 40.0,
+      "discrepancy": 0.0,
+      "referenceActual": 40,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-den0005b-ref0005b",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-ref0006-num0006",
+      "classification": "pass",
+      "actual": 80,
+      "expected": 80.0,
+      "discrepancy": 0.0,
+      "referenceActual": 80,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-ref0007-num0007",
+      "classification": "pass",
+      "actual": 20,
+      "expected": 20.0,
+      "discrepancy": 0.0,
+      "referenceActual": 20,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-ref0006b-num0006b",
+      "classification": "pass",
+      "actual": 80,
+      "expected": 80.0,
+      "discrepancy": 0.0,
+      "referenceActual": 80,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-ref0007b-num0007b",
+      "classification": "pass",
+      "actual": 20,
+      "expected": 20.0,
+      "discrepancy": 0.0,
+      "referenceActual": 20,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-ref0006c-num0006c",
+      "classification": "pass",
+      "actual": 80,
+      "expected": 80.0,
+      "discrepancy": 0.0,
+      "referenceActual": 80,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-ref0007c-num0007c",
+      "classification": "pass",
+      "actual": 20,
+      "expected": 20.0,
+      "discrepancy": 0.0,
+      "referenceActual": 20,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-ref0008-num0008",
+      "classification": "pass",
+      "actual": 90,
+      "expected": 90.0,
+      "discrepancy": 0.0,
+      "referenceActual": 90,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-ref0009-num0009",
+      "classification": "pass",
+      "actual": 110,
+      "expected": 110.0,
+      "discrepancy": 0.0,
+      "referenceActual": 110,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-1-den0010-num0010",
+      "classification": "pass",
+      "actual": 100,
+      "expected": 100.0,
+      "discrepancy": 0.0,
+      "referenceActual": 100,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-den0002-ref0002",
+      "classification": "pass",
+      "actual": 50,
+      "expected": 50.0,
+      "discrepancy": 0.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-den0002b-ref0002b",
+      "classification": "pass",
+      "actual": 50,
+      "expected": 50.0,
+      "discrepancy": 0.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-den0002c-ref0002c",
+      "classification": "pass",
+      "actual": 50,
+      "expected": 50.0,
+      "discrepancy": 0.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-den0003-ref0003",
+      "classification": "pass",
+      "actual": 60,
+      "expected": 60.0,
+      "discrepancy": 0.0,
+      "referenceActual": 60,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-den0004-num0004",
+      "classification": "pass",
+      "actual": 40,
+      "expected": 40.0,
+      "discrepancy": 0.0,
+      "referenceActual": 40,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-den0004b-num0004b",
+      "classification": "pass",
+      "actual": 40,
+      "expected": 40.0,
+      "discrepancy": 0.0,
+      "referenceActual": 40,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-den0004c-num0004c",
+      "classification": "pass",
+      "actual": 40,
+      "expected": 40.0,
+      "discrepancy": 0.0,
+      "referenceActual": 40,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-den0005-num0005",
+      "classification": "pass",
+      "actual": 80,
+      "expected": 80.0,
+      "discrepancy": 0.0,
+      "referenceActual": 80,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-ref0006-num0006",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-ref0006b-num0006b",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-ref0006c-num0006c",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-ref0007-num0007",
+      "classification": "pass",
+      "actual": 90,
+      "expected": 90.0,
+      "discrepancy": 0.0,
+      "referenceActual": 90,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "frac-parameters-2-ref0007b-num0007b",
+      "classification": "pass",
+      "actual": 90,
+      "expected": 90.0,
+      "discrepancy": 0.0,
+      "referenceActual": 90,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": -0.3999999999999986
+    },
+    {
+      "id": "subsup-parameters-1-ref001-sub001",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref002-sup002",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref003-sup003",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-sup0042-sup0041",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-sup0043-sup0042",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref004-sup0043",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref101-sup102",
+      "classification": "pass",
+      "actual": 70,
+      "expected": 70.0,
+      "discrepancy": 0.0,
+      "referenceActual": 70,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref101-sup103",
+      "classification": "pass",
+      "actual": 70,
+      "expected": 70.0,
+      "discrepancy": 0.0,
+      "referenceActual": 70,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref101-sup1041",
+      "classification": "pass",
+      "actual": 70,
+      "expected": 70.0,
+      "discrepancy": 0.0,
+      "referenceActual": 70,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref101-sup1042",
+      "classification": "pass",
+      "actual": 70,
+      "expected": 70.0,
+      "discrepancy": 0.0,
+      "referenceActual": 70,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref101-sup1043",
+      "classification": "pass",
+      "actual": 70,
+      "expected": 70.0,
+      "discrepancy": 0.0,
+      "referenceActual": 70,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref201-sup202",
+      "classification": "pass",
+      "actual": 50,
+      "expected": 50.0,
+      "discrepancy": 0.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 9.300000000000011
+    },
+    {
+      "id": "subsup-parameters-1-ref201-sup203",
+      "classification": "pass",
+      "actual": 50,
+      "expected": 50.0,
+      "discrepancy": 0.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 9.300000000000011
+    },
+    {
+      "id": "subsup-parameters-1-ref201-sup2041",
+      "classification": "pass",
+      "actual": 50,
+      "expected": 50.0,
+      "discrepancy": 0.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 9.300000000000011
+    },
+    {
+      "id": "subsup-parameters-1-ref201-sup2042",
+      "classification": "pass",
+      "actual": 50,
+      "expected": 50.0,
+      "discrepancy": 0.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 9.300000000000011
+    },
+    {
+      "id": "subsup-parameters-1-ref201-sup2043",
+      "classification": "pass",
+      "actual": 50,
+      "expected": 50.0,
+      "discrepancy": 0.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 9.300000000000011
+    },
+    {
+      "id": "subsup-parameters-1-sub301-ref300",
+      "classification": "pass",
+      "actual": 60,
+      "expected": 60.0,
+      "discrepancy": 0.0,
+      "referenceActual": 60,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-sub302-ref300",
+      "classification": "pass",
+      "actual": 60,
+      "expected": 60.0,
+      "discrepancy": 0.0,
+      "referenceActual": 60,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-sub303-ref300",
+      "classification": "pass",
+      "actual": 60,
+      "expected": 60.0,
+      "discrepancy": 0.0,
+      "referenceActual": 60,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-sub304-ref300",
+      "classification": "pass",
+      "actual": 60,
+      "expected": 60.0,
+      "discrepancy": 0.0,
+      "referenceActual": 60,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-sub4011-sup4012",
+      "classification": "pass",
+      "actual": 110,
+      "expected": 110.0,
+      "discrepancy": 0.0,
+      "referenceActual": 110,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-sub4021-sup4022",
+      "classification": "pass",
+      "actual": 110,
+      "expected": 110.0,
+      "discrepancy": 0.0,
+      "referenceActual": 110,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-sub501-sup501",
+      "classification": "pass",
+      "actual": 110,
+      "expected": 110.0,
+      "discrepancy": 0.0,
+      "referenceActual": 110,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref500-sup501",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-sub502-sup502",
+      "classification": "pass",
+      "actual": 110,
+      "expected": 110.0,
+      "discrepancy": 0.0,
+      "referenceActual": 110,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref500-sup502",
+      "classification": "pass",
+      "actual": 30,
+      "expected": 30.0,
+      "discrepancy": 0.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref600-sub601",
+      "classification": "pass",
+      "actual": 40,
+      "expected": 40.0,
+      "discrepancy": 0.0,
+      "referenceActual": 40,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-ref700-sub701",
+      "classification": "pass",
+      "actual": 80,
+      "expected": 80.0,
+      "discrepancy": 0.0,
+      "referenceActual": 80,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-sub801-base801",
+      "classification": "pass",
+      "actual": 90,
+      "expected": 90.0,
+      "discrepancy": 0.0,
+      "referenceActual": 90,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "subsup-parameters-1-sup901-base901",
+      "classification": "pass",
+      "actual": 100,
+      "expected": 100.0,
+      "discrepancy": 0.0,
+      "referenceActual": 100,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "underover-parameters-1-under00011-ref0001",
+      "classification": "bug",
+      "actual": 35,
+      "expected": 30.0,
+      "discrepancy": 5.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "clipped": false,
+      "widthDifference": 0.041666666666671404
+    },
+    {
+      "id": "underover-parameters-1-under00012-ref0001",
+      "classification": "bug",
+      "actual": 35,
+      "expected": 30.0,
+      "discrepancy": 5.0,
+      "referenceActual": 30,
+      "referenceMeetsAssertion": true,
+      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "clipped": false,
+      "widthDifference": 0.041666666666671404
+    },
+    {
+      "id": "underover-parameters-1-under00021-ref0002",
+      "classification": "bug",
+      "actual": 115,
+      "expected": 110.0,
+      "discrepancy": 5.0,
+      "referenceActual": 110,
+      "referenceMeetsAssertion": true,
+      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "clipped": false,
+      "widthDifference": 0.041666666666671404
+    },
+    {
+      "id": "underover-parameters-1-under00022-ref0002",
+      "classification": "bug",
+      "actual": 115,
+      "expected": 110.0,
+      "discrepancy": 5.0,
+      "referenceActual": 110,
+      "referenceMeetsAssertion": true,
+      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "clipped": false,
+      "widthDifference": 0.041666666666671404
+    },
+    {
+      "id": "underover-parameters-1-ref0003-over00031",
+      "classification": "bug",
+      "actual": 45,
+      "expected": 50.0,
+      "discrepancy": -5.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "clipped": false,
+      "widthDifference": 0.041666666666671404
+    },
+    {
+      "id": "underover-parameters-1-ref0003-over00032",
+      "classification": "bug",
+      "actual": 45,
+      "expected": 50.0,
+      "discrepancy": -5.0,
+      "referenceActual": 50,
+      "referenceMeetsAssertion": true,
+      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "clipped": false,
+      "widthDifference": 0.041666666666671404
+    },
+    {
+      "id": "underover-parameters-1-ref0004-over00041",
+      "classification": "bug",
+      "actual": 65,
+      "expected": 70.0,
+      "discrepancy": -5.0,
+      "referenceActual": 70,
+      "referenceMeetsAssertion": true,
+      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "clipped": false,
+      "widthDifference": 0.041666666666671404
+    },
+    {
+      "id": "underover-parameters-1-ref0004-over00042",
+      "classification": "bug",
+      "actual": 65,
+      "expected": 70.0,
+      "discrepancy": -5.0,
+      "referenceActual": 70,
+      "referenceMeetsAssertion": true,
+      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "clipped": false,
+      "widthDifference": 0.041666666666671404
+    },
+    {
+      "id": "root-parameters-1-ref001-index001",
+      "classification": "pass",
+      "actual": 27.5,
+      "expected": 27.5,
+      "discrepancy": 0.0,
+      "referenceActual": 27.5,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "root-parameters-1-base0021-radical0021",
+      "classification": "pass",
+      "actual": 80,
+      "expected": 80.0,
+      "discrepancy": 0.0,
+      "referenceActual": 80,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "root-parameters-1-base0022-radical0022",
+      "classification": "pass",
+      "actual": 80,
+      "expected": 80.0,
+      "discrepancy": 0.0,
+      "referenceActual": 80,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "root-parameters-1-base0031-radical0031",
+      "classification": "pass",
+      "actual": 40,
+      "expected": 40.0,
+      "discrepancy": 0.0,
+      "referenceActual": 40,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "root-parameters-1-base0032-radical0032",
+      "classification": "pass",
+      "actual": 40,
+      "expected": 40.0,
+      "discrepancy": 0.0,
+      "referenceActual": 40,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "root-parameters-1-index005-radical005",
+      "classification": "pass",
+      "actual": 40,
+      "expected": 40.0,
+      "discrepancy": 0.0,
+      "referenceActual": 40,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "root-parameters-1-base0061-radical0061",
+      "classification": "pass",
+      "actual": 80,
+      "expected": 80.0,
+      "discrepancy": 0.0,
+      "referenceActual": 80,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "root-parameters-1-base0062-radical0062",
+      "classification": "pass",
+      "actual": 80,
+      "expected": 80.0,
+      "discrepancy": 0.0,
+      "referenceActual": 80,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "root-parameters-1-base0071-radical0071",
+      "classification": "pass",
+      "actual": 70,
+      "expected": 70.0,
+      "discrepancy": 0.0,
+      "referenceActual": 70,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    },
+    {
+      "id": "root-parameters-1-base0072-radical0072",
+      "classification": "pass",
+      "actual": 70,
+      "expected": 70.0,
+      "discrepancy": 0.0,
+      "referenceActual": 70,
+      "referenceMeetsAssertion": true,
+      "issue": null,
+      "clipped": false,
+      "widthDifference": 0
+    }
+  ]
+}
