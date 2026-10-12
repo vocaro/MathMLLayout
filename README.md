@@ -137,6 +137,9 @@ A label on a stretchy arrow is placed by the MATH table's StretchStack constants
 defines them, with the shifts from the baseline
 ([w3c/mathml-core#121](https://github.com/w3c/mathml-core/issues/121)); Core's text has them
 from the arrow's ink, which sets the label far too high with STIX Two Math.
+An operator with nothing beside it (alone in `math`, a table cell or a radicand) is not padded
+with the dictionary's spacing, as TeX sets a lone atom, where Core pads it. An `lspace` or
+`rspace` written on it is applied.
 
 ## Font
 

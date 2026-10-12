@@ -11,7 +11,15 @@ final class OperatorTests: XCTestCase {
     private func spacing(_ children: [MathMLNode], wrap: (([MathMLNode]) -> MathMLNode)? = nil, unit: CGFloat = em) throws -> CGFloat {
         let wrap = wrap ?? { MathMLNode(name: "math", children: $0) }
         let whole = try innerBox(wrap(children)).width
-        let parts = try children.reduce(CGFloat(0)) { $0 + (try innerBox(wrap([$1])).width) }
+        // A child's own width is its width alone. An operator alone has no space from the dictionary
+        // but keeps what its `lspace` and `rspace` say, so it is measured with those at nothing.
+        func unspaced(_ node: MathMLNode) -> MathMLNode {
+            guard node.name == "mo" else { return node }
+            var node = node
+            node.attributes["lspace"] = "0"; node.attributes["rspace"] = "0"
+            return node
+        }
+        let parts = try children.reduce(CGFloat(0)) { $0 + (try innerBox(wrap([unspaced($1)])).width) }
         return (whole - parts) * 18 / unit
     }
 
@@ -146,6 +154,37 @@ final class OperatorTests: XCTestCase {
         try assertSpacing([a, mo("+", ["lspace": "bogus"]), b], 8, "an invalid length is ignored")
         // An operator with its own spacing is no longer a candidate for a unary sign.
         try assertSpacing([a, mo("="), mo("−", ["lspace": "1em"]), b], 10 + 18 + 4)
+    }
+
+    /// An operator with nothing beside it, in `math`, a table cell, a radicand or a fraction's
+    /// part, has no row around it to space it. It is not padded by the dictionary there, as TeX
+    /// sets a lone atom (`MathMLLayoutTests.testOperatorBetweenTextOperandsKeepsItsSpacing`),
+    /// but a space its author wrote on it is the author's to have.
+    func testAnOperatorAloneKeepsTheSpaceItsAuthorGaveIt() throws {
+        let bare = try innerBox("<mo>=</mo>").width
+        func width(_ attributes: String, in wrap: (String) -> String = { $0 }) throws -> CGFloat { try innerBox(wrap("<mo \(attributes)>=</mo>")).width }
+        XCTAssertEqual(try width("lspace='1em' rspace='1em'"), bare + 2 * em, accuracy: 0.01)
+        XCTAssertEqual(try width("lspace='1em'"), bare + em, accuracy: 0.01, "one side: the other has none of the dictionary's")
+        XCTAssertEqual(try width("rspace='0.5em'"), bare + em / 2, accuracy: 0.01)
+        XCTAssertEqual(try width("lspace='0' rspace='0'"), bare, accuracy: 0.01)
+        XCTAssertEqual(try width("lspace='bogus' rspace=''"), bare, accuracy: 0.01, "an invalid length is no space of the author's")
+        XCTAssertEqual(try width("lspace='-0.25em'"), bare - em / 4, accuracy: 0.01)
+        // Wherever a row lays it out, by how much each adds over the same with no space.
+        let wraps: [(String, CGFloat, (String) -> String)] = [
+            ("mrow", em, { "<mrow>\($0)</mrow>" }), ("mtd", em, { "<mtable><mtr><mtd>\($0)</mtd></mtr></mtable>" }), ("msqrt", em, { "<msqrt>\($0)</msqrt>" }),
+            ("menclose", em, { "<menclose notation='box'>\($0)</menclose>" }), ("mstyle", em, { "<mstyle mathcolor='red'>\($0)</mstyle>" }),
+            ("a numerator", constant(\.scriptPercentScaleDown, size: 1) / 100 * em, { "<mfrac>\($0)<mi>b</mi></mfrac>" }),
+        ]
+        for (name, unit, wrap) in wraps {
+            XCTAssertEqual(try width("lspace='1em' rspace='1em'", in: wrap) - (try width("lspace='0' rspace='0'", in: wrap)), 2 * unit, accuracy: 0.01, name)
+            XCTAssertEqual(try width("", in: wrap), try width("lspace='0' rspace='0'", in: wrap), accuracy: 0.01, "\(name): none of the dictionary's")
+        }
+        // Once: a row around it hands the space up, and the row that has neighbours applies it.
+        let between = try innerBox("<mi>a</mi><mo lspace='1em' rspace='1em'>=</mo><mi>b</mi>").width
+        XCTAssertEqual(try innerBox("<mi>a</mi><mrow><mo lspace='1em' rspace='1em'>=</mo></mrow><mi>b</mi>").width, between, accuracy: 0.01)
+        XCTAssertEqual(try innerBox("<mrow><mrow><mo lspace='1em' rspace='1em'>=</mo></mrow></mrow>").width, bare + 2 * em, accuracy: 0.01)
+        // An embellished operator alone, likewise.
+        XCTAssertEqual(try innerBox("<msub><mo lspace='1em'>=</mo><mn>2</mn></msub>").width, try innerBox("<msub><mo lspace='0'>=</mo><mn>2</mn></msub>").width + em, accuracy: 0.01)
     }
 
     func testSpacingIsDroppedInScriptsExceptForLargeOperators() throws {

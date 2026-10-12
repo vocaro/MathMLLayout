@@ -534,14 +534,15 @@ final class LayoutEngine {
         let flags = operatorFlags(core, form: inferred)
         // TeX drops binary and relation spacing in scripts; large operators keep theirs.
         let scale = context.scriptLevel > 0 && !flags.contains(.largeop) ? 0 : context.fontSize / 18
-        let lspace = length(core.attributes["lspace"], context, reference: context.fontSize) ?? CGFloat(entry.lspace) * scale
-        let rspace = length(core.attributes["rspace"], context, reference: context.fontSize) ?? CGFloat(entry.rspace) * scale
+        let ownLspace = length(core.attributes["lspace"], context, reference: context.fontSize)
+        let ownRspace = length(core.attributes["rspace"], context, reference: context.fontSize)
+        let lspace = ownLspace ?? CGFloat(entry.lspace) * scale, rspace = ownRspace ?? CGFloat(entry.rspace) * scale
         let isBinary = entry.lspace == 4 && entry.rspace == 4
             && core.attributes["lspace"] == nil && core.attributes["rspace"] == nil
         return OperatorProperties(form: form, lspace: lspace, rspace: rspace, flags: flags,
                                   isHorizontal: OperatorDictionary.isHorizontal(text), isBinary: isBinary,
                                   isMarkedInfix: explicitForm(core) == .infix,
-                                  dictionarySpacing: (entry.lspace, entry.rspace),
+                                  dictionarySpacing: (entry.lspace, entry.rspace), ownSpacing: (ownLspace != nil, ownRspace != nil),
                                   breakPoint: BreakPoint(operator: text, entry, form: form, flags: flags, context.lines))
     }
 
@@ -630,7 +631,10 @@ final class LayoutEngine {
         // The sides of the core operator this row spaces itself: those with something beside it.
         var spacesCore = (left: false, right: false)
         if let core, !spacedByParent {
-            spacesCore = (boxes[..<core].contains { $0.width > 0 }, boxes[(core + 1)...].contains { $0.width > 0 })
+            // And a side its author gave a space of its own (`lspace`, `rspace`), neighbour or none:
+            // that is no inference from the dictionary for a row to withhold.
+            let own = boxes[core].op?.ownSpacing ?? (lspace: false, rspace: false)
+            spacesCore = (own.lspace || boxes[..<core].contains { $0.width > 0 }, own.rspace || boxes[(core + 1)...].contains { $0.width > 0 })
         }
         var box = MathBox()
         var x: CGFloat = 0
