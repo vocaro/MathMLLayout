@@ -62,7 +62,7 @@ final class FormulaCorpusTests: XCTestCase {
             collect(parsed)
             XCTAssertFalse(formula.expectations.isEmpty, "\(formula.name) states what its layout must show")
         }
-        // Together the formulas use every presentation element the README lists as supported.
+        // Together the formulas use every presentation element doc/markup.md lists as supported.
         let supported = ["mi", "mn", "mo", "mtext", "ms", "mspace", "math", "mrow", "mstyle", "mpadded", "mphantom", "semantics", "maction", "merror",
                          "msup", "msub", "msubsup", "mmultiscripts", "mprescripts", "none", "mover", "munder", "munderover", "mfrac", "msqrt", "mroot",
                          "mfenced", "menclose", "mtable", "mtr", "mtd", "mlabeledtr"]
