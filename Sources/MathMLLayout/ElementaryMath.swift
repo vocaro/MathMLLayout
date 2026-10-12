@@ -68,11 +68,18 @@ private struct StackLine {
     var attached: [(column: Int, carry: Carry)] = []
     /// A carries line that another annotates takes room even when it draws nothing (3.6.5.1).
     var isAnnotated = false
-    /// `mathbackground` of the row, its `mstyle`s and its numbers, by range of cells.
+    /// `mathbackground` of the row, its `mstyle`s and its numbers, by range of cells. A rule has
+    /// no cells, and its own is behind the whole of it.
     var backgrounds: [(cells: Range<Int>, color: CGColor)] = []
+    /// `mathbackground` of each `msgroup` whose first line this is, outermost first, with the
+    /// number of lines in the group.
+    var groups: [(lines: Int, color: CGColor)] = []
     /// A rule's thickness, and how far it runs past its columns.
     var thickness: CGFloat = 0
     var overhang: (left: CGFloat, right: CGFloat) = (0, 0)
+    /// A division's bar. The rest of the frame meets it where the columns end, so it keeps to
+    /// them where an `msline` across the stack follows a sign that overflows them.
+    var isFrame = false
 }
 
 /// What an `mstack` or `mlongdiv` settles for all its lines (3.6.1.2).
@@ -260,8 +267,13 @@ extension LayoutEngine {
             switch child.name {
             case "msgroup":
                 try visit(context, depth: depth)
+                let start = lines.count
                 try collect(child.children, position: position + Self.columns(child, "position"),
                             shift: Self.columns(child, "shift"), style, inherit(child, context), depth: depth + 1, into: &lines)
+                // A group draws nothing of its own, so its background is that of its lines together.
+                if let background = child.attributes["mathbackground"].flatMap(MathColor.parse), lines.count > start {
+                    lines[start].groups.insert((lines.count - start, background), at: 0)
+                }
             case "msrow":
                 try visit(context, depth: depth)
                 var line = try digitRow(child.children, position: position + Self.columns(child, "position"), style,
@@ -374,6 +386,9 @@ extension LayoutEngine {
         }
         line.count = line.carries.count
         line.start = style.firstColumn(count: line.count, decimalPoint: nil, position: position)
+        if let background = node.attributes["mathbackground"].flatMap(MathColor.parse) {
+            line.backgrounds.append((0..<line.count, background))
+        }
         return line
     }
 
@@ -395,6 +410,7 @@ extension LayoutEngine {
         line.start = style.firstColumn(count: line.count, decimalPoint: nil, position: position)
         line.overhang = (length(node.attributes["leftoverhang"], context, reference: style.zeroWidth) ?? 0,
                          length(node.attributes["rightoverhang"], context, reference: style.zeroWidth) ?? 0)
+        if let background = node.attributes["mathbackground"].flatMap(MathColor.parse) { line.backgrounds.append((0..<0, background)) }
         return line
     }
 
@@ -416,9 +432,13 @@ extension LayoutEngine {
             for (offset, carry) in lines[index].carries.enumerated() {
                 let isAbove = carry.map { !annotates || $0.location == .n } ?? false
                 lines[index].cells.append(isAbove ? carry?.box : nil)
-                if let carry, annotates, !isAbove || !carry.crossout.isEmpty {
-                    lines[index + 1].attached.append((lines[index].start + offset, carry))
+                guard var carry, annotates, !isAbove || !carry.crossout.isEmpty else { continue }
+                // A carry that leaves its line takes the background of its `mscarries` with it, behind its own.
+                if !isAbove, carry.box.width > 0, let background = lines[index].backgrounds.first?.color {
+                    let box = carry.box
+                    carry.box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), background), at: 0)
                 }
+                lines[index + 1].attached.append((lines[index].start + offset, carry))
             }
         }
         // The columns any line reaches. `position`, `shift` and `length` cost an author nothing,
@@ -556,26 +576,72 @@ extension LayoutEngine {
         }
         stack.height = y
 
-        var backgrounds: [MathItem] = []
+        /// The ends of the columns that the cells `range` of line `index` are in.
+        func ends(ofColumns range: Range<Int>, on index: Int) -> (left: CGFloat, right: CGFloat) {
+            let from = lines[index].start - first + range.lowerBound, to = lines[index].start - first + range.upperBound - 1
+            return (lefts[from], lefts[to] + widths[to])
+        }
+        /// How far the cells `range` of line `index` reach: the ends of their columns, or of a
+        /// cell that overflows them. A background is behind all of what it is the background of.
+        func ends(of range: Range<Int>, on index: Int) -> (left: CGFloat, right: CGFloat) {
+            var (left, right) = ends(ofColumns: range, on: index)
+            for offset in range {
+                guard let cell = lines[index].cells[offset] else { continue }
+                left = min(left, origins[index][offset]); right = max(right, origins[index][offset] + cell.width)
+            }
+            return (left, right)
+        }
+        // A rule with no length spans the stack (3.6.7.2), which is as wide as its rows of digits
+        // are: the columns, and as far past the first and the last as a sign overflows them, or
+        // the rule under a sum would stop short of its sign. Carries have no width (3.6.1.1).
+        var reach: (left: CGFloat, right: CGFloat) = (0, width)
+        for (index, line) in lines.enumerated() where line.kind == .digits && !line.cells.isEmpty {
+            let (left, right) = ends(of: line.cells.indices, on: index)
+            reach = (min(reach.left, left), max(reach.right, right))
+        }
+        /// The ends of the rule that is line `index`, with its overhangs.
+        func ends(ofRule index: Int) -> (left: CGFloat, right: CGFloat) {
+            let line = lines[index]
+            let (left, right) = line.count > 0 ? ends(ofColumns: 0..<line.count, on: index) : line.isFrame ? (0, width) : reach
+            return (left - line.overhang.left, right + line.overhang.right)
+        }
+        var backgrounds: [MathItem] = [], groups: [MathItem] = []
         for (index, line) in lines.enumerated() {
             let band = stack.bands[index]
-            if line.kind == .rule {
-                var left: CGFloat = 0, right = width
-                if line.count > 0 {
-                    let last = line.start - first + line.count - 1
-                    left = lefts[line.start - first]; right = lefts[last] + widths[last]
+            // A group's background goes behind those of its lines: from the top of its first line
+            // to the bottom of its last, and as far each way as any of them reaches, which for a
+            // row counts the carries of the group that stand beside its characters.
+            for (count, color) in line.groups {
+                var left = CGFloat.infinity, right = -CGFloat.infinity
+                for member in index..<index + count {
+                    let inner = lines[member]
+                    if inner.kind == .rule || !inner.cells.isEmpty {
+                        let span = inner.kind == .rule ? ends(ofRule: member) : ends(of: inner.cells.indices, on: member)
+                        if span.left < span.right { left = min(left, span.left); right = max(right, span.right) }
+                    }
+                    for (column, carry) in inner.attached where member > index && carry.location != .n && carry.box.width > 0 {
+                        let x = origin(of: carry, on: member, column).x
+                        left = min(left, x); right = max(right, x + carry.box.width)
+                    }
                 }
-                let length = right - left + line.overhang.left + line.overhang.right
-                if length > 0, line.thickness > 0 {
-                    stack.box.items.append(.rect(CGRect(x: left - line.overhang.left, y: -band.bottom, width: length,
-                                                        height: line.thickness), line.color))
+                let bottom = stack.bands[index + count - 1].bottom
+                if left < right, band.top < bottom {
+                    groups.append(.rect(CGRect(x: left, y: -bottom, width: right - left, height: bottom - band.top), color))
+                }
+            }
+            if line.kind == .rule {
+                let (left, right) = ends(ofRule: index)
+                if left < right, line.thickness > 0 {
+                    let rect = CGRect(x: left, y: -band.bottom, width: right - left, height: line.thickness)
+                    backgrounds += line.backgrounds.map { .rect(rect, $0.color) }
+                    stack.box.items.append(.rect(rect, line.color))
                 }
                 continue
             }
-            for (cells, color) in line.backgrounds where !cells.isEmpty {
-                let from = line.start - first + cells.lowerBound, to = line.start - first + cells.upperBound - 1
-                backgrounds.append(.rect(CGRect(x: lefts[from], y: -band.bottom, width: lefts[to] + widths[to] - lefts[from],
-                                                height: band.bottom - band.top), color))
+            // A row of carries that all stand beside the characters under them has no height to fill.
+            for (cells, color) in line.backgrounds where !cells.isEmpty && band.top < band.bottom {
+                let (left, right) = ends(of: cells, on: index)
+                backgrounds.append(.rect(CGRect(x: left, y: -band.bottom, width: right - left, height: band.bottom - band.top), color))
             }
             for (offset, cell) in line.cells.enumerated() {
                 if let cell { stack.box.add(cell, at: CGPoint(x: origins[index][offset], y: -band.baseline)) }
@@ -608,15 +674,17 @@ extension LayoutEngine {
                                              fill: false))
             }
         }
-        stack.box.items.insert(contentsOf: backgrounds, at: 0)
+        stack.box.items.insert(contentsOf: groups + backgrounds, at: 0)
         return stack
     }
 
     /// The finished box: `content`, whose origin is its top-left corner, with the baseline that
     /// `align` asks for (3.6.1.2). The values are `mtable`'s: `top`, `bottom`, `center` or
     /// `baseline` (the default; both put the middle on the baseline) and `axis`, each for the
-    /// whole stack or for the row whose number follows. A row's axis is as far above its
-    /// baseline as the surrounding one's, so `axis` with a row is `baseline` with it.
+    /// whole stack or for the row whose number follows, counted from the bottom when it is
+    /// negative. A row's axis is as far above its baseline as the surrounding one's, so `axis`
+    /// with a row is `baseline` with it. A number that names no row is ignored, as `mtable`
+    /// ignores one (MathML 3, 3.5.1.2).
     ///
     /// The specification leaves what overflows a column out of the stack's size (3.6.1.1). A
     /// host clips to the formula's box, so this box grows to cover it.
@@ -625,8 +693,8 @@ extension LayoutEngine {
         let parts = (node.attributes["align"] ?? "").split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
         let alignment = parts.first ?? "baseline"
         let ascent: CGFloat
-        if parts.count > 1, let number = Int(parts[1]), number != 0, !rows.isEmpty {
-            let row = rows[number > 0 ? min(number, rows.count) - 1 : max(rows.count + number, 0)]
+        if parts.count > 1, let number = Int(parts[1]), number != 0, (-rows.count...rows.count).contains(number) {
+            let row = rows[number > 0 ? number - 1 : rows.count + number]
             ascent = switch alignment {
             case "top": row.top
             case "bottom": row.bottom
@@ -680,7 +748,7 @@ extension LayoutEngine {
         if form.hasResultOnTop {
             lines = try collected(node.children[1].name == "none" ? [] : [node.children[1]])
             if lines.isEmpty { try visit(context, depth: depth + 1) }
-            var line = StackLine(kind: .rule, em: em, color: color, thickness: rule)
+            var line = StackLine(kind: .rule, em: em, color: color, thickness: rule, isFrame: true)
             switch form {
             case .leftTop:
                 left = (divisor.map { $0.width + 0.1 * em } ?? 0) + 0.3 * em + rule

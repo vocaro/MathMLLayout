@@ -264,10 +264,8 @@ final class RobustnessTests: XCTestCase {
     func testTheLargestFormulasFinish() throws {
         // The worst cases the bounds allow, as a guard against layout that hangs. In an
         // unoptimized build each takes a fraction of a second, where a row of stretchy fences once
-        // took eight. Nested rows of space-like children are the exception, at several seconds,
-        // until https://github.com/vocaro/MathMLLayout/issues/34 is fixed.
+        // took eight, and nested rows of space-like children six.
         let many = MathLimits.nodes - 2
-        let slow: Set = ["nested rows of spaces"]
         let cases: [(String, MathMLNode)] = [
             ("identifiers", MathMLNode(name: "math", children: Array(repeating: mi("x"), count: many))),
             ("fences", MathMLNode(name: "math", children: Array(repeating: mo("("), count: many - 1) + [mi("x")])),
@@ -284,7 +282,32 @@ final class RobustnessTests: XCTestCase {
         for (name, root) in cases {
             let clock = ContinuousClock()
             let elapsed = clock.measure { survive(root, size: 1, name) }
-            XCTAssertLessThan(elapsed, .seconds(slow.contains(name) ? 20 : 5), "\(name) took \(elapsed)")
+            XCTAssertLessThan(elapsed, .seconds(5), "\(name) took \(elapsed)")
+        }
+    }
+
+    /// A tree built by hand may have one row in many places: here a row of two spaces, each of
+    /// which is that row again. A row asks what each child is before it lays any out, and whether
+    /// a child is space-like is at the bottom of it. Read place by place, twenty-four such rows
+    /// were sixteen million spaces to read before a node was counted, a minute and a half of
+    /// them unoptimized, and the sixty-two that the bound on depth allows had no end. Read once,
+    /// the depth is nothing: layout counts its twenty thousand nodes and refuses the rest.
+    func testARowInManyPlacesIsReadOnce() {
+        func seconds(_ levels: Int, _ wrap: (MathMLNode) -> MathMLNode) -> Duration {
+            let shared = (0..<levels).reduce(MathMLNode(name: "mspace")) { inner, _ in MathMLNode(name: "mrow", children: [inner, inner]) }
+            var outcome = Outcome.laidOut
+            let elapsed = ContinuousClock().measure { outcome = survive(wrap(shared), size: 1, "\(levels) levels") }
+            XCTAssertEqual(outcome, .threw(.limitExceeded), "\(levels) levels")
+            return elapsed
+        }
+        let shapes: [(String, (MathMLNode) -> MathMLNode)] = [
+            ("spaces", { math($0) }), ("spaces beside an operator", { math(mo("("), $0, $0) }),
+            ("phantoms", { math(MathMLNode(name: "mphantom", children: [$0, $0])) }),
+        ]
+        for (name, wrap) in shapes {
+            // Against rows too few to tell apart: a ratio, whatever the machine.
+            let few = seconds(14, wrap)
+            XCTAssertLessThan(seconds(24, wrap), few * 5 + .milliseconds(250), name)
         }
     }
 

@@ -101,13 +101,20 @@ private struct Speaker {
     /// An `mfenced`'s fence, which is an attribute but text all the same.
     private mutating func fence(_ text: String) -> String { isTextSpent ? "" : symbol(said(text)) }
 
-    /// Whether `node` reads as one word, so that what encloses it need not say where it ends. The
-    /// walk is bounded: hosts may build trees deeper than the parser allows.
+    /// Whether `node` reads as one word, so that what encloses it need not say where it ends. A
+    /// `semantics` or an `maction` is read as the child that is drawn, and is as simple as that
+    /// child, whichever of its children comes first. The walk is bounded: hosts may build trees
+    /// deeper than the parser allows.
     private func isSimple(_ node: MathMLNode) -> Bool {
         var node = node
         for _ in 0..<MathLimits.depth {
-            guard ["mrow", "mstyle"].contains(node.name), node.children.count == 1 else { break }
-            node = node.children[0]
+            if ["mrow", "mstyle"].contains(node.name), node.children.count == 1 {
+                node = node.children[0]
+            } else if let shown = LayoutEngine.shownChild(node) {
+                node = shown
+            } else {
+                break
+            }
         }
         return LayoutEngine.tokens.contains(node.name) || node.name == "mglyph"
     }
@@ -218,7 +225,9 @@ private struct Speaker {
             if !result.isEmpty { parts.append(words.result(result)) }
             return words.phrase(parts + read(working) + [words.endLongDivision])
         case "semantics", "maction":
-            return child(0)
+            // The child layout draws, which need not be the first: an annotation may come before
+            // it, and `selection` may name another.
+            return LayoutEngine.shownChild(node).map { reading(of: $0, depth: depth + 1) } ?? ""
         case "mphantom", "mspace", "none", "mprescripts", "annotation", "annotation-xml":
             return ""
         default:

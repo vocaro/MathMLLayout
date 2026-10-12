@@ -276,6 +276,59 @@ final class LineBreakingTests: MathTestCase {
         XCTAssertTrue(starts(layout.rows[1], with: .red))
     }
 
+    func testABracketPairIsOneLevelHoweverItIsWritten() throws {
+        /// What a break costs at each place a line may break, in order.
+        func penalties(_ body: String) throws -> [CGFloat] {
+            let box = try LayoutEngine(fontName: nil).layoutRoot(node(body), style: MathStyle(fontSize: em, color: black))
+            return Paragraph(box, fontSize: em).stops.dropFirst().dropLast().map(\.penalty)
+        }
+        let plus = try XCTUnwrap(penalties(mi("x") + mo("+") + mi("y")).first), level = Paragraph.nesting
+        let comma = try XCTUnwrap(penalties(mi("x") + mo(",") + mi("y")).first)
+        let terms = mi("a") + mo("+") + mi("b")
+        // One pair: its fences flat in the row or in a row of their own, around a row or around the terms.
+        let writings = [
+            "<mfenced><mrow>INNER</mrow></mfenced>", "<mrow><mo>(</mo><mrow>INNER</mrow><mo>)</mo></mrow>",
+            "<mrow><mo>(</mo>INNER<mo>)</mo></mrow>", "<mo>(</mo><mrow>INNER</mrow><mo>)</mo>", "<mo>(</mo>INNER<mo>)</mo>",
+        ]
+        func bracketed(_ writing: String, _ inner: String) -> String { writing.replacingOccurrences(of: "INNER", with: inner) }
+        let lead = mi("x") + mo("+")
+        for writing in writings {
+            let one: String = lead + bracketed(writing, terms) + mo("+") + mi("y")
+            XCTAssertEqual(try penalties(one), [plus, plus + level, plus], writing)
+            // A pair in a pair is two, and what the inner one holds is no deeper for being the outer one's row.
+            for outer in writings {
+                let two: String = lead + bracketed(outer, bracketed(writing, terms))
+                XCTAssertEqual(try penalties(two), [plus, plus + 2 * level], outer + writing)
+            }
+        }
+        // A row among other things is still a level, in a bracket or out of one: each sum in a list,
+        // and two pairs side by side in a row of their own.
+        let list: String = mi("f") + mo("\u{2061}") + "<mfenced><mrow>\(terms)</mrow><mrow>\(terms)</mrow></mfenced>"
+        XCTAssertEqual(try penalties(list), [plus + 2 * level, comma + level, plus + 2 * level])
+        let pairs: String = lead + "<mrow><mo>(</mo>\(terms)<mo>)</mo><mo>(</mo>\(terms)<mo>)</mo></mrow>"
+        XCTAssertEqual(try penalties(pairs), [plus, plus + 2 * level, plus + 2 * level])
+        let row: String = lead + "<mrow>\(terms)</mrow>"
+        XCTAssertEqual(try penalties(row), [plus, plus + level])
+
+        // So the sum in a bracket breaks where it would fill its rows, rather than leave the left-hand
+        // side alone on the first: three rows of `y = k(a/b + x² + sin θ − (c+d)/e + 12345 × z) + 1`
+        // where there were four, the first of them `y`.
+        let sum = "<mfrac><mi>a</mi><mi>b</mi></mfrac><mo>+</mo><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><mi>sin</mi><mo>\u{2061}</mo><mi>θ</mi>"
+            + "<mo>−</mo><mfrac><mrow><mi>c</mi><mo>+</mo><mi>d</mi></mrow><mi>e</mi></mfrac><mo>+</mo><mn>12345</mn><mo>×</mo><mi>z</mi>"
+        var rows: [[CGFloat]] = []
+        for writing in writings {
+            let body: String = mi("y") + mo("=") + mi("k") + bracketed(writing, sum) + mo("+") + "<mn>1</mn>"
+            let layout = try MathLayout(node(body), style: MathStyle(fontSize: 18, color: black), maximumWidth: 150)
+            XCTAssertEqual(layout.rows.count, 3, writing)
+            XCTAssertGreaterThan(layout.rows[0].width, 75, writing)
+            for row in layout.rows { XCTAssertLessThanOrEqual(row.origin.x + row.width, 150.001, writing) }
+            rows.append(layout.rows.map { $0.width })
+        }
+        for widths in rows.dropFirst() {
+            for (width, expected) in zip(widths, rows[0]) { XCTAssertEqual(width, expected, accuracy: 0.01) }
+        }
+    }
+
     func testNeverBreaksWhereAnOperatorHoldsItsOperand() throws {
         // On a line of no width every break that is allowed is made, and these are not:
         // before a sign, between a function and its argument, after an opening fence, before a
@@ -457,6 +510,46 @@ final class LineBreakingTests: MathTestCase {
         XCTAssertEqual(layout.rows[1].width, try width(mo("+")) + medium + beta, accuracy: 0.01)
     }
 
+    func testOperatorsThatShareABreakEachShowWhatTheyShowThere() throws {
+        let alpha = try width(mi("alpha")), beta = try width(mi("beta")), times = try width(mo("×")), dot = try width(mo("⋅"))
+        XCTAssertNotEqual(times, dot, accuracy: 1)
+        // An operator that breaks after it and the next that breaks before it are one place to break.
+        // Here each is an invisible times with a character of its own: one ends the row, the other
+        // starts the next, whichever of the two the break is counted as.
+        for (first, second) in [("", ""), ("linebreak=\"newline\"", ""), ("", "linebreak=\"newline\""), ("linebreak=\"badbreak\"", "")] {
+            let layout = try broken(mi("alpha") + mo("\u{2062}", "linebreakstyle=\"after\" linebreakmultchar=\"×\" \(first)")
+                + mo("\u{2062}", "linebreakmultchar=\"⋅\" \(second)") + mi("beta"), width: 0)
+            assertWidths(layout, [alpha + medium + times, dot + medium + beta], "\(first) \(second)")
+        }
+        // A comma breaks after it and is the better place than the times that follows, which shows its
+        // character all the same.
+        var layout = try broken(mi("alpha") + mo(",") + mo("\u{2062}", "linebreakmultchar=\"×\"") + mi("beta"), width: 0)
+        assertWidths(layout, [alpha + (try width(mo(","))), times + medium + beta])
+        // So does a times that breaks after it before a relation, the better place again.
+        layout = try broken(mi("alpha") + mo("\u{2062}", "linebreakstyle=\"after\" linebreakmultchar=\"×\"") + red("=", "form=\"infix\"")
+            + mi("beta"), width: 0)
+        assertWidths(layout, [alpha + medium + times, (try width(mo("="))) + thick + beta])
+        XCTAssertTrue(starts(layout.rows[1], with: .red))
+        // A repeated operator starts the new row, and the character of the times it shares the break
+        // with comes after it, next to the operand it multiplies.
+        let repeated = "linebreak=\"newline\" linebreakstyle=\"duplicate\""
+        let plain = try broken(mi("alpha") + mo("=", repeated) + mo("\u{2062}") + mi("beta"))
+        layout = try broken(mi("alpha") + red("=", repeated) + mo("\u{2062}", "linebreakmultchar=\"×\"") + mi("beta"))
+        assertWidths(layout, [plain.rows[0].width, plain.rows[1].width + times + medium])
+        XCTAssertTrue(ends(layout.rows[0], with: .red))
+        XCTAssertTrue(starts(layout.rows[1], with: .red))
+        let black = try XCTUnwrap(ink(layout.rows[1])), equals = try XCTUnwrap(ink(layout.rows[1], .red))
+        XCTAssertGreaterThan(black.width, equals.width + times + beta, "the repeated sign, the character and the operand")
+        // Automatic breaks count what both add: every row still fits, and holds both characters.
+        let pair = mo("\u{2062}", "linebreakstyle=\"after\" linebreakmultchar=\"×\"") + mo("\u{2062}", "linebreakmultchar=\"⋅\"")
+        let long = names.map(mi).joined(separator: pair)
+        layout = try broken(long, width: 100)
+        XCTAssertGreaterThan(layout.rows.count, 2)
+        for row in layout.rows { XCTAssertLessThanOrEqual(row.origin.x + row.width, 100.001) }
+        XCTAssertEqual(layout.rows.reduce(0) { $0 + $1.width },
+                       try width(long) + CGFloat(layout.rows.count - 1) * (times + dot + 2 * medium), accuracy: 0.01)
+    }
+
     func testBreaksInsideFencesKeepOneBracketSize() throws {
         let tall = "<mfrac><mfrac><mi>a</mi><mi>b</mi></mfrac><mfrac><mi>c</mi><mi>d</mi></mfrac></mfrac>"
         let inner = "<mstyle mathcolor=\"black\">" + tall + mo("+") + mi("beta") + mo("+") + mi("gamma") + mo("+") + mi("delta") + "</mstyle>"
@@ -547,6 +640,50 @@ final class LineBreakingTests: MathTestCase {
         let edged = try broken(mo("=") + mi("alpha") + mo("+", "linebreak=\"newline\"") + mi("beta") + mo(","))
         let unbroken = try width(mo("=") + mi("alpha") + mo("+") + mi("beta") + mo(","))
         XCTAssertEqual(edged.rows[0].width + edged.rows[1].width + medium, unbroken, accuracy: 0.01)
+    }
+
+    func testRowsBesideASpaceThatIsTakenBackBreakAsTheyDid() throws {
+        let limit: CGFloat = 150
+        let wide = "<mspace width=\"500px\"/>", back = "<mspace width=\"-500px\"/>"
+        let plain = try broken(mi("y") + mo("=") + sum(names), width: limit)
+        XCTAssertEqual(plain.rows.count, 4)
+        // A space and the negative one that takes it back, side by side, are no space at all.
+        var layout = try broken(mi("y") + wide + back + mo("=") + sum(names), width: limit)
+        assertWidths(layout, plain.rows.map(\.width))
+        // With something between them, that is as far to the right as the space is wide, and the
+        // stretch that holds it is wider than the line. The rows after it are not: they were, each
+        // measured as reaching where that stretch had, so that every term was a row of its own.
+        for (body, stretches) in [
+            // Ink out there.
+            (mi("y") + wide + mi("x") + back + mo("=") + sum(names), 1),
+            // A place to break out there: the row before it ends beyond the line.
+            (mi("u") + wide + mo("+") + back + mi("y") + mo("=") + sum(names), 2),
+        ] {
+            layout = try broken(body, width: limit)
+            XCTAssertEqual(layout.rows.count, stretches + plain.rows.count, body)
+            for row in layout.rows.prefix(stretches) { XCTAssertGreaterThan(row.width, 450, body) }
+            for row in layout.rows.dropFirst(stretches) { XCTAssertLessThanOrEqual(row.origin.x + row.width, limit + 0.001, body) }
+            // What follows the relation breaks where it does in the plain formula.
+            for (row, expected) in zip(layout.rows.suffix(3), plain.rows.suffix(3)) {
+                XCTAssertEqual(row.width, expected.width, accuracy: 0.01, body)
+            }
+            XCTAssertEqual(layout.widestUnbreakableWidth, layout.rows.map(\.width).max()!, accuracy: 0.001, body)
+        }
+        // The other way about, a negative space first puts ink far to the left, and it was the rows
+        // before it that were each measured as starting there.
+        layout = try broken(mi("y") + mo("=") + sum(names) + back + mi("z") + wide, width: limit)
+        XCTAssertEqual(layout.rows.count, plain.rows.count + 1, "the last term with what is beside it, and the rest in as many rows as it was")
+        for row in layout.rows.dropLast() { XCTAssertLessThanOrEqual(row.origin.x + row.width, limit + 0.001) }
+        XCTAssertGreaterThan(layout.rows.last!.width, 450)
+        XCTAssertEqual(layout.widestUnbreakableWidth, layout.rows.last!.width, accuracy: 0.001)
+        // A repeated operator stands where the operator did: to the right of what follows it when a
+        // negative space sets that back, and counted in the row it starts all the same.
+        layout = try broken(mi("alpha") + red("−", "linebreak=\"newline\" linebreakstyle=\"duplicate\" rspace=\"-500px\"") + mi("beta"), width: limit)
+        XCTAssertEqual(layout.rows.count, 2)
+        let repeated = try XCTUnwrap(ink(layout.rows[1], .red, margin: 4)), all = try XCTUnwrap(ink(layout.rows[1], margin: 4))
+        XCTAssertGreaterThan(repeated.minX, all.minX + 450)
+        XCTAssertLessThanOrEqual(repeated.maxX, layout.rows[1].width + 0.5)
+        XCTAssertEqual(layout.widestUnbreakableWidth, layout.rows[1].width, accuracy: 0.001)
     }
 
     // MARK: Indentation
@@ -647,6 +784,31 @@ final class LineBreakingTests: MathTestCase {
         layout = try styled("indentalign=\"middle\" indentshift=\"wide\" lineleading=\"tall\" linebreak=\"maybe\"")
         let plain = try broken(body, width: 150, display: true)
         XCTAssertEqual(layout.rows.map(\.origin), plain.rows.map(\.origin))
+    }
+
+    func testIndentationIsReadAtTheOperatorALineBreaksAt() throws {
+        // On an operator the attributes "control linebreaking and indentation of the following line"
+        // (MathML 3, 3.1.7.1): the row after the break there, and no row after that.
+        var layout = try broken(mi("alpha") + mo("=", "linebreak=\"newline\" indentshift=\"3em\"") + mi("beta")
+            + mo("+", "linebreak=\"newline\"") + mi("gamma"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [0, 3 * em, 0])
+        // They "apply if a linebreak occurs at that element" (3.2.5.2.3): where none does, they do nothing.
+        layout = try broken(mi("alpha") + mo("=", "indentshift=\"3em\" indentshiftfirst=\"2em\"") + mi("beta")
+            + mo("+", "linebreak=\"newline\"") + mi("gamma"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [0, 0])
+        // Whose `indentshiftfirst` places the first row the specification leaves open. Here it is the
+        // operator the first row ends at,
+        layout = try broken(mi("alpha") + mo("=", "linebreak=\"newline\" indentshiftfirst=\"2em\"") + mi("beta"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [2 * em, 0])
+        // not one that a later row ends at,
+        layout = try broken(mi("alpha") + mo("=", "linebreak=\"newline\"") + mi("beta")
+            + mo("+", "linebreak=\"newline\" indentshiftfirst=\"2em\"") + mi("gamma"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [0, 0, 0])
+        // and failing that the row the formula starts in, which is all a formula of one row has.
+        layout = try broken("<mstyle indentshiftfirst=\"2em\">" + mi("alpha") + "</mstyle>" + mo("=") + mi("beta"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [2 * em])
+        layout = try broken("<mstyle indentshiftfirst=\"2em\">" + mi("alpha") + "</mstyle>" + mo("=", "linebreak=\"newline\"") + mi("beta"))
+        XCTAssertEqual(layout.rows.map(\.origin.x), [2 * em, 0])
     }
 
     func testIndentTargetAlignsWithAnElementAbove() throws {

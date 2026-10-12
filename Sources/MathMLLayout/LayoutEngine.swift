@@ -75,6 +75,25 @@ struct Embellishment {
     static let none = Embellishment()
 }
 
+/// What was found of each of a formula's lists of children, kept so that it is found once.
+///
+/// A node is a value: it has no identity to keep an answer by, and comparing two reads both to
+/// the bottom. A list of children has the address of its storage, which every copy of the array
+/// shares, so an answer here is one that the list alone decides, whatever element it is the
+/// children of. The list is held with its answer: no other list is then given that storage, and
+/// with it that address, while the answer is kept. The same list in two places, as a tree built
+/// by hand may have it, is read once.
+private struct ListMemo<Answer> {
+    private var kept: [UInt: (list: [MathMLNode], answer: Answer)] = [:]
+
+    private static func address(_ list: [MathMLNode]) -> UInt { list.withUnsafeBufferPointer { UInt(bitPattern: $0.baseAddress) } }
+
+    /// nil when nothing has been kept for `list`.
+    func answer(for list: [MathMLNode]) -> Answer? { kept[Self.address(list)]?.answer }
+
+    mutating func keep(_ answer: Answer, for list: [MathMLNode]) { kept[Self.address(list)] = (list, answer) }
+}
+
 /// Lays out one formula. Not shared: each `MathLayout` makes its own, so it needs no locking.
 ///
 /// The algorithms follow MathML Core (https://www.w3.org/TR/mathml-core/) and the OpenType MATH
@@ -209,6 +228,25 @@ final class LayoutEngine {
     /// Elements that draw nothing.
     private static let empty: Set<String> = ["none", "mprescripts", "annotation", "annotation-xml", "malignmark", "maligngroup"]
 
+    /// The child that stands for a `semantics` or an `maction`: the first child of `semantics` that
+    /// is not an annotation, and the child of `maction` that `selection` names, counted from 1, or
+    /// its first when `selection` is missing, no number, or names no child. nil when there is no
+    /// such child, and for every other element. Layout draws this child and a reading says it
+    /// (`Speaker`), and both ask here, so that what is read aloud is what is drawn.
+    static func shownChild(_ node: MathMLNode) -> MathMLNode? {
+        let children = node.children
+        switch node.name {
+        case "semantics":
+            return children.first { $0.name != "annotation" && $0.name != "annotation-xml" }
+        case "maction":
+            let selection = node.attributes["selection"].flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } ?? 1
+            // Compared, not subtracted from first: a `selection` of `Int.min` has no number before it.
+            return selection >= 1 && selection <= children.count ? children[selection - 1] : children.first
+        default:
+            return nil
+        }
+    }
+
     func layout(_ node: MathMLNode, _ outer: LayoutContext, _ embellishment: Embellishment = .none,
                 depth: Int) throws -> MathBox {
         guard depth < MathLimits.depth else { throw MathLayoutError.limitExceeded }
@@ -228,8 +266,9 @@ final class LayoutEngine {
         case "mglyph":
             // MathML 2 listed `mglyph` among the tokens (3.1.6), so one may stand alone in a row.
             // It is laid out as the `mtext` it would now be in, not as an element of its own: the
-            // style it would hand down has no effect on an `mglyph` (MathML 3, 3.2.1.2.2).
-            return try layout(MathMLNode(name: "mtext", children: [node]), outer, depth: depth)
+            // style it would hand down has no effect on an `mglyph` (MathML 3, 3.2.1.2.2). That
+            // `mtext` is no node of the formula's, so it is not laid out as one, which would count it.
+            return try token(MathMLNode(name: "mtext", children: [node]), outer)
         case "mo":
             box = try operatorBox(node, context, embellishment)
         case "mspace":
@@ -265,14 +304,8 @@ final class LayoutEngine {
             box = try elementaryMath(node, context, depth: depth)
         case "mfenced":
             box = try row(fenced(node), context, embellishment, depth: depth)
-        case "semantics":
-            let shown = children.first { $0.name != "annotation" && $0.name != "annotation-xml" }
-            box = try shown.map { try layout($0, context, embellishment, depth: depth + 1) } ?? .empty()
-        case "maction":
-            let selection = node.attributes["selection"].flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } ?? 1
-            // Compared, not subtracted from first: a `selection` of `Int.min` has no number before it.
-            let shown = selection >= 1 && selection <= children.count ? children[selection - 1] : children.first
-            box = try shown.map { try layout($0, context, embellishment, depth: depth + 1) } ?? .empty()
+        case "semantics", "maction":
+            box = try Self.shownChild(node).map { try layout($0, context, embellishment, depth: depth + 1) } ?? .empty()
         case "merror":
             box = try errorBox(node, context, depth: depth)
         case let name where Self.empty.contains(name):
@@ -312,50 +345,75 @@ final class LayoutEngine {
 
     // MARK: Embellished operators
 
-    // These three look down a subtree before it is laid out, which may be deeper than layout will
-    // go. They are loops, not recursions: nothing stands between them and the end of the stack but
+    // These look down a subtree before it is laid out, which may be deeper than layout will go.
+    // They are loops, not recursions: nothing stands between them and the end of the stack but
     // the margin `layout` asks for, and 64 levels of their frames were most of that.
+    //
+    // What they find of a list of children they keep. A row asks what each of its children is, and
+    // for a child that is itself a row the answer may lie at the bottom of it; that row then asks
+    // the same of its own children. Rows of spaces nested sixty deep were read once for every row
+    // around them, and by `embellishedCore` once more for each of those: the cube of the depth.
+    // The lists are the formula's own, so what is kept holds for every pass over it.
+
+    /// For each list of children read so far: nil when some child is not space-like, else whether
+    /// any says something. It is what `spaceLike` is of an `mrow` of them.
+    private var spaceLikeLists = ListMemo<Bool?>()
+    /// For each list of children asked about: where its one child in flow is, nil unless it has
+    /// exactly one.
+    private var flowOfLists = ListMemo<Int?>()
 
     /// The core `mo` of an embellished operator (MathML Core 3.2.4), or nil.
-    func embellishedCore(_ node: MathMLNode, depth: Int = 0) -> MathMLNode? {
+    func embellishedCore(_ node: MathMLNode) -> MathMLNode? {
         var node = node
-        for depth in depth..<MathLimits.depth {
+        for _ in 0..<MathLimits.depth {
             switch node.name {
             case "mo": return node
-            case "msub", "msup", "msubsup", "munder", "mover", "munderover", "mmultiscripts", "mfrac", "semantics", "maction":
+            case "msub", "msup", "msubsup", "munder", "mover", "munderover", "mmultiscripts", "mfrac":
                 guard let first = node.children.first else { return nil }
                 node = first
+            case "semantics", "maction":
+                // The child that is drawn, which need not be the first (`shownChild`).
+                guard let shown = Self.shownChild(node) else { return nil }
+                node = shown
             case "mrow", "mstyle", "mphantom", "mpadded":
                 // Its one child in flow, when it has exactly one.
-                var only: MathMLNode?
-                for child in node.children where !isSpaceLike(child, depth: depth + 1) {
-                    guard only == nil else { return nil }
-                    only = child
-                }
-                guard let only else { return nil }
-                node = only
+                guard let only = onlyInFlow(node.children) else { return nil }
+                node = node.children[only]
             default: return nil
             }
         }
         return nil
     }
 
+    /// Where in `children` the one that is not space-like is, when there is exactly one.
+    private func onlyInFlow(_ children: [MathMLNode]) -> Int? {
+        if let known = flowOfLists.answer(for: children) { return known }
+        var only: Int?
+        for index in children.indices where !isSpaceLike(children[index]) {
+            guard only == nil else { only = nil; break }
+            only = index
+        }
+        flowOfLists.keep(only, for: children)
+        return only
+    }
+
     /// Space-like elements (MathML Core 3.2.5) do not count when inferring an operator's form.
     /// An `mglyph` outside a token is the `mtext` it is laid out as.
-    func isSpaceLike(_ node: MathMLNode, depth: Int = 0) -> Bool { spaceLike(node, depth: depth) != nil }
+    func isSpaceLike(_ node: MathMLNode) -> Bool { spaceLike(node) != nil }
 
-    /// A space-like child that says something: an `mtext` with text or an `mglyph` in it, or what
-    /// wraps one. MathML leaves it out when an operator takes its form from its place in the row,
-    /// but beside an operator it is an operand, as TeX's `\text` is an ordinary atom: the `×` of
+    /// nil when `node` is not space-like, else whether it says something: an `mtext` with text or
+    /// an `mglyph` in it, or what wraps one. MathML leaves such a child out when an operator
+    /// takes its form from its place in the row, but beside an operator it is an operand, as
+    /// TeX's `\text` is an ordinary atom: the `×` of
     /// "<mtext>principal</mtext><mo>×</mo><mtext>rate</mtext>" multiplies, it is not a sign.
     /// What an `mphantom` hides says nothing.
-    func isText(_ node: MathMLNode, depth: Int = 0) -> Bool { spaceLike(node, depth: depth) == true }
-
-    /// nil when `node` is not space-like, else whether it says something (see `isText`). One walk
-    /// of the subtree answers both, from a list of what is still to visit at each level: a row's
-    /// children left to right, so the first that is not space-like ends the walk as early as it can end.
-    private func spaceLike(_ node: MathMLNode, depth: Int) -> Bool? {
-        guard depth < MathLimits.depth else { return nil }
+    ///
+    /// One walk of the subtree answers both, from a list of what is still to visit at each level:
+    /// a row's children left to right, so the first that is not space-like ends the walk as early
+    /// as it can end. What the walk finds of each list of children is kept (`spaceLikeLists`), and
+    /// a list is read once however many rows there are around it to ask. So the walk needs no
+    /// bound of its own: it uses no stack, and what is too deep layout refuses when it gets there.
+    func spaceLike(_ node: MathMLNode) -> Bool? {
         // Most children of a row are tokens: no list for those.
         switch node.name {
         case "mtext": return Self.hasGlyph(node) || node.text.unicodeScalars.contains { !$0.properties.isWhitespace }
@@ -364,28 +422,45 @@ final class LayoutEngine {
         case "mrow", "mstyle", "mphantom", "mpadded", "maction", "semantics": break
         default: return nil
         }
-        var says = false
-        // The nodes still to visit at each level, and whether text there is shown.
-        var pending: [(rest: ArraySlice<MathMLNode>, depth: Int, shows: Bool)] = [([node][...], depth, true)]
-        while var level = pending.popLast() {
-            guard let node = level.rest.popFirst() else { continue }
-            pending.append(level)
-            guard level.depth < MathLimits.depth else { return nil }
+        // The lists being read, the innermost last: what is left of each, the whole of it when
+        // what it turns out to be is to be kept, whether text in it is shown, and whether any
+        // has been found there.
+        var pending: [(rest: ArraySlice<MathMLNode>, whole: [MathMLNode]?, shows: Bool, says: Bool)] = [([node][...], nil, true, false)]
+        walk: while let level = pending.indices.last {
+            guard let node = pending[level].rest.popFirst() else {
+                // Read to its end: all of it is space-like.
+                let read = pending.removeLast()
+                if let whole = read.whole { spaceLikeLists.keep(read.says, for: whole) }
+                guard level > 0 else { return read.says }
+                if read.says, read.shows { pending[level - 1].says = true }
+                continue
+            }
             switch node.name {
             case "mtext":
-                if level.shows, !says { says = Self.hasGlyph(node) || node.text.unicodeScalars.contains { !$0.properties.isWhitespace } }
-            case "mglyph": says = says || level.shows
+                if !pending[level].says {
+                    pending[level].says = Self.hasGlyph(node) || node.text.unicodeScalars.contains { !$0.properties.isWhitespace }
+                }
+            case "mglyph": pending[level].says = true
             case "mspace", "maligngroup", "malignmark": break
             case "mrow", "mstyle", "mphantom", "mpadded":
-                pending.append((node.children[...], level.depth + 1, level.shows && node.name != "mphantom"))
+                let children = node.children, shows = node.name != "mphantom"
+                guard let known = spaceLikeLists.answer(for: children) else {
+                    pending.append((children[...], children, shows, false))
+                    continue
+                }
+                guard let says = known else { break walk }
+                if says, shows { pending[level].says = true }
             case "maction", "semantics":
-                // Only what is shown, which here is the first child.
-                guard !node.children.isEmpty else { return nil }
-                pending.append((node.children.prefix(1), level.depth + 1, level.shows))
-            default: return nil
+                // Only what is shown (`shownChild`). Which child that is depends on the element and
+                // not on its list of children alone, so nothing is kept for the list.
+                guard let shown = Self.shownChild(node) else { break walk }
+                pending.append(([shown][...], nil, true, false))
+            default: break walk
             }
         }
-        return says
+        // Not space-like, and so neither is any list it was found in.
+        for case let whole? in pending.map(\.whole) { spaceLikeLists.keep(nil, for: whole) }
+        return nil
     }
 
     /// An `mo`'s text as drawn: hyphen-minus and apostrophe become the minus sign and prime,
@@ -460,16 +535,25 @@ final class LayoutEngine {
     /// and passes `embellishment` down to it. An enclosing row then spaces it as a whole; with
     /// none (the root, a table cell, a radicand) it spaces the operator from its space-like
     /// neighbours itself, so "<mtext>a</mtext><mo>=</mo><mtext>b</mtext>" keeps its relation space.
-    /// Text beside an operator is its operand (`isText`), so every operator of a word equation,
+    /// Text beside an operator is its operand (`spaceLike`), so every operator of a word equation,
     /// "assets − liabilities = equity", is spaced as it is between identifiers.
+    ///
+    /// Being an operator is a matter of form and spacing. Stretching is another: the one operator
+    /// of such a row covers its space-like neighbours like any other (MathML 3, 3.2.5.8.2), so a
+    /// bar beside a strut of `mspace` is as tall as the strut, and it covers with them what the
+    /// enclosing row has the row cover. Operators with nothing at all to cover stretch to a size
+    /// of zero, as in MathML Core 3.3.1.2, and that is their natural size unless a `minsize` asks
+    /// for more: TeX's `\big(` is written `<mo minsize="1.2em" maxsize="1.2em">(</mo>`.
     func row(_ children: [MathMLNode], _ context: LayoutContext, _ embellishment: Embellishment = .none,
              depth: Int) throws -> MathBox {
-        let inFlow = children.indices.filter { !isSpaceLike(children[$0]) }
+        // Asked once of each child: nil when it is in flow, else whether it is text.
+        let spaces = children.map { spaceLike($0) }
+        let inFlow = children.indices.filter { spaces[$0] == nil }
         let core = inFlow.count == 1 && embellishedCore(children[inFlow[0]]) != nil ? inFlow[0] : nil
         // A row gives each child a form, so a form here means an enclosing row applies the spacing.
         let spacedByParent = embellishment.form != nil
         var forms = [OperatorForm](repeating: .infix, count: children.count)
-        let texts = children.map { isText($0) }
+        let texts = spaces.map { $0 == true }
         if inFlow.count > 1 {
             // Between two texts an operator is infix, though it is the first or last in-flow child.
             for (index, form) in [(inFlow[0], OperatorForm.prefix), (inFlow[inFlow.count - 1], .postfix)]
@@ -480,22 +564,30 @@ final class LayoutEngine {
         var boxes = [MathBox](repeating: .empty(), count: children.count)
         var deferred: [Int] = []
         for (index, child) in children.enumerated() {
-            if index == core {
-                boxes[index] = try layout(child, context, embellishment, depth: depth + 1)
-            } else if isStretchy(child, form: forms[index], horizontal: false) {
+            // The core is where this row is, in the row around it; any other child where it is in this one.
+            let place = index == core ? embellishment : Embellishment(form: forms[index])
+            if isStretchy(child, form: place.form, horizontal: false) {
                 deferred.append(index)
             } else {
-                boxes[index] = try layout(child, context, Embellishment(form: forms[index]), depth: depth + 1)
+                boxes[index] = try layout(child, context, place, depth: depth + 1)
             }
         }
         if !deferred.isEmpty {
             // A set: a row may be ten thousand fences, and each child was looked for among them all.
             let stretched = Set(deferred)
             let others = boxes.indices.filter { !stretched.contains($0) }
-            let stretch: Embellishment.Stretch? = others.isEmpty ? nil
-                : .vertical(ascent: others.map { boxes[$0].ascent }.max()!, descent: others.map { boxes[$0].descent }.max()!)
+            var ascents = others.map { boxes[$0].ascent }, descents = others.map { boxes[$0].descent }
+            // The core covers its space-like neighbours, and with them what the row around this one
+            // has the whole row cover.
+            if let core, stretched.contains(core), case .vertical(let ascent, let descent) = embellishment.stretch {
+                ascents.append(ascent); descents.append(descent)
+            }
+            // With nothing to cover the size to stretch to is zero (MathML Core 3.3.1.2), which
+            // leaves an operator as it is unless it has a `minsize`.
+            let stretch = Embellishment.Stretch.vertical(ascent: ascents.max() ?? 0, descent: descents.max() ?? 0)
             for index in deferred {
-                boxes[index] = try layout(children[index], context, Embellishment(form: forms[index], stretch: stretch),
+                let form = index == core ? embellishment.form : forms[index]
+                boxes[index] = try layout(children[index], context, Embellishment(form: form, stretch: stretch),
                                           depth: depth + 1)
             }
         }
@@ -503,7 +595,7 @@ final class LayoutEngine {
         // fence is unary and unspaced, as in "x = −3" or "(−3 + x)". Text counts among the atoms.
         // An operator whose `form` attribute says infix is what its author says it is.
         var unary = Set<Int>()
-        let atoms = children.indices.filter { texts[$0] || !isSpaceLike(children[$0]) }
+        let atoms = children.indices.filter { spaces[$0] != false }
         for (position, index) in atoms.enumerated()
         where boxes[index].op?.isBinary == true && boxes[index].op?.isMarkedInfix != true && index != core {
             let follows = position > 0 ? boxes[atoms[position - 1]].op.map(isOperatorLike) ?? false : true
@@ -606,7 +698,7 @@ final class LayoutEngine {
         scalar == " " || scalar == "\t" || scalar == "\n" || scalar == "\r"
     }
 
-    private func countText(_ text: String) throws {
+    func countText(_ text: String) throws {
         textLength += text.utf16.count
         guard textLength <= MathLimits.textLength else { throw MathLayoutError.limitExceeded }
     }
@@ -706,7 +798,7 @@ final class LayoutEngine {
         var text = operatorText(node)
         let properties = properties(node, form: embellishment.form, context)
         if Self.hasGlyph(node) {
-            let content = try glyphContent(of: node, context)
+            let content = try operatorGlyphContent(of: node, context)
             try countText(content.text)
             var box = textBox(context.variant?.apply(to: content.text) ?? content.text, images: content.images, context)
             box.op = properties

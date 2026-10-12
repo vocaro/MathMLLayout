@@ -48,6 +48,45 @@ Line breaking, `mglyph`, elementary math and localized readings
     other enumerated attribute: `display="BLOCK"` gave text style.
   - A colour with a sign among its hex digits, such as `#+ff`, is no colour. It was read as
     `#0ff`.
+- `<mtable displaystyle="true">` sets its cells in display style, as MathJax and LaTeXML write
+  `align`, `gather` and `cases`. The attribute was ignored on the table itself, so every fraction
+  and sum in an aligned equation was set at its text size, a sum's limits beside it
+  ([#6](https://github.com/vocaro/MathMLLayout/issues/6)).
+- `mtable align` with a row number follows MathML 3: `axis N` puts row N's baseline on the line,
+  as `baseline N` does, where it was one axis height too high, and a number that names no row is
+  ignored, where it was taken for the nearest row
+  ([#11](https://github.com/vocaro/MathMLLayout/issues/11)).
+- A table's row and column lines end at its edges: each stuck out by half the rule's thickness,
+  through the frame when there was one. And the box of `menclose notation="updiagonalarrow"`
+  grows to hold the arrowhead, which was drawn outside it over content much wider than tall or
+  much taller than wide ([#12](https://github.com/vocaro/MathMLLayout/issues/12)).
+- Every horizontal arrow the operator dictionary calls stretchy stretches to its label. With
+  STIX Two Math 28 of the 47 stayed at their natural width, `⇌ ⇋ ⟹ ⟸ ⟺ ⟼ ⇄ ⇆ ↠ ↣` among
+  them, and with a font that has no MATH table all but `← → ↔ ⟵ ⟶ ⟷`. A long arrow now takes
+  the assembly of its short form (`⟹` from `⇒`, `⟼` from `↦`), and an arrow the font cannot
+  stretch is drawn with its glyph's shafts, heads, tails and barbs, as `⟶` was
+  ([#13](https://github.com/vocaro/MathMLLayout/issues/13)).
+- A stretchy operator that is the only child in flow of its row covers the row's space-like
+  children: a bar, bracket or arrow beside a strut of `mspace` kept its natural size unless the
+  row held a second operator or an identifier
+  ([#8](https://github.com/vocaro/MathMLLayout/issues/8)).
+- `minsize` sizes an operator that has nothing to cover, half each side of the axis, as MathML
+  Core asks: TeX's `\big(`, written `<mo minsize="1.2em" maxsize="1.2em">(</mo>`, was an ordinary
+  parenthesis when it stood alone or beside another fence
+  ([#8](https://github.com/vocaro/MathMLLayout/issues/8)).
+- A `maxsize` less than `minsize` is taken to be the `minsize`, and a negative `minsize` to be
+  zero, as MathML Core asks. `maxsize` used to win
+  ([#23](https://github.com/vocaro/MathMLLayout/issues/23)).
+- `maction` and `semantics` are everywhere the child that is drawn: the one `selection` names,
+  and the first that is not an annotation. A reading said the first child, so
+  `<maction selection="2">` was read as what it did not show and a `semantics` whose annotation
+  comes first as nothing; and an operator shown that way was not spaced or stretched as one. A
+  fraction, power or root around either marks its end in a reading only when that child is
+  more than a single token ([#16](https://github.com/vocaro/MathMLLayout/issues/16)).
+- Layout time no longer grows with the cube of the nesting depth for rows of space-like
+  children: 60 nested rows of 300 spaces took 4.5 s in a debug build and take 0.05 s. A
+  hand-built tree with one row of spaces in many places is read once, where reading it could
+  take without end ([#34](https://github.com/vocaro/MathMLLayout/issues/34)).
 - Hostile markup that 0.1.0 let through, found by fuzzing this release:
   - `scriptlevel="+9223372036854775807"` and `maction selection="-9223372036854775808"`
     overflowed an integer and stopped the process.

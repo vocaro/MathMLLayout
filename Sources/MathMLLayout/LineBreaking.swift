@@ -11,10 +11,12 @@ import Foundation
 
 // MARK: Attributes
 
-/// `linebreak` on an `mo` or `mspace` (MathML 3, 3.2.5.2.2).
+/// `linebreak` on an `mo` (MathML 3, 3.2.5.2.2) or an `mspace` (3.2.7.2).
 enum Linebreak: String, Sendable { case auto, newline, nobreak, goodbreak, badbreak }
 
-/// `linebreakstyle`: where the operator goes that a line breaks at.
+/// `linebreakstyle`: where the operator goes that a line breaks at. The operator dictionary sets
+/// it, to `after` for its three separators (the comma, the semicolon and the invisible separator)
+/// and to `before` for everything else (MathML 3, 3.2.5.2.2 and appendix C).
 enum LinebreakStyle: String, Sendable { case before, after, duplicate }
 
 /// `indentalign` (MathML 3, 3.2.5.2.3).
@@ -29,8 +31,15 @@ struct LineLength: Sendable, Equatable {
 }
 
 /// The line-breaking and indentation attributes in effect at an element. They are read at the
-/// `mo` or `mspace` a line breaks at, and inherit from `mstyle` and `math` (MathML 3, 3.2.5.2.2
-/// and 3.2.5.2.3).
+/// `mo` or `mspace` a line breaks at (MathML 3, 3.2.5.2.2 and 3.2.5.2.3), and those that say
+/// where the operator goes, how far apart the lines are and how they are indented may be
+/// "inherited from mstyle or math elements" (3.1.7.1).
+///
+/// `linebreak` is inherited here too, and of that the specification says two things. It "can
+/// only be set on mo and mspace elements" (3.1.7.1). But an `mstyle` takes every attribute that
+/// has a default, the schema lists `linebreak` among those it takes (appendix A), and a value
+/// there changes the default "for all elements within its scope" (3.3.4.1). The second is
+/// followed: `linebreak="nobreak"` on an `mstyle` keeps what it holds on one line.
 struct LineStyle: Sendable {
     var linebreak = Linebreak.auto
     /// nil is the default: before an operator, after a separator.
@@ -177,8 +186,9 @@ final class BreakableRow {
 // MARK: Layout
 
 extension LayoutEngine {
-    /// The line-breaking attributes of `node` join the context its content inherits, where MathML 3
-    /// puts them: on `mo` and `mspace`, and on `mstyle` and `math` for the operators inside.
+    /// The line-breaking attributes of `node` join the context its content inherits, on the elements
+    /// that may carry them: `mo` and `mspace`, and `mstyle` and `math` for the operators inside
+    /// (`LineStyle` has what MathML 3 says of each).
     func inheritLineStyle(_ node: MathMLNode, _ context: inout LayoutContext) {
         guard LineStyle.elements.contains(node.name),
               node.attributes.keys.contains(where: LineStyle.attributes.contains) else { return }
@@ -308,6 +318,11 @@ extension LayoutEngine {
     /// Lays out `root` and breaks it into rows no wider than `maximumWidth`, the first no wider than
     /// `firstRowMaximumWidth`. Each row's box covers its ink, so a host that clips to a row (an
     /// attachment image) never cuts an italic overhang or a glyph that leans past the left edge.
+    ///
+    /// `overflow` and `maxwidth` on `math` (MathML 3, 2.2.1) are not read: the width given decides.
+    /// Breaking is what `overflow="linebreak"`, the default, asks for (3.1.7.1). The other values
+    /// "suggest a processing method to the renderer" that is a host's to carry out (scrolling,
+    /// eliding, truncating, scaling), and a host that means to gives no width.
     static func lines(_ root: MathMLNode, style: MathStyle, maximumWidth: CGFloat,
                       firstRowMaximumWidth: CGFloat?) throws -> MathLines {
         // A line wider than any formula may be is no limit: `.greatestFiniteMagnitude` is how a host
@@ -476,10 +491,12 @@ extension LayoutEngine {
     }
 
     /// Narrows the columns of a table wider than the line, and wraps the cells that no longer fit
-    /// theirs into stacked lines: "inside an mtable, the column width serves as the wrap width"
-    /// (MathML 3, 3.1.7.1). Columns narrower than an equal share keep their width and the rest
-    /// share what is left, none below its widest unbreakable unit. A cell with a forced break
-    /// is stacked whatever the width. `fixed` is the width of everything but the columns.
+    /// theirs into stacked lines: a column's width "should be used as the line wrapping width for
+    /// linebreaking, and each entry in an mtable is linewrapped as needed" (MathML 3, 3.1.7.1).
+    /// That width is an attribute's or the content's there; narrowing it to the line is this
+    /// engine's. Columns narrower than an equal share keep their width and the rest share what
+    /// is left, none below its widest unbreakable unit. A cell with a forced break is stacked
+    /// whatever the width. `fixed` is the width of everything but the columns.
     func wrapCells(_ cells: inout [[(box: MathBox, align: String?)]], columnAlign: [String], fixed: CGFloat) {
         func align(_ row: Int, _ column: Int) -> IndentAlign {
             let name = cells[row][column].align ?? columnAlign.last.map { _ in columnAlign[min(column, columnAlign.count - 1)] }
@@ -582,10 +599,12 @@ struct Paragraph {
         /// What the stop adds to the rows it parts, as an index into `inserts`: at the start of the
         /// row after it a head, `headAdvance` wide to the unit that follows and overhanging its left
         /// edge by `headLeft`; at the end of the row before it a tail, `tailOffset` after the last
-        /// unit, ending `tailAdvance` after it and overhanging that by `tailRight`.
+        /// unit, ending `tailAdvance` after it and overhanging that by `tailRight`. The other edge
+        /// of each one's ink, from its own origin, is `headInk` and `tailInk`: a head is on the
+        /// right of its row, and a tail on the left, when what the row holds runs leftward.
         var insert: Int?
-        var headAdvance: CGFloat = 0, headLeft: CGFloat = 0
-        var tailOffset: CGFloat = 0, tailAdvance: CGFloat = 0, tailRight: CGFloat = 0
+        var headAdvance: CGFloat = 0, headLeft: CGFloat = 0, headInk = -CGFloat.infinity
+        var tailOffset: CGFloat = 0, tailAdvance: CGFloat = 0, tailRight: CGFloat = 0, tailInk = CGFloat.infinity
     }
 
     struct Row {
@@ -623,11 +642,18 @@ struct Paragraph {
     /// The attributes the formula starts with, those of the row its first unit is in: they place
     /// its first row.
     private var lead = BreakPoint(kind: .none, linebreak: .auto, style: LineStyle())
-    /// By stop: where a row starting there begins and one ending there ends in the unbroken row,
-    /// and the farthest end up to it.
-    private var starts: [CGFloat] = [], ends: [CGFloat] = [], far: [CGFloat] = []
+    /// By stop: where a row starting there begins and one ending there ends in the unbroken row.
+    private var starts: [CGFloat] = [], ends: [CGFloat] = []
     /// By unit boundary: the leftmost ink from there on and the rightmost before it, in the unbroken row.
     private var inkFrom: [CGFloat] = [], inkTo: [CGFloat] = []
+    /// Units run left to right, so the end of a row is the farthest it reaches, and the ink at its
+    /// edges is the leftmost from its start on and the rightmost up to its end. A negative space
+    /// undoes that: after `<mspace width="20em"/>`, an operator and `<mspace width="-20em"/>`, every
+    /// row was measured as reaching where the first space did, none fitted, and each stretch of the
+    /// rest of the formula was a row of its own. Where the ends of the stops, the right edges of the
+    /// units' ink or its left edges (negated here) do not rise from one to the next, these find the
+    /// greatest within a row instead; each is nil while the running extreme above is the row's own.
+    private var farthest: Maxima?, rightmost: Maxima?, leftmost: Maxima?
     /// The unbroken row, covering its ink: the one row when nothing breaks.
     private let unbroken: MathBox
     /// Its width, and how far its ink overhangs its left edge.
@@ -650,39 +676,100 @@ struct Paragraph {
         }
         if units.isEmpty { units = [Unit(box: box, x: 0, ink: box.inkBounds)] }
         stops = [Stop(at: 0, point: lead)] + stops + [Stop(at: units.count, point: lead)]
+        let lefts = units.map { unit in unit.ink.map { unit.x + $0.minX } ?? .infinity }
+        let rights = units.map { unit in unit.ink.map { unit.x + $0.maxX } ?? -.infinity }
         inkFrom = [CGFloat](repeating: .infinity, count: units.count + 1)
         inkTo = [CGFloat](repeating: -.infinity, count: units.count + 1)
-        for (index, unit) in units.enumerated() {
-            inkTo[index + 1] = max(inkTo[index], unit.ink.map { unit.x + $0.maxX } ?? -.infinity)
-        }
-        for (index, unit) in units.enumerated().reversed() {
-            inkFrom[index] = min(inkFrom[index + 1], unit.ink.map { unit.x + $0.minX } ?? .infinity)
-        }
+        for index in units.indices { inkTo[index + 1] = max(inkTo[index], rights[index]) }
+        for index in units.indices.reversed() { inkFrom[index] = min(inkFrom[index + 1], lefts[index]) }
         // The formula's own edges stay where the unbroken row has them. A row made by a break starts
         // at its first unit and ends with its last, without the space the operator there had outside.
         starts = stops.map { $0.at == 0 ? 0 : units[min($0.at, units.count - 1)].x }
         ends = stops.map { stop in
             stop.at == units.count ? box.width : stop.at == 0 ? 0 : units[stop.at - 1].x + units[stop.at - 1].box.width
         }
-        far = ends
-        for index in far.indices.dropFirst() { far[index] = max(far[index], far[index - 1]) }
+        /// Whether no value is less than the one before it; a unit without ink has none.
+        func rises(_ values: [CGFloat]) -> Bool {
+            var last = -CGFloat.infinity
+            for value in values where value.isFinite {
+                if value < last { return false }
+                last = value
+            }
+            return true
+        }
+        if !rises(ends) { farthest = Maxima(ends) }
+        if !rises(rights) { rightmost = Maxima(rights) }
+        if !rises(lefts) { leftmost = Maxima(lefts.map { -$0 }) }
+    }
+
+    /// The greatest of any stretch of a sequence, found in constant time: a table whose every level
+    /// holds the greatest of each stretch twice as long as those of the level before.
+    private struct Maxima {
+        private var levels: [[CGFloat]]
+
+        init(_ values: [CGFloat]) {
+            levels = [values]
+            var span = 1
+            while span * 2 <= values.count {
+                let below = levels[levels.count - 1]
+                levels.append((0...values.count - span * 2).map { max(below[$0], below[$0 + span]) })
+                span *= 2
+            }
+        }
+
+        /// The greatest of the values in `range`; of none, minus infinity.
+        func callAsFunction(_ range: Range<Int>) -> CGFloat {
+            guard !range.isEmpty else { return -.infinity }
+            let level = Int.bitWidth - 1 - range.count.leadingZeroBitCount
+            return max(levels[level][range.lowerBound], levels[level][range.upperBound - (1 << level)])
+        }
+    }
+
+    /// The fence a child of a row is, when it is one.
+    private static func fence(_ child: BreakableRow.Child) -> BreakPoint? {
+        child.box.op.flatMap { $0.has(.fence) ? $0.breakPoint : nil }
+    }
+
+    /// Whether `row` is a bracket pair and what it holds, as the row of an `mfenced` is: its first
+    /// child opens a fence, and its last closes that one.
+    private static func isPair(_ row: BreakableRow) -> Bool {
+        guard row.children.count > 1, fence(row.children[0])?.opens == true,
+              fence(row.children[row.children.count - 1])?.closes == true else { return false }
+        var open = 1
+        for child in row.children.dropFirst().dropLast() {
+            guard let fence = fence(child) else { continue }
+            if fence.closes { open -= 1 }
+            // Closed before the end: two pairs side by side, or more.
+            guard open > 0 else { return false }
+            if fence.opens { open += 1 }
+        }
+        return open == 1
     }
 
     /// Rows nested in `row` become its units in turn. `depth` counts what a break there is nested
-    /// in: rows, and bracket pairs written flat in one row.
+    /// in: rows, and bracket pairs. A pair is one level however it is written: its fences flat in
+    /// a row among other things or in a row of their own, and what they hold in a row or not. It
+    /// was counted as each of those it had, so that the sum in `<mfenced><mrow>` was three levels
+    /// deep (the row of the fences, the pair, the row between them) where the same sum between
+    /// fences written flat was one, and a line broke anywhere outside such a bracket, leaving a
+    /// row all but empty, sooner than inside it.
     private mutating func flatten(_ row: BreakableRow, at x: CGFloat, depth: Int, isUnary: Bool, isAttached: Bool,
                                   level: Int, _ breaks: inout [Break]) {
         var fences = 0
         for (index, child) in row.children.enumerated() {
             // What holds a row to its neighbour holds the row's first unit.
             let isAttached = child.isAttached || index == 0 && isAttached
-            let fence = child.box.op.flatMap { $0.has(.fence) ? $0.breakPoint : nil }
+            let fence = Self.fence(child)
             if fence?.closes == true { fences = max(fences - 1, 0) }
             if let id = child.id, ids[id] == nil { ids[id] = units.count }
             if let inner = child.box.row, inner.itemCount == child.box.items.count, !inner.children.isEmpty,
                level < MathLimits.depth {
                 // A row that only wraps another, or is one operator, is no deeper than what it holds.
-                let deeper = inner.isOperator || row.children.count == 1 ? 0 : 1
+                // Nor is one that is a bracket pair with what it holds, or all that a pair here holds:
+                // the pair is the level.
+                let isHeld = index > 0 && index + 1 < row.children.count && Self.fence(row.children[index - 1])?.opens == true
+                    && Self.fence(row.children[index + 1])?.closes == true
+                let deeper = inner.isOperator || row.children.count == 1 || isHeld || Self.isPair(inner) ? 0 : 1
                 flatten(inner, at: x + child.x, depth: depth + fences + deeper, isUnary: isUnary || child.isUnary,
                         isAttached: isAttached, level: level + 1, &breaks)
             } else {
@@ -722,29 +809,58 @@ struct Paragraph {
                             point: point)
             // `linebreakstyle="duplicate"` repeats the operator at the start of the new row, and
             // `linebreakmultchar` shows an invisible times wherever the style puts the operator.
-            let head = point.position == .after ? nil : visible ?? (point.position == .duplicate ? units[index].box : nil)
+            var head = point.position == .after ? nil : visible ?? (point.position == .duplicate ? units[index].box : nil)
             let tail = point.position == .before ? nil : visible
             if let head {
                 stop.headAdvance = visible.map { $0.width + ($0.op?.rspace ?? 0) } ?? units[at].x - units[index].x
-                stop.headLeft = max(0, -(head.inkBounds?.minX ?? 0))
+                let ink = head.inkBounds
+                stop.headLeft = max(0, -(ink?.minX ?? 0)); stop.headInk = ink?.maxX ?? -.infinity
             }
             if let tail {
+                let ink = tail.inkBounds
                 stop.tailOffset = tail.op?.lspace ?? 0
                 stop.tailAdvance = stop.tailOffset + tail.width
-                stop.tailRight = max(0, (tail.inkBounds?.maxX ?? 0) - tail.width)
-            }
-            if head != nil || tail != nil {
-                stop.insert = inserts.count
-                inserts.append((head, tail))
+                stop.tailRight = max(0, (ink?.maxX ?? 0) - tail.width); stop.tailInk = ink?.minX ?? .infinity
             }
             hasForced = hasForced || isForced
-            // An operator that breaks after it and the next that breaks before it share a stop.
-            if let last = stops.last, last.at == at {
-                guard !last.isForced, isForced || stop.penalty < last.penalty else { continue }
-                stops[stops.count - 1] = stop
-            } else {
+            guard let last = stops.last, last.at == at else {
+                if head != nil || tail != nil {
+                    stop.insert = inserts.count
+                    inserts.append((head, tail))
+                }
                 stops.append(stop)
+                continue
             }
+            // An operator that breaks after it and the next that breaks before it share a stop: a line
+            // that breaks there breaks at both. The better of the two says what the break costs and
+            // how the row after it is placed, and each still adds to the rows what it adds wherever a
+            // line breaks at it. `last` is the stop of the operator before the break, which may leave
+            // a tail and its duplicate, and `stop` that of the one after, which has only its visible
+            // form to show: that goes after the duplicate, next to the operator it stands for.
+            var shared = !last.isForced && (isForced || stop.penalty < last.penalty) ? stop : last
+            let first = last.insert.map { inserts[$0] }
+            shared.tailOffset = last.tailOffset; shared.tailAdvance = last.tailAdvance
+            shared.tailRight = last.tailRight; shared.tailInk = last.tailInk
+            shared.headAdvance = last.headAdvance + stop.headAdvance
+            if let repeated = first?.head, let shown = head {
+                var both = MathBox(width: last.headAdvance + shown.width, ascent: max(repeated.ascent, shown.ascent),
+                                   descent: max(repeated.descent, shown.descent))
+                both.add(repeated, at: .zero)
+                both.add(shown, at: CGPoint(x: last.headAdvance, y: 0))
+                head = both
+            } else {
+                head = first?.head ?? head
+            }
+            let ink = head?.inkBounds
+            shared.headLeft = max(0, -(ink?.minX ?? 0)); shared.headInk = ink?.maxX ?? -.infinity
+            shared.insert = last.insert
+            if let insert = last.insert {
+                inserts[insert] = (head, first?.tail)
+            } else if head != nil {
+                shared.insert = inserts.count
+                inserts.append((head, nil))
+            }
+            stops[stops.count - 1] = shared
         }
     }
 
@@ -786,8 +902,13 @@ struct Paragraph {
     private func extent(_ i: Int, _ j: Int) -> (width: CGFloat, left: CGFloat) {
         if i == 0, j == stops.count - 1 { return entire }
         let content = stops[i].headAdvance + ends[j] - starts[i] + stops[j].tailAdvance
-        let left = max(0, starts[i] - inkFrom[stops[i].at] - stops[i].headAdvance, stops[i].headLeft)
-        let right = max(0, inkTo[stops[j].at] - ends[j] - stops[j].tailAdvance, stops[j].tailRight)
+        // The running extremes take in what the stops add, a duplicate where the operator it repeats
+        // was and a tail where the next unit is. Those of the row alone do not.
+        let first = stops[i].at, end = stops[j].at
+        let from = leftmost.map { min(-$0(first..<end), ends[j] + stops[j].tailOffset + stops[j].tailInk) } ?? inkFrom[first]
+        let to = rightmost.map { max($0(first..<end), starts[i] - stops[i].headAdvance + stops[i].headInk) } ?? inkTo[end]
+        let left = max(0, starts[i] - from - stops[i].headAdvance, stops[i].headLeft)
+        let right = max(0, to - ends[j] - stops[j].tailAdvance, stops[j].tailRight)
         return (max(0, left + content + right), left)
     }
 
@@ -862,9 +983,12 @@ struct Paragraph {
         /// the line its indentation takes, and the alignment still to apply once the rows are known.
         func place(_ i: Int, _ j: Int, _ size: (width: CGFloat, left: CGFloat), room: CGFloat)
             -> (x: CGFloat, indent: CGFloat, align: IndentAlign) {
-            // A row is placed by the attributes of the stop it starts at: an `indentshift` on an operator
-            // is for the row after the break there. The first row has those the formula starts with,
-            // unless the stop it ends at gives the first row its own.
+            // A row is placed by the attributes of the stop it starts at: those on an operator "control
+            // linebreaking and indentation of the following line" (MathML 3, 3.1.7.1), so an `indentshift`
+            // there is for the row after the break and no other. Whose attributes place the first row
+            // the specification does not say, only that `indentalignfirst` and `indentshiftfirst` place
+            // a formula of one line too: here it has those the formula starts with, unless the stop it
+            // ends at gives the first row its own.
             let from = stops[i].point, to = stops[j].point
             var align = from.style.align, shift = from.style.shift
             if i == 0 {
@@ -933,12 +1057,14 @@ struct Paragraph {
             }
             // Stops in order: the best way to each is known before rows from it are tried.
             for i in 0..<last where best[i].isFinite {
-                // The farthest stop the row from here can reach, its ink and tail aside.
+                // The farthest stop the row from here can reach, its ink and tail aside: the last before
+                // it has run past the line, wherever a negative space after that brings it back to.
                 let room = i == 0 ? first : limit
                 var low = i, high = forced[i]
                 while low < high {
                     let middle = (low + high + 1) / 2
-                    let fits = stops[i].headAdvance + far[middle] - starts[i] <= room + Self.slop
+                    let end = farthest.map { $0(i + 1..<middle + 1) } ?? ends[middle]
+                    let fits = stops[i].headAdvance + end - starts[i] <= room + Self.slop
                     if fits { low = middle } else { high = middle - 1 }
                 }
                 var reached = false

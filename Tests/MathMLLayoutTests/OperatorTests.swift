@@ -282,8 +282,13 @@ final class OperatorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(try fenced("(", ")", content: small, attributes: "minsize=\"2\"").fences.height, 2 * natural - 1,
                                     "a bare number is a multiple of the natural size")
         XCTAssertGreaterThanOrEqual(try fenced("(", ")", content: small, attributes: "minsize=\"300%\"").fences.height, 3 * natural - 1)
-        // maxsize wins over minsize, as in MathML Core.
-        XCTAssertLessThanOrEqual(try fenced("(", ")", content: tall, attributes: "minsize=\"8em\" maxsize=\"2em\"").fences.height, 2.6 * em)
+        // minsize wins over a maxsize less than it: MathML Core 3.2.4.3 takes such a maxsize to be the minsize.
+        XCTAssertGreaterThanOrEqual(try fenced("(", ")", content: tall, attributes: "minsize=\"8em\" maxsize=\"2em\"").fences.height, 8 * em - 1)
+        XCTAssertGreaterThanOrEqual(try fenced("(", ")", content: small, attributes: "minsize=\"8em\" maxsize=\"2em\"").fences.height, 8 * em - 1)
+        // A negative minsize is zero: it bounds nothing, and is no minsize for a maxsize to be less than.
+        XCTAssertEqual(try fenced("(", ")", content: tall, attributes: "minsize=\"-10em\"").fences.height, free, accuracy: 0.5)
+        XCTAssertEqual(try fenced("(", ")", content: tall, attributes: "minsize=\"-10em\" maxsize=\"2em\"").fences.height, capped, accuracy: 0.5)
+        XCTAssertEqual(try fenced("(", ")", content: tall, attributes: "minsize=\"-10em\" maxsize=\"-20em\"").fences.height, natural, accuracy: 0.5)
     }
 
     func testOperatorsWithNothingToCoverKeepTheirSize() throws {
@@ -318,7 +323,6 @@ final class OperatorTests: XCTestCase {
     /// MathML 3, 3.2.5.8.2 and MathML Core 3.3.1.2: a stretchy operator covers the other
     /// children of its row, and a strut made of `mspace` is one of them.
     func testAStretchyOperatorCoversASpaceLikeStrut() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/8 is fixed.
         let strut = "<mspace width=\"1em\" height=\"3em\" depth=\"2em\"/>"
         for (op, body) in [("(", "<mo>(</mo>\(strut)"), (")", "\(strut)<mo>)</mo>"), ("|", "<mrow><mo>|</mo>\(strut)</mrow>"),
                            ("↑", "<mo>↑</mo>\(strut)"), ("[", "<mtext>&#xA0;</mtext><mo>[</mo>\(strut)")] {
@@ -327,6 +331,69 @@ final class OperatorTests: XCTestCase {
         }
         // The same strut already works once the row has a second operator or an identifier.
         XCTAssertGreaterThanOrEqual(try XCTUnwrap(try inks("<mo>(</mo>\(strut)<mo>)</mo>")[.black]).height, 4 * em)
+        // A strut wrapped in what is itself space-like, and an operator with a script of its own.
+        for body in ["<mo>|</mo><mpadded>\(strut)</mpadded>", "<mphantom>\(strut)</mphantom><mo>|</mo>", "<mstyle><mo>|</mo>\(strut)</mstyle>",
+                     "<msub><mo>|</mo><mn mathcolor=\"red\">0</mn></msub>\(strut)", "<mrow><mrow><mo>|</mo></mrow>\(strut)</mrow>"] {
+            XCTAssertGreaterThanOrEqual(try XCTUnwrap(try inks(body)[.black], body).height, 4 * em, body)
+        }
+    }
+
+    /// A row whose one child in flow is an operator is an operator to the row around it, which
+    /// has it cover what stands beside it there. Its operator covers that and its own neighbours.
+    func testTheOperatorOfARowCoversWhatIsBesideItAndBesideTheRow() throws {
+        let strut = "<mspace width=\"1em\" height=\"3em\" depth=\"2em\"/>", short = "<mspace width=\"1em\" height=\"1em\"/>"
+        let alone = try XCTUnwrap(try inks("<mo>|</mo>\(strut)")[.black])
+        for body in ["<mrow><mo>|</mo>\(short)</mrow>\(strut)", "<mrow><mo>|</mo>\(strut)</mrow>\(short)", "<mrow><mo>|</mo>\(strut)</mrow>\(strut)",
+                     "<mrow><mo>|</mo>\(short)</mrow><mfrac mathcolor=\"red\"><mi>a</mi><mi>b</mi></mfrac>\(strut)"] {
+            let ink = try XCTUnwrap(try inks(body)[.black], body)
+            XCTAssertEqual(ink.height, alone.height, accuracy: 0.5, body)
+            XCTAssertEqual(ink.midY, alone.midY, accuracy: 0.5, body)
+        }
+        // And no more than those: beside nothing taller, the short strut is all there is to cover.
+        let low = try XCTUnwrap(try inks("<mo>|</mo>\(short)")[.black])
+        XCTAssertLessThan(low.height, alone.height / 2)
+        XCTAssertEqual(try XCTUnwrap(try inks("<mrow><mo>|</mo>\(short)</mrow><mi mathcolor=\"red\">x</mi>")[.black]).height, low.height, accuracy: 0.5)
+    }
+
+    /// MathML Core 3.3.1.2 and 3.2.4.3, checked by WPT operators/mo-minsize-maxsize-001: stretchy
+    /// operators with nothing to cover stretch to a size of zero, which a `minsize` raises, half
+    /// each side of the axis. MathML 3 (3.2.5.8.4) would leave them at their natural size, and
+    /// with it TeX's `\big(`, which converters write as an `mo` whose two sizes are both 1.2em.
+    func testMinsizeSizesAnOperatorWithNothingToCover() throws {
+        let axis = constant(\.axisHeight)
+        let natural = try XCTUnwrap(try innerBox(math(mo("("))).inkBounds)
+        func ink(_ body: String) throws -> CGRect { try XCTUnwrap(try inks(body)[.red], body) }
+        let sized = "<mo mathcolor=\"red\" minsize=\"3em\">(</mo>"
+        let beside = try ink("\(sized)<mi>x</mi>")
+        XCTAssertGreaterThanOrEqual(beside.height, 3 * em - 1)
+        for body in [sized, "<mrow>\(sized)</mrow>", "<mrow><mstyle>\(sized)</mstyle></mrow>", "\(sized)<mo mathcolor=\"red\" minsize=\"3em\">)</mo>",
+                     "\(sized)<mspace width=\"1em\"/>", "<mtext>&#xA0;</mtext>\(sized)", "<msqrt>\(sized)</msqrt>", "<menclose notation=\"box\">\(sized)</menclose>",
+                     "<mtable><mtr><mtd>\(sized)</mtd></mtr></mtable>", "<msup>\(sized)<mn>2</mn></msup>"] {
+            let found = try ink(body)
+            XCTAssertEqual(found.height, beside.height, accuracy: 0.5, "\(body): as tall as beside an identifier")
+            XCTAssertEqual(found.midY, axis, accuracy: 1, "\(body): half above the axis and half below")
+        }
+        // An operator that is not symmetric has nothing but the axis to be centred on either.
+        let lopsided = "<mo mathcolor=\"red\" minsize=\"3em\" symmetric=\"false\">|</mo>"
+        for body in [lopsided, "<mo mathcolor=\"red\" minsize=\"3em\">↑</mo>", "\(lopsided)<mspace width=\"1em\"/>", "\(lopsided)<mspace width=\"1em\"/>\(lopsided)"] {
+            let found = try ink(body)
+            XCTAssertGreaterThanOrEqual(found.height, 3 * em - 1, body)
+            XCTAssertEqual(found.midY, axis, accuracy: 1, body)
+        }
+        // A bare number or a percentage is still of the natural size, and maxsize still bounds.
+        XCTAssertGreaterThanOrEqual(try ink("<mo mathcolor=\"red\" minsize=\"2\">(</mo>").height, 2 * natural.height - 1)
+        XCTAssertGreaterThanOrEqual(try ink("<mo mathcolor=\"red\" minsize=\"300%\">(</mo>").height, 3 * natural.height - 1)
+        XCTAssertEqual(try ink("<mo mathcolor=\"red\" maxsize=\"3em\">(</mo>").height, natural.height, accuracy: 0.5, "a maxsize alone asks for nothing")
+        // TeX's \big( and \Bigg(: the same alone as in a row with something in it.
+        for size in ["1.2em", "3em"] {
+            let big = "<mo mathcolor=\"red\" minsize=\"\(size)\" maxsize=\"\(size)\">(</mo>"
+            let alone = try ink(big), inRow = try ink("<mi>f</mi>\(big)<mi>x</mi>")
+            XCTAssertGreaterThan(alone.height, natural.height + 2, size)
+            XCTAssertEqual(alone.height, inRow.height, accuracy: 0.5, size)
+            XCTAssertEqual(alone.midY, inRow.midY, accuracy: 0.5, size)
+        }
+        // Only a row gives an operator a size to stretch to: a denominator has none, and no minsize.
+        XCTAssertEqual(try ink("<mfrac><mi>x</mi>\(sized)</mfrac>").height, try ink("<mfrac><mi>x</mi><mo mathcolor=\"red\">(</mo></mfrac>").height, accuracy: 0.5)
     }
 
     func testAnEmbellishedFenceStretchesWithItsScript() throws {
@@ -410,5 +477,75 @@ final class OperatorTests: XCTestCase {
         XCTAssertTrue(engine.isSpaceLike(space)); XCTAssertTrue(engine.isSpaceLike(text))
         XCTAssertTrue(engine.isSpaceLike(element("maction", space, a)), "an maction is as space-like as its first child")
         for node in [a, plus, element("mfrac", space, space), element("msqrt", space)] { XCTAssertFalse(engine.isSpaceLike(node), node.name) }
+    }
+
+    /// An `maction` stands for the child `selection` names and a `semantics` for its first child
+    /// that is not an annotation: the child that is drawn. What looks ahead of layout takes the
+    /// same child, or an operator that is drawn would not be spaced or stretched as one.
+    func testAnActionAndSemanticsAreWhatTheChildThatIsDrawnIs() throws {
+        let engine = LayoutEngine(fontName: nil)
+        let plus = mo("+"), space = MathMLNode(name: "mspace"), note = MathMLNode(name: "annotation", text: "+")
+        func action(_ selection: String?, _ children: MathMLNode...) -> MathMLNode {
+            MathMLNode(name: "maction", attributes: selection.map { ["selection": $0] } ?? [:], children: children)
+        }
+        func semantics(_ children: MathMLNode...) -> MathMLNode { MathMLNode(name: "semantics", children: children) }
+        XCTAssertEqual(engine.embellishedCore(action("2", a, plus)), plus)
+        XCTAssertNil(engine.embellishedCore(action("2", plus, a)))
+        XCTAssertEqual(engine.embellishedCore(action("9", plus, a)), plus, "a selection that names no child is the first")
+        XCTAssertEqual(engine.embellishedCore(semantics(note, plus, a)), plus)
+        XCTAssertNil(engine.embellishedCore(semantics(note)))
+        XCTAssertEqual(engine.embellishedCore(action("2", a, semantics(note, MathMLNode(name: "msup", children: [plus, b])))), plus, "nested")
+        XCTAssertTrue(engine.isSpaceLike(action("2", a, space))); XCTAssertFalse(engine.isSpaceLike(action("2", space, a)))
+        XCTAssertTrue(engine.isSpaceLike(semantics(note, space, a))); XCTAssertFalse(engine.isSpaceLike(semantics(note)))
+        XCTAssertFalse(engine.isSpaceLike(action(nil)))
+        // One list of children under two actions that show different ones: neither answer is the list's.
+        let shared = [space, a]
+        for _ in 1...2 {
+            XCTAssertTrue(engine.isSpaceLike(MathMLNode(name: "maction", children: shared)))
+            XCTAssertFalse(engine.isSpaceLike(MathMLNode(name: "maction", attributes: ["selection": "2"], children: shared)))
+        }
+        // Laid out, the operator that is drawn is spaced and stretched as it is when written plainly.
+        let tall = "<mfrac><mfrac><mi>a</mi><mi>b</mi></mfrac><mi>c</mi></mfrac>"
+        let plain = try innerBox("<mo>(</mo>\(tall)<mo>)</mo>", display: true)
+        for wrapped in ["<maction selection='2'><mi>a</mi><mo>(</mo></maction>", "<semantics><annotation>(</annotation><mo>(</mo></semantics>"] {
+            let box = try innerBox("\(wrapped)\(tall)<mo>)</mo>", display: true)
+            XCTAssertEqual(box.width, plain.width, accuracy: 0.01, wrapped); XCTAssertEqual(box.ascent, plain.ascent, accuracy: 0.01, wrapped)
+            XCTAssertEqual(box.descent, plain.descent, accuracy: 0.01, wrapped)
+        }
+        try assertSpacing([a, action("2", b, mo("=")), b], 10, "an operator an maction shows keeps its spacing")
+    }
+
+    /// What a list of children is found to be is kept by the list, so that no row reads it again.
+    /// It is what the list is, not what any element that has it is, and it is the list's alone.
+    func testWhatIsKeptOfAListOfChildrenIsTheListsOwn() {
+        let engine = LayoutEngine(fontName: nil)
+        let plus = mo("+"), space = MathMLNode(name: "mspace"), text = MathMLNode(name: "mtext", text: "t")
+        // One list under several elements, asked twice: the second answers are the kept ones.
+        let shared = [space, text]
+        for pass in 1...2 {
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mrow", children: shared)), true, "pass \(pass)")
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mphantom", children: shared)), false, "pass \(pass): what a phantom hides says nothing")
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "maction", children: shared)), false, "pass \(pass): its first child alone")
+            XCTAssertNil(engine.spaceLike(MathMLNode(name: "mfrac", children: shared)), "pass \(pass)")
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mrow", children: [MathMLNode(name: "mphantom", children: shared), space])), false, "pass \(pass)")
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mrow", children: [MathMLNode(name: "mphantom", children: shared), MathMLNode(name: "mstyle", children: shared)])), true,
+                           "pass \(pass)")
+            XCTAssertNil(engine.embellishedCore(MathMLNode(name: "mrow", children: shared)), "pass \(pass)")
+            XCTAssertEqual(engine.embellishedCore(MathMLNode(name: "mrow", children: [MathMLNode(name: "mpadded", children: shared), plus, MathMLNode(name: "mrow", children: shared)])),
+                           plus, "pass \(pass)")
+        }
+        // Lists that come and go, each likely to be given the storage of the one before: every one
+        // is what it is itself.
+        for index in 0..<600 {
+            let children = [[space, plus], [space, text], [space, space], [a, plus]][index % 4]
+            let row = MathMLNode(name: "mrow", children: children.map { MathMLNode(name: $0.name, text: $0.text) })
+            XCTAssertEqual(engine.spaceLike(row), [nil, true, false, nil][index % 4], "\(index)")
+            XCTAssertEqual(engine.embellishedCore(row), index % 4 == 0 ? plus : nil, "\(index)")
+        }
+        // The look-ahead says what a subtree is however deep it is. Layout is what refuses one too deep.
+        let deep = (0..<200).reduce(text) { inner, _ in MathMLNode(name: "mrow", children: [space, inner]) }
+        XCTAssertEqual(engine.spaceLike(deep), true)
+        XCTAssertNil(engine.spaceLike((0..<200).reduce(a) { inner, _ in MathMLNode(name: "mrow", children: [space, inner]) }))
+        XCTAssertThrowsError(try innerBox(math(deep))) { XCTAssertEqual($0 as? MathLayoutError, .limitExceeded) }
     }
 }

@@ -30,6 +30,17 @@ final class GlyphTests: MathTestCase {
         return context.makeImage()!
     }
 
+    /// An image mask: a shape with no color of its own, which CoreGraphics fills with the context's.
+    /// Its left half is painted and its right half is not.
+    private func mask(_ width: Int, _ height: Int) -> CGImage {
+        var samples = [UInt8](repeating: 255, count: width * height)
+        for row in 0..<height {
+            for column in 0..<width / 2 { samples[row * width + column] = 0 }
+        }
+        return CGImage(maskWidth: width, height: height, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: width,
+                       provider: CGDataProvider(data: Data(samples) as CFData)!, decode: nil, shouldInterpolate: false)!
+    }
+
     private func provider(_ images: [String: CGImage]) -> MathImageProvider { MathImageProvider { images[$0] } }
 
     private func layout(_ body: String, images: MathImageProvider?, size: CGFloat = 20) throws -> MathLayout {
@@ -53,8 +64,19 @@ final class GlyphTests: MathTestCase {
     private func imageRects(_ box: MathBox, at origin: CGPoint = .zero) -> [CGRect] {
         box.items.flatMap { item -> [CGRect] in
             switch item {
-            case .image(_, let rect): [rect.offsetBy(dx: origin.x, dy: origin.y)]
+            case .image(_, let rect, _): [rect.offsetBy(dx: origin.x, dy: origin.y)]
             case .box(let inner, let point): imageRects(inner, at: CGPoint(x: origin.x + point.x, y: origin.y + point.y))
+            default: []
+            }
+        }
+    }
+
+    /// The rectangles `box` fills, which are its backgrounds, relative to its baseline origin, in drawing order.
+    private func fills(_ box: MathBox, at origin: CGPoint = .zero) -> [(rect: CGRect, color: CGColor)] {
+        box.items.flatMap { item -> [(rect: CGRect, color: CGColor)] in
+            switch item {
+            case .rect(let rect, let color): [(rect.offsetBy(dx: origin.x, dy: origin.y), color)]
+            case .box(let inner, let point): fills(inner, at: CGPoint(x: origin.x + point.x, y: origin.y + point.y))
             default: []
             }
         }
@@ -190,9 +212,18 @@ final class GlyphTests: MathTestCase {
         try assertBox(#"valign="-0.5em""#, width: 30, ascent: 10, descent: 10)
         try assertBox(#"valign="-0.5em""#, width: 30, ascent: 0, descent: 20, size: 40)
         try assertBox(#"width="12px" height="50px" valign="-20px""#, width: 12, ascent: 30, descent: 20)
-        // Its default is zero, and a percentage or a multiple of zero is zero (MathML 3, 2.1.5.2).
+        // Its default is zero, and a percentage or a multiple of zero is zero (MathML 3, 2.1.5.2: "unless
+        // otherwise stated, the reference value is the default value", which 3.2.1.2.2 gives as 0ex).
+        // So it is of nothing else: not of the image's height, of the line's, or of an em.
         try assertBox(#"valign="-25%""#, width: 30, ascent: 20)
         try assertBox(#"valign="3""#, width: 30, ascent: 20)
+        try assertBox(#"valign="150%""#, width: 30, ascent: 20)
+        try assertBox(#"valign="-0.5""#, width: 30, ascent: 20)
+        try assertBox(#"height="40px" valign="50%""#, width: 60, ascent: 40)
+        // Zero with any unit or none comes to the same.
+        try assertBox(#"valign="0""#, width: 30, ascent: 20)
+        try assertBox(#"valign="0%""#, width: 30, ascent: 20)
+        try assertBox(#"valign="0ex""#, width: 30, ascent: 20)
 
         // A script's glyph is sized by the script's em; an unsized image does not shrink.
         let script = try box(#"<msup><mi>x</mi><mi><mglyph src="g" alt="g" width="1em"/></mi></msup>"#, images: images)
@@ -289,6 +320,123 @@ final class GlyphTests: MathTestCase {
         XCTAssertNil(ink(try layout(#"<mi><mglyph src="clear" alt="c"/></mi>"#, images: images)))
     }
 
+    /// An image mask is drawn in its token's color, as the text beside it is: `mathcolor` is "the
+    /// foreground color to use when drawing ... the content for token elements" (MathML 3, 3.1.10).
+    func testAnImageMaskIsDrawnInItsTokensColor() throws {
+        let images = provider(["m": mask(10, 10), "g": quarters(10, 10)])
+        XCTAssertTrue(mask(10, 10).isMask)
+        let clear: [UInt8] = [0, 0, 0, 0]
+        /// The color where the mask paints and where it does not.
+        func halves(_ body: String, _ message: String = "") throws -> (painted: [UInt8], unpainted: [UInt8]) {
+            let x = try XCTUnwrap(imageRects(try box(body, images: images)).first?.minX, message)
+            let pixel = render(try layout(body, images: images))
+            return (pixel(x + 2.5, 5), pixel(x + 7.5, 5))
+        }
+        let glyph = #"<mglyph src="m" alt="m"/>"#
+        // The style's color, with nothing to say otherwise.
+        var drawn = try halves("<mi>\(glyph)</mi>")
+        assertColor(drawn.painted, opaqueBlack)
+        assertColor(drawn.unpainted, clear)
+        // Its token's mathcolor, in a token of any kind, and at row level the color of what it stands in.
+        for body in [##"<mi mathcolor="#ff0000">\##(glyph)</mi>"##, ##"<mo mathcolor="#ff0000">\##(glyph)</mo>"##,
+                     ##"<mtext mathcolor="#ff0000">a\##(glyph)b</mtext>"##, ##"<mstyle mathcolor="#ff0000">\##(glyph)</mstyle>"##] {
+            drawn = try halves(body, body)
+            assertColor(drawn.painted, red, body)
+            assertColor(drawn.unpainted, clear, body)
+        }
+        // Not the color of what happened to be drawn before it: other text, or its own background.
+        drawn = try halves(##"<mtext mathcolor="#0000ff">x</mtext><mtext mathcolor="#ff0000">\##(glyph)</mtext>"##)
+        assertColor(drawn.painted, red, "after blue text")
+        drawn = try halves(##"<mi mathcolor="#ff0000"><mglyph src="m" alt="m" mathbackground="#0000ff"/></mi>"##)
+        assertColor(drawn.painted, red, "on its background")
+        assertColor(drawn.unpainted, blue, "its background")
+        drawn = try halves(##"<mrow mathbackground="#00ff00"><mi>\##(glyph)</mi></mrow>"##)
+        assertColor(drawn.painted, opaqueBlack, "on a row's background")
+        // Nor its own mathcolor, which "has no effect" (3.2.1.2.2).
+        drawn = try halves(##"<mi mathcolor="#ff0000"><mglyph src="m" alt="m" mathcolor="#0000ff"/></mi>"##)
+        assertColor(drawn.painted, red, "its own mathcolor")
+        // An image with colors of its own keeps them, whatever its token's.
+        let pixel = render(try layout(##"<mi mathcolor="#ff0000"><mglyph src="g" alt="g"/></mi>"##, images: images))
+        assertColor(pixel(7.5, 7.5), green, "top right")
+        assertColor(pixel(2.5, 2.5), blue, "bottom left")
+        assertColor(pixel(7.5, 2.5), opaqueBlack, "bottom right")
+    }
+
+    /// MathML 3, 3.1.10: `mathbackground` fills "the bounding box of the element". Without its
+    /// image that is the box of the `alt` drawn for it.
+    func testBackgroundIsPaintedBehindTheAltText() throws {
+        let half = CGColor(srgbRed: 1, green: 0, blue: 0, alpha: 128.0 / 255)
+        let glyph = ##"<mglyph src="s" alt="L" mathbackground="#ff000080"/>"##
+        let alt = try box("<mtext>L</mtext>", images: nil)
+        // In a token, in an operator, and at row level where the element itself must not paint it a second time.
+        for body in ["<mi>\(glyph)</mi>", "<mo>\(glyph)</mo>", glyph] {
+            for images in [nil, MathImageProvider { _ in nil }] {
+                let fallback = try box(body, images: images)
+                XCTAssertEqual(fallback.width, alt.width, body)
+                XCTAssertEqual(fills(fallback).map(\.color), [half], body)
+                assertRect(fills(fallback).first?.rect, CGRect(x: 0, y: -alt.descent, width: alt.width, height: alt.height))
+                let drawn = try layout(body, images: images)
+                let pixel = render(drawn)
+                // An L leaves the top right of its box empty, and nothing is painted above the box.
+                assertColor(pixel(alt.width - 1.5, alt.ascent - 1.5), [128, 0, 0, 128], body)
+                assertColor(pixel(alt.width - 1.5, alt.ascent + 1.5), [0, 0, 0, 0], body)
+                // The letter is drawn over the background, not under it.
+                let row = stride(from: CGFloat(0.5), to: alt.width, by: 1).map { pixel($0, alt.ascent / 2) }
+                XCTAssertTrue(row.contains { $0[0] < 64 && $0[3] > 200 }, body)
+            }
+        }
+        XCTAssertTrue(fills(try box(#"<mi><mglyph src="s" alt="L"/></mi>"#, images: nil)).isEmpty)
+
+        // Among text, behind the alt alone, and the text keeps its place.
+        func part(_ body: String) throws -> MathBox { try box(body, images: nil) }
+        let a = try part("<mtext>a</mtext>"), braid = try part("<mtext>braid</mtext>"), b = try part("<mtext>b</mtext>")
+        let among = try part(##"<mtext>a<mglyph src="s" alt="braid" mathbackground="#00ff00"/>b</mtext>"##)
+        XCTAssertEqual(among.width, a.width + braid.width + b.width, accuracy: 0.001)
+        XCTAssertEqual(fills(among).count, 1)
+        assertRect(fills(among).first?.rect, CGRect(x: a.width, y: -braid.descent, width: braid.width, height: braid.height))
+        XCTAssertEqual(glyphRuns(among).count, 3)
+        // Behind U+25AF when there is no alt.
+        let missing = try part("<mtext>\u{25AF}</mtext>")
+        for attributes in ["", #"alt="""#, #"alt="  ""#] {
+            let empty = try part("<mi><mglyph \(attributes) mathbackground=\"#00ff00\"/></mi>")
+            XCTAssertEqual(empty.width, missing.width, attributes)
+            assertRect(fills(empty).first?.rect, CGRect(x: 0, y: -missing.descent, width: missing.width, height: missing.height))
+        }
+        // The alt is still drawn as its token's text is: in its variant, size and color.
+        let styled = ##"<mtext mathvariant="bold" mathsize="2em" mathcolor="#0000ff">@</mtext>"##
+        let plain = try part(styled.replacingOccurrences(of: "@", with: "b"))
+        let onGreen = try part(styled.replacingOccurrences(of: "@", with: ##"<mglyph alt="b" mathbackground="#00ff00"/>"##))
+        XCTAssertEqual(onGreen.width, plain.width)
+        XCTAssertEqual(glyphRuns(onGreen).map(\.glyphs), glyphRuns(plain).map(\.glyphs))
+        XCTAssertEqual(glyphRuns(onGreen).map(\.color), [CGColor(srgbRed: 0, green: 0, blue: 1, alpha: 1)])
+        assertRect(fills(onGreen).first?.rect, CGRect(x: 0, y: -plain.descent, width: plain.width, height: plain.height))
+        // The token's own background is behind all of it, and painted first.
+        let both = try part(##"<mtext mathbackground="#0000ff">a<mglyph alt="braid" mathbackground="#00ff00"/></mtext>"##)
+        XCTAssertEqual(fills(both).map(\.color), [CGColor(srgbRed: 0, green: 0, blue: 1, alpha: 1),
+                                                  CGColor(srgbRed: 0, green: 1, blue: 0, alpha: 1)])
+        XCTAssertEqual(fills(both).first?.rect.width ?? 0, a.width + braid.width, accuracy: 0.001)
+        XCTAssertEqual(fills(both).last?.rect.minX ?? 0, a.width, accuracy: 0.001)
+        // A color that does not parse is no background, nor is the default: the alt stays part of the text.
+        for color in ["greenish", "transparent", "#00ff0000"] {
+            let none = try part("<mtext>a<mglyph alt=\"braid\" mathbackground=\"\(color)\"/>b</mtext>")
+            XCTAssertTrue(fills(none).isEmpty, color)
+            XCTAssertEqual(glyphRuns(none).count, 1, color)
+            XCTAssertEqual(none.width, try part("<mtext>abraidb</mtext>").width, color)
+        }
+
+        // An alt on a background counts against the text bound like any other, across tokens.
+        func long(_ units: Int) -> MathMLNode {
+            MathMLNode(name: "mi", children: [MathMLNode(name: "mglyph", attributes: [
+                "alt": String(repeating: "a", count: units), "mathbackground": "red",
+            ])])
+        }
+        XCTAssertNoThrow(try box(MathMLNode(name: "mrow", children: [long(100), long(100)]), images: nil))
+        let each = MathLimits.textLength / 2 + 1
+        XCTAssertThrowsError(try box(MathMLNode(name: "mrow", children: [long(each), long(each)]), images: nil)) {
+            XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+        }
+    }
+
     // MARK: The provider
 
     func testProviderIsAskedOncePerSource() throws {
@@ -382,6 +530,45 @@ final class GlyphTests: MathTestCase {
         let some = provider(["s": quarters(4, 4)])
         XCTAssertEqual(try layout(#"<mi><mglyph fontfamily="my-braid-font" index="2" alt="23braid"/></mi>"#, images: some).width,
                        try width("<mtext>23braid</mtext>"))
+    }
+
+    /// MathML 3, 3.2.1.2.2: on an `mglyph` "mathcolor has no effect". 3.2.1.2.4: the `mathvariant`
+    /// and `mathsize` that MathML 2 let it carry "have no effect in any case". It is styled by where
+    /// it stands, as a character is.
+    func testStyleAttributesOnTheGlyphItselfHaveNoEffect() throws {
+        let images = provider(["g": quarters(30, 20)])
+        func glyph(_ attributes: String) -> String { "<mglyph src=\"g\" alt=\"b\" width=\"1em\" \(attributes)/>" }
+        // In a token, in an operator, and at row level, where the glyph is laid out in its parent's style.
+        let places: [(String) -> String] = [{ "<mi>\($0)</mi>" }, { "<mo>\($0)</mo>" }, { $0 }, { "<mrow><mi>a</mi>\($0)</mrow>" }]
+        // MathML 3's names, and the deprecated ones that say the same on other elements.
+        for style in [##"mathcolor="#0000ff" mathsize="3em" mathvariant="bold""##,
+                      ##"color="#0000ff" fontsize="3em" fontweight="bold" fontstyle="italic""##] {
+            for place in places {
+                // The image is an em of its token wide, not of its own mathsize.
+                let image = try box(place(glyph(style)), images: images)
+                XCTAssertEqual(imageRects(image), imageRects(try box(place(glyph("")), images: images)), place(style))
+                XCTAssertEqual(imageRects(image).first?.width, 20, place(style))
+                // The alt is the same letter, as large and of the same color as without them.
+                let styled = try box(place(glyph(style)), images: nil), plain = try box(place(glyph("")), images: nil)
+                XCTAssertEqual(styled.width, plain.width, place(style))
+                XCTAssertEqual(styled.ascent, plain.ascent, place(style))
+                XCTAssertEqual(glyphRuns(styled).map(\.glyphs), glyphRuns(plain).map(\.glyphs), place(style))
+                XCTAssertEqual(Set(glyphRuns(styled).map(\.color)), [black], place(style))
+                XCTAssertTrue(fills(styled).isEmpty, place(style))
+            }
+        }
+        // The same attributes where it stands do style it: on its token, or around it at row level.
+        let outer = ##"mathcolor="#ff0000" mathsize="2em" mathvariant="bold""##
+        let inner = glyph(##"mathcolor="#0000ff" mathsize="3em" mathvariant="italic""##)
+        let bold = try box("<mtext \(outer)>b</mtext>", images: nil)
+        XCTAssertNotEqual(bold.width, try box("<mtext>b</mtext>", images: nil).width)
+        for body in ["<mtext \(outer)>\(inner)</mtext>", "<mstyle \(outer)>\(inner)</mstyle>"] {
+            let alt = try box(body, images: nil)
+            XCTAssertEqual(alt.width, bold.width, body)
+            XCTAssertEqual(glyphRuns(alt).map(\.glyphs), glyphRuns(bold).map(\.glyphs), body)
+            XCTAssertEqual(glyphRuns(alt).map(\.color), [CGColor(srgbRed: 1, green: 0, blue: 0, alpha: 1)], body)
+            XCTAssertEqual(imageRects(try box(body, images: images)).first?.width, 40, body)
+        }
     }
 
     func testGlyphWithoutAltDrawsAWhiteRectangle() throws {
@@ -537,6 +724,40 @@ final class GlyphTests: MathTestCase {
         XCTAssertNotNil(engine.embellishedCore(try node("<mo>\(sized)</mo>").children[0]))
     }
 
+    /// An `mo`'s hyphen-minus is drawn as the minus sign, and its apostrophe as the prime
+    /// (`operatorText`): beside an `mglyph` as alone.
+    func testAnOperatorsTextIsDrawnTheSameBesideAGlyph() throws {
+        let images = provider(["g": quarters(10, 10)])
+        let glyph = #"<mglyph src="g" alt="g"/>"#
+        func glyphs(_ box: MathBox) -> [[CGGlyph]] { glyphRuns(box).map(\.glyphs) }
+        func text(_ string: String) throws -> MathBox { try box("<mtext>\(string)</mtext>", images: nil) }
+        for (typed, drawn) in [("-", "\u{2212}"), ("'", "\u{2032}")] {
+            let expected = try text(drawn)
+            XCTAssertNotEqual(glyphs(expected), glyphs(try text(typed)), "the font has both")
+            // Before the glyph and after it, indented, and in a tree a host built without markers.
+            let operators = [
+                try node("<mo>\(typed)\(glyph)</mo>"), try node("<mo>\(glyph)\(typed)</mo>"), try node("<mo>\n  \(typed)\(glyph)\n</mo>"),
+                MathMLNode(name: "mo", children: [MathMLNode(name: "mglyph", attributes: ["src": "g", "alt": "g"])], text: typed),
+            ]
+            for (index, node) in operators.enumerated() {
+                let beside = try box(node, images: images)
+                XCTAssertEqual(glyphs(beside), glyphs(expected), "\(typed) \(index)")
+                XCTAssertEqual(beside.width, expected.width + 10, accuracy: 0.001, "\(typed) \(index)")
+                XCTAssertEqual(imageRects(beside).map(\.minX), [index == 1 ? 0 : expected.width], "\(typed) \(index)")
+            }
+            // Beside an alt it is the same, and the alt is drawn as written: it names no operator.
+            XCTAssertEqual(glyphs(try box(#"<mo>\#(typed)<mglyph src="s" alt="\#(typed)"/></mo>"#, images: nil)), glyphs(try text(drawn + typed)))
+            XCTAssertEqual(glyphs(try box(#"<mo><mglyph src="s" alt="\#(typed)"/></mo>"#, images: nil)), glyphs(try text(typed)))
+            // More than the one character is no minus sign or prime, with a glyph or without.
+            XCTAssertEqual(glyphs(try box("<mo>\(typed)\(typed)\(glyph)</mo>", images: images)), glyphs(try text(typed + typed)))
+        }
+        // It was the minus sign to the dictionary all along.
+        let minus = try box("<mi>a</mi><mo>-\(glyph)</mo><mi>b</mi>", images: images)
+        let operands = try box("<mi>a</mi>", images: nil).width + box("<mi>b</mi>", images: nil).width
+        XCTAssertEqual(minus.width, operands + (try text("\u{2212}").width) + 10 + 2 * 20 * 4 / 18, accuracy: 0.001)
+        XCTAssertEqual(try box("<mo>-\(glyph)</mo>", images: images).op?.isBinary, true)
+    }
+
     func testRowLevelGlyphIsLaidOutAsText() throws {
         let images = provider(["g": quarters(10, 10)])
         let glyph = #"<mglyph src="g" alt="braid" width="12px" height="8px" valign="-2px"/>"#
@@ -571,6 +792,93 @@ final class GlyphTests: MathTestCase {
 
     // MARK: Bounds
 
+    /// A glyph larger than the extent bound is scaled down whole: its longer side is the bound, and
+    /// it keeps the shape its image or its author gave it.
+    func testAGlyphScaledToTheExtentBoundKeepsItsShape() throws {
+        let extent = MathLimits.extent
+        let images = provider(["g": quarters(30, 20), "wide": bitmap(60_000, 1).makeImage()!,
+                               "tall": bitmap(1, 60_000).makeImage()!])
+        // At 100 points a length is at most 1000em, twice the bound, and 500em is the bound itself.
+        func glyph(_ attributes: String) throws -> MathBox {
+            try box("<mi><mglyph alt=\"g\" \(attributes)/></mi>", images: images, size: 100)
+        }
+        // Each with its shape, width over height.
+        let scaled: [(String, CGFloat)] = [
+            // One length: the image's own shape.
+            (#"src="g" width="99999em""#, 1.5), (#"src="g" height="99999em""#, 1.5), (#"src="wide" height="100px""#, 60_000),
+            (#"src="tall" width="300%""#, 1.0 / 60_000),
+            // Neither: the same, from an image larger than the bound.
+            (#"src="wide""#, 60_000), (#"src="tall""#, 1.0 / 60_000),
+            // Both: the shape its author asked for, whatever the image's.
+            (#"src="g" width="99999em" height="500em""#, 2), (#"src="g" width="250em" height="99999em""#, 0.25),
+            (#"src="g" width="1px" height="99999em""#, 1.0 / 100_000), (#"src="g" width="99999em" height="99999em""#, 1),
+        ]
+        for (attributes, shape) in scaled {
+            let box = try glyph(attributes)
+            let rect = try XCTUnwrap(imageRects(box).first, attributes)
+            XCTAssertEqual(max(rect.width, rect.height), extent, attributes)
+            XCTAssertEqual(rect.width / rect.height / shape, 1, accuracy: 1e-9, attributes)
+            XCTAssertEqual([box.width, box.ascent, box.descent], [rect.width, rect.height, 0], attributes)
+        }
+        // valign moves what is left of it, and no further than the bound.
+        let lowered = try glyph(#"src="g" width="99999em" valign="-100em""#)
+        XCTAssertEqual(lowered.width, extent)
+        XCTAssertEqual(lowered.ascent, extent * 2 / 3 - 10_000, accuracy: 0.001)
+        XCTAssertEqual(lowered.descent, 10_000)
+        let raised = try glyph(#"src="wide" valign="99999em""#)
+        XCTAssertEqual([raised.width, raised.ascent], [extent, extent])
+        XCTAssertEqual(raised.descent, extent / 60_000 - extent, accuracy: 0.001)
+        // At the bound or inside it nothing is scaled.
+        for (attributes, size) in [(#"src="g" width="500em" height="1px""#, CGSize(width: extent, height: 1)),
+                                   (#"src="g" width="2px" height="500em""#, CGSize(width: 2, height: extent)),
+                                   (#"src="g" width="500em" height="500em""#, CGSize(width: extent, height: extent)),
+                                   (#"src="g" height="300em""#, CGSize(width: 45_000, height: 30_000))] {
+            XCTAssertEqual(imageRects(try glyph(attributes)).first?.size, size, attributes)
+        }
+        // The drawing agrees: scaled whole, each quarter of the image is still a quarter of the box.
+        let drawn = try layout(#"<mi><mglyph src="g" alt="g" width="99999em"/></mi>"#, images: images, size: 100)
+        XCTAssertEqual(drawn.width, extent)
+        XCTAssertEqual(drawn.ascent, extent * 2 / 3, accuracy: 0.001)
+        // Drawn at a thousandth, so that 50,000 by 33,333 points are 50 by 33.3 pixels, 5 from the corner.
+        let side = 60
+        let context = bitmap(side, side)
+        context.scaleBy(x: 0.001, y: 0.001)
+        drawn.draw(in: context, baselineOrigin: CGPoint(x: 5_000, y: 5_000))
+        let pixels = context.data!.bindMemory(to: UInt8.self, capacity: side * side * 4)
+        func pixel(_ x: Int, _ y: Int) -> [UInt8] { (0..<4).map { pixels[((side - 1 - (5 + y)) * side + 5 + x) * 4 + $0] } }
+        assertColor(pixel(12, 25), red, "top left")
+        assertColor(pixel(37, 25), green, "top right")
+        assertColor(pixel(12, 8), blue, "bottom left")
+        assertColor(pixel(37, 8), opaqueBlack, "bottom right")
+        assertColor(pixel(25, 42), [0, 0, 0, 0], "above it, where a height of the bound would reach")
+    }
+
+    /// README: "A formula … larger than 20,000 nodes … throws `MathLayoutError.limitExceeded`."
+    /// A row-level `mglyph` is one of them, like the `mtext` it is laid out as.
+    func testRowLevelGlyphCountsAsOneNode() throws {
+        let images = provider(["g": quarters(2, 2)])
+        // The root and its children: `nodes` in all.
+        func row(_ nodes: Int, of child: MathMLNode) -> MathMLNode {
+            MathMLNode(name: "math", children: Array(repeating: child, count: nodes - 1))
+        }
+        let glyph = MathMLNode(name: "mglyph", attributes: ["src": "g", "alt": "g"])
+        let text = MathMLNode(name: "mtext", children: [glyph])
+        for provider in [images, nil] {
+            for child in [glyph, text] {
+                XCTAssertNoThrow(try box(row(MathLimits.nodes, of: child), images: provider, size: 1), child.name)
+                XCTAssertThrowsError(try box(row(MathLimits.nodes + 1, of: child), images: provider, size: 1), child.name) {
+                    XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+                }
+            }
+        }
+        // Once in a row of its own too: the root, and two nodes for each of these.
+        let nested = MathMLNode(name: "mrow", children: [glyph])
+        XCTAssertNoThrow(try box(row(MathLimits.nodes / 2, of: nested), images: nil, size: 1))
+        XCTAssertThrowsError(try box(row(MathLimits.nodes / 2 + 2, of: nested), images: nil, size: 1)) {
+            XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+        }
+    }
+
     func testHostileGlyphSizesAreBounded() throws {
         let extent = MathLimits.extent
         let images = provider(["g": quarters(30, 20), "wide": bitmap(60_000, 1).makeImage()!,
@@ -581,10 +889,14 @@ final class GlyphTests: MathTestCase {
         // Lengths: a thousand ems at 100 points is twice the bound.
         var result = try glyph(#"src="g" width="99999em" height="99999em""#)
         XCTAssertEqual([result.width, result.ascent, result.descent], [extent, extent, 0])
+        // Past the bound a glyph is scaled down whole (testAGlyphScaledToTheExtentBoundKeepsItsShape),
+        // so the side that was within it is smaller too.
         result = try glyph(#"src="g" width="99999em""#)
-        XCTAssertEqual([result.width, result.ascent], [extent, extent], "the height the aspect ratio asks for is bounded too")
+        XCTAssertEqual(result.width, extent)
+        XCTAssertEqual(result.ascent, extent * 2 / 3, accuracy: 0.001, "the height the aspect ratio asks for is bounded too")
         result = try glyph(#"src="g" height="99999em" width="1px""#)
-        XCTAssertEqual([result.width, result.ascent], [1, extent])
+        XCTAssertEqual(result.width, 0.5, accuracy: 0.001)
+        XCTAssertEqual(result.ascent, extent)
         // valign cannot push either extent past the bound.
         result = try glyph(#"src="g" valign="-99999em""#)
         XCTAssertEqual([result.width, result.ascent, result.descent], [30, 0, extent])
@@ -594,11 +906,14 @@ final class GlyphTests: MathTestCase {
         XCTAssertEqual([result.ascent, result.descent], [extent, 0])
         // Images: their own size, and what an aspect ratio makes of it.
         result = try glyph(#"src="wide""#)
-        XCTAssertEqual([result.width, result.ascent], [extent, 1])
+        XCTAssertEqual(result.width, extent)
+        XCTAssertEqual(result.ascent, extent / 60_000, accuracy: 0.001)
         result = try glyph(#"src="wide" height="100px""#)
-        XCTAssertEqual([result.width, result.ascent], [extent, 100])
+        XCTAssertEqual(result.width, extent)
+        XCTAssertEqual(result.ascent, extent / 60_000, accuracy: 0.001)
         result = try glyph(#"src="tall""#)
-        XCTAssertEqual([result.width, result.ascent], [1, extent])
+        XCTAssertEqual(result.width, extent / 60_000, accuracy: 0.001)
+        XCTAssertEqual(result.ascent, extent)
         result = try glyph(#"src="tall" width="50%" valign="-150em""#)
         XCTAssertEqual([result.width, result.ascent, result.descent], [0.5, 15_000, 15_000])
         // Together they exceed the formula's bound like anything else.

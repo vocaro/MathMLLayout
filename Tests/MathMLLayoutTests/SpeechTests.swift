@@ -300,6 +300,114 @@ final class SpeechTests: MathTestCase {
         XCTAssertEqual(Set(shared.keys).union(["en"]), Set(MathReading.languages))
     }
 
+    // MARK: maction and semantics
+
+    /// An `maction` and a `semantics` are read as the child that is drawn, in every language, and
+    /// nothing is said of their other children, which would each read as a fraction.
+    func testAnActionAndSemanticsAreReadAsTheChildThatIsDrawnInEachLanguage() throws {
+        let hidden = "<mfrac><mi>p</mi><mi>q</mi></mfrac>"
+        let annotations = "<annotation encoding=\"application/x-tex\">p/q</annotation>"
+            + "<annotation-xml encoding=\"MathML-Presentation\">\(hidden)</annotation-xml>"
+        for (body, readings) in Self.readings {
+            let wrapped = [
+                "<maction actiontype=\"toggle\" selection=\"2\">\(hidden)<mrow>\(body)</mrow>\(hidden)</maction>",
+                "<semantics>\(annotations)<mrow>\(body)</mrow>\(hidden)\(annotations)</semantics>",
+                "<semantics>\(annotations)<maction selection=\"3\">\(hidden)\(hidden)<mrow>\(body)</mrow></maction></semantics>",
+            ]
+            for (language, expected) in zip(MathReading.languages, readings) {
+                for markup in wrapped { XCTAssertEqual(try reading(markup, language), expected, "\(language): \(markup)") }
+            }
+        }
+    }
+
+    /// Which child that is, for every `selection` and wherever the annotations stand: the one
+    /// layout draws. The three children say different things and are of different widths, so the
+    /// reading and the width each name one of them, and it has to be the same one.
+    func testTheChildThatIsReadIsTheOneLayoutDraws() throws {
+        let parts = ["<mn>1</mn>", "<mn>22</mn>", "<mn>333</mn>"], said = ["1", "22", "333"], all = parts.joined()
+        let note = "<annotation encoding=\"TeX\">4444</annotation>"
+        let xml = "<annotation-xml encoding=\"MathML-Presentation\"><mn>55555</mn></annotation-xml>"
+        var cases: [(markup: String, shown: Int?)] = [("<maction>\(all)</maction>", 0), ("<maction selection=\"2\"/>", nil), ("<semantics/>", nil)]
+        // A `selection` that is no number, or that names no child, shows the first.
+        for (selection, shown) in [("1", 0), ("2", 1), ("3", 2), (" 2 ", 1), ("0", 0), ("4", 0), ("-1", 0), ("bogus", 0), ("", 0), ("99999999999999999999", 0),
+                                   ("9223372036854775807", 0), ("-9223372036854775808", 0)] {
+            cases.append(("<maction actiontype=\"toggle\" selection=\"\(selection)\">\(all)</maction>", shown))
+        }
+        cases += [
+            ("<semantics>\(all)</semantics>", 0), ("<semantics>\(parts[1])\(note)\(xml)</semantics>", 1), ("<semantics>\(note)\(xml)\(parts[2])</semantics>", 2),
+            ("<semantics>\(xml)\(parts[1])\(note)\(parts[2])</semantics>", 1),
+            // Only annotations: nothing is drawn, and nothing is said.
+            ("<semantics>\(note)</semantics>", nil), ("<semantics>\(note)\(xml)\(note)</semantics>", nil),
+            // One inside the other, each choosing its own child.
+            ("<maction selection=\"2\">\(parts[0])<semantics>\(note)<maction selection=\"3\">\(all)</maction>\(parts[1])</semantics></maction>", 2),
+            ("<semantics>\(xml)<maction selection=\"2\">\(parts[0])<semantics>\(note)\(parts[1])</semantics>\(parts[2])</maction>\(note)</semantics>", 1),
+            ("<semantics>\(note)<maction selection=\"9\"><semantics>\(xml)\(parts[2])</semantics>\(parts[0])</maction></semantics>", 2),
+            ("<maction selection=\"2\">\(parts[0])<semantics>\(note)\(xml)</semantics>\(parts[2])</maction>", nil),
+            // The first child that is no annotation stands for a `semantics` even when it shows nothing.
+            ("<semantics>\(note)<maction/>\(parts[0])</semantics>", nil),
+        ]
+        for (markup, shown) in cases {
+            XCTAssertEqual(try reading(markup, "en"), shown.map { said[$0] } ?? "", markup)
+            XCTAssertEqual(try layout(markup).width, try shown.map { try layout(parts[$0]).width } ?? 0, accuracy: 0.01, "drawn: \(markup)")
+        }
+        // A host's tree may keep the text of an annotation, which the parser drops. It is not read either.
+        let annotation = MathMLNode(name: "annotation", text: "x squared")
+        XCTAssertEqual(english(MathMLNode(name: "semantics", children: [annotation, token("mi", "y")])), "y")
+        XCTAssertEqual(english(MathMLNode(name: "semantics", children: [annotation])), "")
+    }
+
+    /// What encloses an `maction` or a `semantics` asks whether the child that is drawn is one
+    /// word, not whether the first child is: a fraction, a power and a root say where they end
+    /// only when it is not. Each formula reads as the one beside it, which is written without them.
+    func testAnActionOrSemanticsIsOneWordWhenTheChildThatIsDrawnIs() throws {
+        let sum = "<mrow><mi>a</mi><mo>+</mo><mi>b</mi></mrow>", note = "<annotation encoding=\"TeX\">a+b</annotation>"
+        /// A sum and a letter, of which `selection` shows one.
+        func action(_ selection: Int) -> String { "<maction selection=\"\(selection)\">\(sum)<mi>c</mi></maction>" }
+        let pairs = [
+            ("<mfrac>\(action(2))<semantics>\(note)<mi>b</mi></semantics></mfrac>", "<mfrac><mi>c</mi><mi>b</mi></mfrac>"),
+            ("<mfrac>\(action(1))<mi>c</mi></mfrac>", "<mfrac>\(sum)<mi>c</mi></mfrac>"),
+            ("<mfrac><mi>c</mi><semantics>\(note)\(sum)<mi>c</mi></semantics></mfrac>", "<mfrac><mi>c</mi>\(sum)</mfrac>"),
+            ("<msup><mi>x</mi>\(action(2))</msup>", "<msup><mi>x</mi><mi>c</mi></msup>"),
+            ("<msup><mi>x</mi>\(action(1))</msup>", "<msup><mi>x</mi>\(sum)</msup>"),
+            ("<msqrt>\(action(2))</msqrt>", "<msqrt><mi>c</mi></msqrt>"), ("<msqrt>\(action(1))</msqrt>", "<msqrt>\(sum)</msqrt>"),
+            // Through any number of them, and the rows and styles that hold one child.
+            ("<msqrt><mstyle><semantics>\(note)<mrow>\(action(2))</mrow></semantics></mstyle></msqrt>", "<msqrt><mi>c</mi></msqrt>"),
+            ("<msqrt><semantics>\(note)\(action(1))<mi>c</mi></semantics></msqrt>", "<msqrt>\(sum)</msqrt>"),
+        ]
+        for (wrapped, plain) in pairs {
+            for language in MathReading.languages {
+                XCTAssertEqual(try reading(wrapped, language), try reading(plain, language), "\(language): \(wrapped)")
+            }
+        }
+        XCTAssertEqual(try pairs.map { try reading($0.0, "en") }, [
+            "c over b", "start fraction a plus b over c end fraction", "start fraction c over a plus b end fraction", "x to the power of c",
+            "x to the power of a plus b end power", "the square root of c", "the square root of a plus b end root", "the square root of c",
+            "the square root of a plus b end root",
+        ])
+    }
+
+    /// Finding the child that is drawn goes no deeper than a reading does, in a tree a host built
+    /// deeper than the parser allows: every level here shows its second child.
+    func testNestedActionsAndSemanticsAreReadWithinTheDepthBound() {
+        let x = token("mi", "x"), other = token("mi", "y"), note = MathMLNode(name: "annotation", text: "note")
+        func nested(_ levels: Int) -> MathMLNode {
+            (0..<levels).reduce(x) { inner, level in
+                level.isMultiple(of: 2) ? MathMLNode(name: "maction", attributes: ["selection": "2"], children: [other, inner])
+                    : MathMLNode(name: "semantics", children: [note, inner, other])
+            }
+        }
+        let shallow = nested(MathLimits.depth - 4), deep = nested(10_000), nothing = MathMLNode(name: "mrow")
+        XCTAssertEqual(english(shallow), "x")
+        XCTAssertEqual(english(MathMLNode(name: "msqrt", children: [shallow])), "the square root of x")
+        XCTAssertEqual(english(MathMLNode(name: "mfrac", children: [shallow, shallow])), "x over x")
+        // Past the bound nothing is said, and what encloses it reads as it does around nothing.
+        XCTAssertEqual(english(deep), "")
+        for name in ["msqrt", "mfrac", "msup"] {
+            XCTAssertEqual(english(MathMLNode(name: name, children: [x, deep])), english(MathMLNode(name: name, children: [x, nothing])), name)
+            XCTAssertEqual(english(MathMLNode(name: name, children: [deep, x])), english(MathMLNode(name: name, children: [nothing, x])), name)
+        }
+    }
+
     // MARK: mglyph
 
     private func glyph(_ alt: String?) -> MathMLNode {

@@ -278,8 +278,9 @@ final class ElementaryMathTests: MathTestCase {
         XCTAssertGreaterThan(plus.advance, total[0].advance + 1)
         equal(total[2].origin.x - total[1].origin.x, total[1].origin.x - total[0].origin.x, "no gap after the hundreds")
         equal(plus.right, total[0].right, "a leading sign overflows to the left")
-        equal(sum.rules[0].rect.width, 3 * total[0].advance + 2 * (total[1].origin.x - total[0].right))
-        XCTAssertGreaterThan(sum.box.width, sum.rules[0].rect.width, "the box still covers the sign")
+        equal(sum.rules[0].rect.minX, plus.origin.x, "and the line under the sum starts under it")
+        equal(sum.rules[0].rect.maxX, total[2].right)
+        XCTAssertGreaterThan(sum.box.width, total[2].right - total[0].origin.x, "the box still covers the sign")
         try assertCoversInk(body)
         let trailing = try drawing("<mstack stackalign='right'><mn>123</mn><msrow><mn>456</mn><mo>+</mo></msrow></mstack>")
         let gap = try trailing.glyph("three").origin.x - trailing.glyph("two").right
@@ -444,6 +445,64 @@ final class ElementaryMathTests: MathTestCase {
         let double = try drawing("<mstack><mn>12</mn><msline/><msline/></mstack>")
         XCTAssertEqual(double.rules.count, 2)
         XCTAssertGreaterThan(double.rules[0].rect.minY - double.rules[1].rect.maxY, standard)
+    }
+
+    /// A line with no length spans the stack (3.6.7.2). The stack is as wide as its rows, so the
+    /// line goes on under a sign that overflows the first or the last column, as the line under
+    /// a sum does on paper.
+    func testALineAcrossTheStackReachesASignThatOverflows() throws {
+        func stack(_ line: String = "", sign: String = "<mo>+</mo>") throws -> Drawing {
+            let body = "<mstack><mn>99</mn><msrow>\(sign)<mn>11</mn></msrow><msline\(line)/><mn>110</mn></mstack>"
+            try assertCoversInk(body)
+            return try drawing(body)
+        }
+        // "+11" over "110": the plus shares the hundreds with a digit, and overflows them to the left.
+        let sum = try stack()
+        let plus = try sum.glyph("plus"), total = sum.row(2)
+        XCTAssertLessThan(plus.origin.x, total[0].origin.x - 1, "the sign does overflow")
+        equal(sum.rules[0].rect.minX, plus.origin.x); equal(sum.rules[0].rect.maxX, total[2].right)
+        equal(sum.rules[0].rect.minX, 0); equal(sum.rules[0].rect.width, sum.box.width)
+        // A trailing sign overflows to the right.
+        let trailing = try drawing("<mstack stackalign='right'><mn>123</mn><msrow><mn>456</mn><mo>+</mo></msrow><msline/><mn>579</mn></mstack>")
+        XCTAssertGreaterThan(try trailing.glyph("plus").right, try trailing.glyph("nine").right + 1)
+        equal(trailing.rules[0].rect.minX, try trailing.glyph("four").origin.x)
+        equal(trailing.rules[0].rect.maxX, try trailing.glyph("plus").right)
+        // Every such line of a stack is the same, wherever the sign is, and overhangs start from there.
+        let lines = try drawing("<mstack><msline/><mn>99</mn><msrow><mo>+</mo><mn>11</mn></msrow><msline/><mn>110</mn><msline/></mstack>")
+        XCTAssertEqual(lines.rules.count, 3)
+        for rule in lines.rules { equal(rule.rect.minX, try lines.glyph("plus").origin.x); equal(rule.rect.width, sum.rules[0].rect.width) }
+        let hanging = try stack(" leftoverhang='0.5em' rightoverhang='3px'")
+        equal(hanging.rules[0].rect.minX, try hanging.glyph("plus").origin.x - 0.5 * em)
+        equal(hanging.rules[0].rect.maxX, hanging.row(2)[2].right + 3)
+        // A line with a length is a number of that many digits, and keeps to their columns.
+        let counted = try stack(" length='3'")
+        equal(counted.rules[0].rect.minX, counted.row(2)[0].origin.x); equal(counted.rules[0].rect.maxX, counted.row(2)[2].right)
+        XCTAssertGreaterThan(counted.rules[0].rect.minX, try counted.glyph("plus").origin.x + 1)
+        // A sign with a column of its own overflows nothing, and carries have no width (3.6.1.1).
+        let fitting = try stack(sign: "<mo>+</mo><none/>")
+        equal(fitting.rules[0].rect.minX, try fitting.glyph("plus").origin.x); equal(fitting.rules[0].rect.width, fitting.box.width)
+        let carried = try drawing("<mstack><mscarries location='w'><mn>1</mn><none/></mscarries><mn>34</mn><msline/></mstack>")
+        XCTAssertLessThan(try carried.glyph("one").origin.x, try carried.glyph("three").origin.x - 1)
+        equal(carried.rules[0].rect.minX, try carried.glyph("three").origin.x)
+        equal(carried.rules[0].rect.maxX, try carried.glyph("four").right)
+
+        // In a division the bar is part of the frame, which meets it where the columns end. A sign
+        // in the work that overflows them moves a line of the work, not the bar.
+        let rule = constants.fractionRuleThickness * em
+        let us = try drawing("<mlongdiv><mn>7</mn><mn>58</mn><mn>406</mn><msrow><mo>-</mo><mn>35</mn></msrow><msline/></mlongdiv>")
+        let minus = try us.glyph("uni2212"), hook = try XCTUnwrap(us.segments.first)
+        XCTAssertLessThan(minus.origin.x, try us.glyph("four").origin.x - 1)
+        let bar = try XCTUnwrap(us.horizontals.max { $0.minY < $1.minY }), under = try XCTUnwrap(us.horizontals.min { $0.minY < $1.minY })
+        equal(bar.minX, hook.from.x - rule / 2); equal(bar.maxX, try us.glyph("six").right)
+        equal(under.minX, minus.origin.x); equal(under.maxX, bar.maxX)
+        let chinese = try drawing("<mlongdiv longdivstyle='righttop' stackalign='right'><mn>7</mn><mn>58</mn><mn>406</mn>"
+            + "<msrow><mn>35</mn><mo>-</mo></msrow><msline/></mlongdiv>")
+        let corner = chinese.horizontals.sorted { $0.minY > $1.minY }
+        XCTAssertEqual(corner.count, 3)
+        equal(corner[0].maxX, corner[1].maxX, "the bar still ends where the line under the divisor does")
+        equal(corner[0].minX, try chinese.glyph("four").origin.x)
+        XCTAssertGreaterThan(try chinese.glyph("uni2212").right, try chinese.glyph("six").right + 1)
+        equal(corner[2].minX, corner[0].minX); equal(corner[2].maxX, try chinese.glyph("uni2212").right)
     }
 
     /// The specification's repeating decimals (3.6.8.4): a line over or under some digits.
@@ -843,14 +902,17 @@ final class ElementaryMathTests: MathTestCase {
         equal(try stack("top").box.ascent, 0); equal(try stack("top").box.descent, tall)
         equal(try stack("bottom").box.ascent, tall); equal(try stack("bottom").box.descent, 0)
         // With a row number, that row of digits: its baseline, top, bottom or middle. Lines are not rows.
-        for (align, row) in [("baseline 1", 0), ("baseline 2", 1), ("baseline 3", 2), ("baseline 9", 2), ("baseline -1", 2),
-                             ("baseline -3", 0), ("baseline -9", 0), ("axis 2", 1), ("BASELINE 2", 1)] {
+        for (align, row) in [("baseline 1", 0), ("baseline 2", 1), ("baseline 3", 2), ("baseline -1", 2),
+                             ("baseline -3", 0), ("axis 2", 1), ("BASELINE 2", 1)] {
             equal(try stack(align).row(row)[0].origin.y, 0, align)
             equal(try stack(align).box.height, tall, align)
         }
-        equal(try stack("baseline 0").box.ascent, tall / 2)
-        equal(try stack("baseline -9223372036854775808").row(0)[0].origin.y, 0)
-        equal(try stack("baseline 99999999999999999999").box.ascent, tall / 2)
+        // A number that names no row is ignored, as mtable ignores one: the stack is aligned whole.
+        for align in ["baseline 0", "baseline 4", "baseline 9", "baseline -4", "baseline -9", "axis 9", "center -9",
+                      "baseline -9223372036854775808", "baseline 99999999999999999999"] {
+            equal(try stack(align).box.ascent, try stack(String(align.split(separator: " ")[0])).box.ascent, align)
+        }
+        equal(try stack("top 9").box.ascent, 0); equal(try stack("bottom -9").box.ascent, tall)
         let pitch = plain.row(0)[0].origin.y - plain.row(1)[0].origin.y
         equal(try stack("top 2").box.ascent, pitch); equal(try stack("bottom 1").box.ascent, pitch)
         equal(try stack("center 1").box.ascent, pitch / 2)
@@ -918,6 +980,149 @@ final class ElementaryMathTests: MathTestCase {
         let carry = try drawing("<mstack><mscarries><mscarry mathbackground='red'><mn>1</mn></mscarry></mscarries><mn>5</mn></mstack>")
         XCTAssertEqual(carry.rules.map(\.color), [red])
         XCTAssertTrue(carry.rules[0].rect.contains(try carry.glyph("one").ink))
+    }
+
+    /// What a box draws, in the order it draws it.
+    private func order(_ box: MathBox) -> [String] {
+        box.items.flatMap { item -> [String] in
+            switch item {
+            case .rect: return ["rect"]
+            case .glyphs: return ["glyphs"]
+            case .box(let inner, _): return order(inner)
+            default: return ["path"]
+            }
+        }
+    }
+
+    /// `mathbackground` fills the box of the element it is on (3.1.10), and a group, a row of
+    /// carries and a line have one each: the group's lines, the row's line, the line itself.
+    func testGroupsCarriesAndLinesHaveBackgrounds() throws {
+        let yellow = try XCTUnwrap(MathColor.parse("yellow")), red = try XCTUnwrap(MathColor.parse("red"))
+        let blue = try XCTUnwrap(MathColor.parse("blue"))
+        // A group's is behind its rows' own, from the top of its first row to the bottom of its last
+        // and from the leftmost column of any of them to the rightmost: here the 3's and the 4's.
+        let group = try drawing("<mstack><mn>12345</mn><msgroup mathbackground='yellow' position='1' shift='1'>"
+            + "<msrow mathbackground='red'><mn>67</mn></msrow><msrow mathbackground='blue'><mn>8</mn></msrow></msgroup>"
+            + "<mn>9</mn></mstack>")
+        XCTAssertEqual(group.rules.map(\.color), [yellow, red, blue])
+        XCTAssertEqual(Array(order(group.box).prefix(3)), ["rect", "rect", "rect"], "all behind the digits")
+        var rect = group.rules[0].rect
+        equal(rect.maxY, group.rules[1].rect.maxY); equal(rect.minY, group.rules[2].rect.minY)
+        equal(rect.minX, try group.glyph("three").origin.x); equal(rect.maxX, try group.glyph("four").right)
+        equal(group.rules[2].rect.maxX, try group.glyph("three").right)
+        XCTAssertLessThan(rect.maxY, try group.glyph("one").ink.minY)
+        XCTAssertGreaterThan(rect.minY, try group.glyph("nine").ink.maxY)
+        // A group in a group is over it, and a line of the group counts with its overhangs.
+        let nested = try drawing("<mstack><mn>12345</mn><msgroup mathbackground='yellow'><msgroup mathbackground='red'>"
+            + "<mn>6</mn></msgroup><msline length='2' position='2' leftoverhang='0.5em'/></msgroup></mstack>")
+        XCTAssertEqual(nested.rules.map(\.color), [yellow, red, black])
+        rect = nested.rules[0].rect
+        equal(rect.minX, try nested.glyph("two").origin.x - 0.5 * em); equal(rect.minX, nested.rules[2].rect.minX)
+        equal(rect.maxX, try nested.glyph("five").right)
+        equal(rect.maxY, nested.rules[1].rect.maxY); equal(rect.minY, nested.rules[2].rect.minY)
+        equal(nested.rules[1].rect.minX, try nested.glyph("six").origin.x)
+        // So does a carry of the group that stands beside the first digit of a row.
+        let borrowed = try drawing("<mstack><msgroup mathbackground='yellow'><mscarries location='w'><mn>1</mn><none/></mscarries>"
+            + "<mn>34</mn></msgroup></mstack>")
+        XCTAssertEqual(borrowed.rules.map(\.color), [yellow])
+        equal(borrowed.rules[0].rect.minX, try borrowed.glyph("one").origin.x)
+        equal(borrowed.rules[0].rect.maxX, try borrowed.glyph("four").right)
+        equal(borrowed.rules[0].rect.height, borrowed.box.height)
+        // A group with nothing in it, or with rows of nothing, has no box to fill.
+        XCTAssertTrue(try drawing("<mstack><mn>1</mn><msgroup mathbackground='yellow'/><msgroup mathbackground='yellow'><msrow/>"
+            + "</msgroup></mstack>").rules.isEmpty)
+
+        // A row of carries': its columns, an empty one too, for the height of its line above the digits.
+        let above = try drawing("<mstack><mscarries mathbackground='yellow'><mn>1</mn><mn>1</mn><none/></mscarries><mn>678</mn></mstack>")
+        XCTAssertEqual(above.rules.map(\.color), [yellow])
+        XCTAssertEqual(order(above.box).first, "rect")
+        rect = above.rules[0].rect
+        equal(rect.minX, try above.glyph("six").origin.x); equal(rect.maxX, try above.glyph("eight").right)
+        equal(rect.maxY, above.box.ascent)
+        XCTAssertGreaterThan(rect.minY, try above.glyph("six").ink.maxY)
+        for carry in above.all("one") { XCTAssertTrue(rect.contains(carry.ink)) }
+        // Carries beside the digits have no line of their own. Each takes it along, behind its own.
+        let beside = try drawing("<mstack><mscarries location='w' mathbackground='yellow'><mn>1</mn><none/>"
+            + "<mscarry mathbackground='red'><mn>2</mn></mscarry></mscarries><mn>345</mn></mstack>")
+        XCTAssertEqual(beside.rules.map(\.color), [yellow, yellow, red])
+        XCTAssertEqual(order(beside.box), ["glyphs", "glyphs", "glyphs", "rect", "glyphs", "rect", "rect", "glyphs"])
+        for (index, name) in ["one", "two"].enumerated() {
+            let carry = try beside.glyph(name)
+            equal(beside.rules[index].rect.minX, carry.origin.x, name); equal(beside.rules[index].rect.width, carry.advance, name)
+            XCTAssertTrue(beside.rules[index].rect.insetBy(dx: -0.01, dy: -0.01).contains(carry.ink), name)
+        }
+        XCTAssertEqual(beside.rules[1].rect, beside.rules[2].rect)
+        equal(beside.rules[0].rect.maxX, try beside.glyph("three").origin.x)
+
+        // A line's is the line, overhangs and all: behind it, for a colour that lets it show.
+        let line = try drawing("<mstack><mn>123</mn><msline length='2' leftoverhang='0.5em' mslinethickness='3px' mathbackground='yellow'/>"
+            + "<mn>456</mn></mstack>")
+        XCTAssertEqual(line.rules.map(\.color), [yellow, black])
+        XCTAssertEqual(line.rules[0].rect, line.rules[1].rect)
+        equal(line.rules[0].rect.minX, try line.glyph("two").origin.x - 0.5 * em); equal(line.rules[0].rect.maxX, line.box.width)
+        equal(line.rules[0].rect.height, 3)
+        let clear = "<mstack><mn>123</mn><msline mathcolor='transparent' mathbackground='red' mslinethickness='3px'/><mn>456</mn></mstack>"
+        let seen = try XCTUnwrap(inks(clear)[.red])
+        XCTAssertEqual(seen.width, try stackBox(clear).width, accuracy: 0.5); XCTAssertEqual(seen.height, 3, accuracy: 0.5)
+        XCTAssertTrue(try drawing("<mstack><mn>1</mn><msline mslinethickness='0' mathbackground='yellow'/></mstack>").rules.isEmpty)
+
+        // In a division too, whether the result is a row of the dividend's stack or a stack of its own.
+        for style in Self.styles {
+            let division = try drawing("<mlongdiv longdivstyle=\"\(style)\"><mn>7</mn><msgroup mathbackground='yellow'><mn>58</mn>"
+                + "</msgroup><mn>406</mn><msgroup position='1' mathbackground='red'><mn>35</mn><msline length='2'/></msgroup></mlongdiv>")
+            let result = try XCTUnwrap(division.rules.first { $0.color == yellow }, style).rect
+            let work = try XCTUnwrap(division.rules.first { $0.color == red }, style).rect
+            XCTAssertTrue(result.contains(try division.glyph("eight").ink), style)
+            equal(result.maxX, try division.glyph("eight").right, style)
+            XCTAssertTrue(work.contains(try division.glyph("three").ink), style)
+            equal(work.minX, try division.glyph("three").origin.x, style); equal(work.maxX, try division.glyph("zero").right, style)
+        }
+        // Outside a stack each is a stack of its own, whose box the engine fills once.
+        for body in ["<msgroup mathbackground='yellow'><mn>1</mn></msgroup>", "<mscarries mathbackground='yellow'><mn>1</mn></mscarries>"] {
+            XCTAssertEqual(try drawing(body).rules.map(\.color), [yellow], body)
+        }
+        XCTAssertEqual(try drawing("<msline length='2' mathbackground='yellow'/>").rules.map(\.color), [yellow, black])
+    }
+
+    /// A sign wider than the digits it shares a column with overflows the column (3.6.1.2). The
+    /// background of what it is in goes as far as it does, not to the edge of the column.
+    func testBackgroundsCoverWhatOverflowsAColumn() throws {
+        let yellow = try XCTUnwrap(MathColor.parse("yellow"))
+        func background(_ body: String, file: StaticString = #filePath, line: UInt = #line) throws -> (rect: CGRect, drawn: Drawing) {
+            let drawn = try drawing(body)
+            XCTAssertEqual(drawn.rules.map(\.color), [yellow], body, file: file, line: line)
+            try assertCoversInk(body, file: file, line: line)
+            return (try XCTUnwrap(drawn.rules.first, body, file: file, line: line).rect, drawn)
+        }
+        // A leading sign overflows the hundreds to the left, and its row's background with it.
+        var (rect, sum) = try background("<mstack><mn>99</mn><msrow mathbackground='yellow'><mo>+</mo><mn>11</mn></msrow><mn>110</mn></mstack>")
+        var plus = try sum.glyph("plus")
+        XCTAssertLessThan(plus.origin.x, sum.row(2)[0].origin.x - 1, "the sign does overflow")
+        equal(rect.minX, plus.origin.x); equal(rect.maxX, sum.row(1)[2].right)
+        XCTAssertTrue(rect.contains(plus.ink))
+        // A trailing one, to the right.
+        (rect, sum) = try background("<mstack stackalign='right'><mn>123</mn><msrow mathbackground='yellow'><mn>456</mn><mo>+</mo></msrow></mstack>")
+        plus = try sum.glyph("plus")
+        XCTAssertGreaterThan(plus.right, try sum.glyph("three").right + 1)
+        equal(rect.minX, try sum.glyph("four").origin.x); equal(rect.maxX, plus.right)
+        XCTAssertTrue(rect.contains(plus.ink))
+        // An mstyle's around the sign alone is the sign's box, and a number's beside it is still its digits'.
+        (rect, sum) = try background("<mstack><mn>99</mn><msrow><mstyle mathbackground='yellow'><mo>+</mo></mstyle><mn>11</mn></msrow>"
+            + "<mn>110</mn></mstack>")
+        equal(rect.minX, try sum.glyph("plus").origin.x); equal(rect.maxX, try sum.glyph("plus").right)
+        (rect, sum) = try background("<mstack><mn>99</mn><msrow><mo>+</mo><mn mathbackground='yellow'>11</mn></msrow><mn>110</mn></mstack>")
+        equal(rect.minX, sum.row(1)[1].origin.x); equal(rect.maxX, sum.row(1)[2].right)
+        // A group's follows its rows.
+        (rect, sum) = try background("<mstack><msgroup mathbackground='yellow'><mn>99</mn><msrow><mo>+</mo><mn>11</mn></msrow></msgroup>"
+            + "<mn>110</mn></mstack>")
+        equal(rect.minX, try sum.glyph("plus").origin.x); equal(rect.maxX, sum.row(1)[2].right)
+        // Carries wider than their column, where the spacing is a length and makes no room for them.
+        (rect, sum) = try background("<mstack charspacing='0'><mscarries mathbackground='yellow'><mn>123</mn></mscarries><mn>4</mn></mstack>")
+        XCTAssertLessThan(try sum.glyph("one").origin.x, try sum.glyph("four").origin.x - 1)
+        equal(rect.minX, try sum.glyph("one").origin.x); equal(rect.maxX, try sum.glyph("three").right)
+        // What is narrower than its column changes nothing: the column is still covered.
+        (rect, sum) = try background("<mstack><msrow mathbackground='yellow'><mn>1,5</mn></msrow><mn>345</mn></mstack>")
+        equal(rect.minX, try sum.glyph("three").origin.x); equal(rect.maxX, sum.box.width)
     }
 
     // MARK: Robustness

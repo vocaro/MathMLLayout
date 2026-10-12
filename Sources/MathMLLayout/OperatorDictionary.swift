@@ -79,7 +79,9 @@ enum OperatorDictionary {
         text.unicodeScalars.count == 1 && horizontal.contains(text.unicodeScalars.first!)
     }
 
-    private static let horizontalArrows = "←→↔↚↛↮↜↝↞↠↢↣↤↦↩↪↫↬↭↼↽⇀⇁⇄⇆⇇⇉⇋⇌⇍⇎⇏⇐⇒⇔⇚⇛⟵⟶⟷⟸⟹⟺⟻⟼⟽⟾"
+    /// Stretchy, and the engine stretches every one whatever the font: by the font's construction
+    /// for it or for its short form, else drawn. A test holds this list and the engine together.
+    static let horizontalArrows = "←→↔↚↛↮↜↝↞↠↢↣↤↦↩↪↫↬↭↼↽⇀⇁⇄⇆⇇⇉⇋⇌⇍⇎⇏⇐⇒⇔⇚⇛⟵⟶⟷⟸⟹⟺⟻⟼⟽⟾"
     private static let verticalArrows = "↑↓↕⇑⇓⇕↥↧⇅⇈⇊↾↿⇂⇃"
     private static let horizontalAccents = "‾¯_^ˆ~˜ˇ˘⏞⏟⏜⏝⎴⎵⏠⏡\u{0302}\u{0303}\u{030C}\u{0305}\u{0311}\u{0332}\u{20D6}\u{20D7}\u{20E1}"
     private static let horizontal = Set((horizontalArrows + horizontalAccents).unicodeScalars)

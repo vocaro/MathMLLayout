@@ -42,7 +42,7 @@ struct MathBox {
         for item in items {
             switch item {
             case .glyphs(let run): if !run.ink.isNull { merge(run.ink) }
-            case .rect(let rect, _), .image(_, let rect): merge(rect)
+            case .rect(let rect, _), .image(_, let rect, _): merge(rect)
             case .path(let path, let lineWidth, _, _), .dashes(let path, let lineWidth, _, _):
                 merge(path.boundingBoxOfPath.insetBy(dx: -lineWidth / 2, dy: -lineWidth / 2))
             case .box(let box, let point):
@@ -96,7 +96,10 @@ struct MathBox {
                 if lengths.allSatisfy({ $0.isFinite && $0 > 0 }) { context.setLineDash(phase: 0, lengths: lengths) }
                 context.strokePath()
                 context.restoreGState()
-            case .image(let image, let rect):
+            case .image(let image, let rect, let color):
+                // An image mask is filled with the context's fill colour, which is otherwise that of
+                // whatever was drawn last. An image with colours of its own takes no notice of it.
+                context.setFillColor(color)
                 // Upright as it is: CoreGraphics puts an image's top row at the rect's greater y.
                 context.draw(image, in: rect.offsetBy(dx: origin.x, dy: origin.y))
             case .box(let box, let point):
@@ -126,7 +129,8 @@ enum MathItem {
     /// its length holds dashes, and markup sets the two apart (a table's rule is as thick as its own
     /// font is large, and as long as its content is wide), so that was millions of dashes nobody drew.
     case dashes(CGPath, lineWidth: CGFloat, color: CGColor, lengths: [CGFloat])
-    /// An `mglyph`'s image, scaled to fill the rect.
-    case image(CGImage, CGRect)
+    /// An `mglyph`'s image, scaled to fill the rect. The colour is for an image mask, which is a
+    /// shape with none of its own: its token's, as for the text beside it.
+    case image(CGImage, CGRect, CGColor)
     case box(MathBox, at: CGPoint)
 }

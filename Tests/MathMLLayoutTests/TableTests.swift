@@ -192,12 +192,23 @@ final class TableTests: XCTestCase {
     /// environment's, which puts the row's baseline on the baseline; and a row number that is
     /// out of range is ignored.
     func testAlignWithARowNumberFollowsMathML3() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/11 is fixed.
         func ascent(_ align: String) throws -> CGFloat { try innerBox(grid("align=\"\(align)\"")).ascent }
         XCTAssertEqual(try ascent("axis 1"), try ascent("baseline 1"), accuracy: 0.01, "axis 1: row 1's axis on the axis")
         XCTAssertEqual(try ascent("axis 2"), try ascent("baseline 2"), accuracy: 0.01, "axis 2")
+        XCTAssertEqual(try ascent("axis -1"), try ascent("baseline 2"), accuracy: 0.01, "axis -1")
         XCTAssertEqual(try ascent("top 9"), try ascent("top"), accuracy: 0.01, "an out-of-range row number is ignored")
         XCTAssertEqual(try ascent("bottom -9"), try ascent("bottom"), accuracy: 0.01)
+        // The grid has two rows: 2 and -2 are the last numbers that name one.
+        XCTAssertEqual(try ascent("top 3"), try ascent("top"), accuracy: 0.01, "top 3")
+        XCTAssertEqual(try ascent("bottom -3"), try ascent("bottom"), accuracy: 0.01, "bottom -3")
+        XCTAssertEqual(try ascent("bottom -2"), try ascent("bottom 1"), accuracy: 0.01, "bottom -2")
+        for align in ["axis", "center", "baseline"] {
+            XCTAssertEqual(try ascent("\(align) 3"), try ascent(align), accuracy: 0.01, "\(align) 3")
+            XCTAssertEqual(try ascent("\(align) -9223372036854775808"), try ascent(align), accuracy: 0.01, "\(align) with the least integer")
+        }
+        // A row of text set on the line by its axis is on the line: x = [x; x] with `axis 1`.
+        let found = try inks("<mi mathcolor=\"red\">x</mi><mtable align=\"axis 1\"><mtr><mtd><mi mathcolor=\"blue\">x</mi></mtd></mtr><mtr><mtd><mi>x</mi></mtd></mtr></mtable>")
+        XCTAssertEqual(try XCTUnwrap(found[.red]).minY, try XCTUnwrap(found[.blue]).minY, accuracy: 0.01)
     }
 
     // MARK: Style in cells
@@ -225,7 +236,6 @@ final class TableTests: XCTestCase {
     /// MathML 3, 3.5.1.2 and MathML Core 3.5.1: `<mtable displaystyle="true">` sets its cells in
     /// display style. LaTeX converters write aligned equations and `cases` this way.
     func testDisplayStyleOnTheTableReachesItsCells() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/6 is fixed.
         let display = try innerBox(fractionCell, display: true), text = try innerBox(fractionCell)
         for outer in [false, true] {
             let table = try innerBox("<mtable displaystyle=\"true\"><mtr><mtd>\(fractionCell)</mtd></mtr></mtable>", display: outer)
@@ -233,6 +243,14 @@ final class TableTests: XCTestCase {
             XCTAssertEqual(table.width, display.width, accuracy: 0.01)
         }
         XCTAssertEqual(try innerBox("<mtable displaystyle=\"false\"><mtr><mtd>\(fractionCell)</mtd></mtr></mtable>", display: true).height, text.height, accuracy: 0.01)
+        XCTAssertEqual(try innerBox("<mtable displaystyle=\" TRUE \"><mtr><mtd>\(fractionCell)</mtd></mtr></mtable>").height, display.height, accuracy: 0.01)
+        // A row or a cell may still say otherwise, and a row's label is in the style of its cells.
+        for body in ["<mtable displaystyle=\"true\"><mtr displaystyle=\"false\"><mtd>\(fractionCell)</mtd></mtr></mtable>",
+                     "<mtable displaystyle=\"true\"><mtr><mtd displaystyle=\"false\">\(fractionCell)</mtd></mtr></mtable>"] {
+            XCTAssertEqual(try innerBox(body).height, text.height, accuracy: 0.01, body)
+        }
+        XCTAssertEqual(try innerBox("<mtable displaystyle=\"true\"><mlabeledtr><mtd>\(fractionCell)</mtd><mtd><mi>x</mi></mtd></mlabeledtr></mtable>").height,
+                       display.height, accuracy: 0.01, "a label")
         // A sum in an aligned display keeps its limits above and below.
         let stacked = try innerBox("<munderover><mo>∑</mo><mi>i</mi><mi>n</mi></munderover>", display: true)
         XCTAssertEqual(try innerBox("<mtable displaystyle=\"true\"><mtr><mtd><munderover><mo>∑</mo><mi>i</mi><mi>n</mi></munderover></mtd></mtr></mtable>").height,
@@ -334,10 +352,39 @@ final class TableTests: XCTestCase {
 
     /// A table's rules end at its edges: they must not stick out of the box, or through a frame.
     func testRowAndColumnLinesStayInsideTheBox() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/12 is fixed.
         for attributes in ["rowlines=\"solid\"", "columnlines=\"solid\"", "rowlines=\"dashed\" columnlines=\"dashed\"",
-                           "frame=\"solid\" rowlines=\"solid\" columnlines=\"solid\""] {
+                           "frame=\"solid\" rowlines=\"solid\" columnlines=\"solid\"", "frame=\"dashed\" framespacing=\"0 0\" rowlines=\"solid\" columnlines=\"dashed\"",
+                           "rowlines=\"solid\" columnlines=\"solid\" rowspacing=\"0\" columnspacing=\"0\" align=\"top 2\""] {
             try assertInkInsideBox(attributes)
+        }
+        // As they are drawn, too: a rule is as long as the table is wide or tall, and no longer.
+        let box = try innerBox(grid())
+        let row = try XCTUnwrap(try lines("rowlines=\"solid\"").ink), column = try XCTUnwrap(try lines("columnlines=\"solid\"").ink)
+        XCTAssertEqual(row.width, box.width, accuracy: pixel); XCTAssertEqual(column.height, box.height, accuracy: pixel)
+        XCTAssertLessThanOrEqual(try XCTUnwrap(try lines("rowlines=\"dashed\"").ink).width, box.width + pixel)
+        XCTAssertLessThanOrEqual(try XCTUnwrap(try lines("columnlines=\"dashed\"").ink).height, box.height + pixel)
+    }
+
+    /// A line in a gap of no width at the table's edge is drawn beside the edge, not along it, where
+    /// half of it would be outside. A table with no room for a line has none.
+    func testLinesOfATableWithEmptyRowsAndColumnsStayInsideTheBox() throws {
+        let empty = "<mtd/>", full = "<mtd><mspace width=\"1em\" height=\"1em\"/></mtd>", attributes = "rowlines=\"solid\" columnlines=\"dashed\" rowspacing=\"0\" columnspacing=\"0\""
+        for rows in ["<mtr>\(empty)\(empty)</mtr><mtr>\(empty)\(full)</mtr>", "<mtr>\(full)\(empty)</mtr><mtr>\(empty)\(empty)</mtr>",
+                     "<mtr>\(empty)\(full)\(empty)</mtr><mtr>\(empty)\(empty)\(empty)</mtr><mlabeledtr>\(full)\(empty)</mlabeledtr>"] {
+            for side in ["right", "left"] {
+                let box = try innerBox("<mtable \(attributes) side=\"\(side)\">\(rows)</mtable>"), label = "\(side): \(rows)"
+                let ink = try XCTUnwrap(box.inkBounds, label)
+                XCTAssertGreaterThanOrEqual(ink.minX, -0.01, "left, \(label)"); XCTAssertLessThanOrEqual(ink.maxX, box.width + 0.01, "right, \(label)")
+                XCTAssertLessThanOrEqual(ink.maxY, box.ascent + 0.01, "top, \(label)"); XCTAssertGreaterThanOrEqual(ink.minY, -box.descent - 0.01, "bottom, \(label)")
+            }
+        }
+        // The lines are still drawn: one across and one down a table of a single cell's size.
+        let drawn = try XCTUnwrap(try innerBox("<mtable \(attributes)><mtr>\(empty)\(empty)</mtr><mtr>\(empty)\(full)</mtr></mtable>").inkBounds)
+        XCTAssertEqual(drawn.width, em, accuracy: 0.01); XCTAssertEqual(drawn.height, em, accuracy: 0.01)
+        // Nothing to draw a line across, or along.
+        for body in ["<mtable rowlines=\"solid\"><mtr/><mtr/></mtable>", "<mtable columnlines=\"solid\"><mtr>\(empty)\(empty)</mtr></mtable>",
+                     "<mtable rowlines=\"solid\" columnlines=\"solid\" rowspacing=\"0\" columnspacing=\"0\"><mtr>\(empty)\(empty)</mtr><mtr>\(empty)\(empty)</mtr></mtable>"] {
+            XCTAssertNil(try innerBox(body).inkBounds, body)
         }
     }
 }

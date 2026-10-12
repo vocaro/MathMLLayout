@@ -494,18 +494,153 @@ final class ScriptAndLimitTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(under[.black]).minY - (try XCTUnwrap(under[.red]).maxY), constant(\.stretchStackGapAboveMin), accuracy: accuracy)
     }
 
-    /// The operator dictionary marks these arrows stretchy. Each should cover a long label,
-    /// from the font's glyph assembly where it has one and drawn where it does not, as the
-    /// single-shafted long arrows already are.
+    /// The operator dictionary marks these arrows stretchy. Each covers a long label, from the
+    /// font's glyph assembly where it has one and drawn where it does not: with the math font,
+    /// and with Helvetica, which has no MATH table and so an assembly for none of them.
+    /// Stretched, an arrow stays level with its glyph.
     func testEveryStretchyArrowInTheDictionaryCoversItsLabel() throws {
-        // Fails until https://github.com/vocaro/MathMLLayout/issues/13 is fixed.
-        var short: [String] = []
-        for arrow in "←→↔↤↦↩↪↼↽⇀⇁⇐⇒⇔⇚⇛⟵⟶⟷⟸⟹⟺⟼⇋⇌⇄⇆↠↣".unicodeScalars {
-            let found = try inks("<mover><mo>\(arrow)</mo><mtext mathcolor=\"red\">a long label</mtext></mover>")
-            let stretched = try XCTUnwrap(found[.black]), label = try XCTUnwrap(found[.red])
-            if stretched.width < label.width * 0.95 { short.append("\(arrow) U+\(String(arrow.value, radix: 16, uppercase: true))") }
+        for font in [nil, "Helvetica"] as [String?] {
+            var short: [String] = []
+            for arrow in OperatorDictionary.horizontalArrows.unicodeScalars {
+                let name = "\(arrow) U+\(String(arrow.value, radix: 16, uppercase: true))", label = "\(name) in \(font ?? "the math font")"
+                let found = try inks("<mover><mo>\(arrow)</mo><mtext mathcolor=\"red\">a long label</mtext></mover>", font: font)
+                let stretched = try XCTUnwrap(found[.black], label), text = try XCTUnwrap(found[.red], label)
+                if stretched.width < text.width * 0.95 { short.append(name) }
+                XCTAssertEqual(stretched.midX, text.midX, accuracy: 0.15 * em, label)
+                let glyph = try XCTUnwrap(try inks("<mo>\(arrow)</mo>", font: font)[.black], label)
+                XCTAssertEqual(stretched.midY, glyph.midY, accuracy: pixel, "level with its glyph: \(label)")
+            }
+            XCTAssertEqual(short, [], "arrows that stay at their natural width under a long label in \(font ?? "the math font")")
         }
-        XCTAssertEqual(short, [], "arrows that stay at their natural width under a long label")
+    }
+
+    /// The box of an arrow stretched to 80 points on its own, as `munder` and `mover` stretch their base.
+    private func box(ofStretched arrow: Unicode.Scalar, font: String? = nil) throws -> MathBox {
+        let context = LayoutContext(fontSize: em, unclampedSize: em, minSize: 8, display: false, color: black)
+        return try LayoutEngine(fontName: font).layout(mo(String(arrow)), context, Embellishment(stretch: .horizontal(width: 80)), depth: 0)
+    }
+
+    /// Whether an arrow's box is a stroked path, and not glyphs of the font.
+    private func isDrawn(_ box: MathBox) -> Bool {
+        if box.items.count == 1, case .path = box.items[0] { return true }
+        return false
+    }
+
+    /// A long arrow is its short form made longer. STIX Two Math has an assembly for the short
+    /// one alone, so the long one is that assembly, and not a drawing beside the font's own arrow.
+    func testALongArrowTakesTheAssemblyOfItsShortForm() throws {
+        func ink(_ arrow: Unicode.Scalar) throws -> CGRect {
+            try XCTUnwrap(try inks("<mover><mo>\(arrow)</mo><mtext mathcolor=\"red\">a long label</mtext></mover>")[.black], "\(arrow)")
+        }
+        for (long, short) in [("⟸", "⇐"), ("⟹", "⇒"), ("⟺", "⇔"), ("⟻", "↤"), ("⟼", "↦")] as [(Unicode.Scalar, Unicode.Scalar)] {
+            let stretched = try ink(long), assembled = try ink(short), label = "\(long) as \(short)"
+            XCTAssertEqual(stretched.width, assembled.width, accuracy: 0.3, label)
+            XCTAssertEqual(stretched.minY, assembled.minY, accuracy: 0.3, label)
+            XCTAssertEqual(stretched.maxY, assembled.maxY, accuracy: 0.3, label)
+            XCTAssertFalse(isDrawn(try box(ofStretched: long)), label)
+            XCTAssertFalse(isDrawn(try box(ofStretched: short)), label)
+        }
+    }
+
+    /// The ink of `rendering` in the columns from `left` to `right`: an end of an arrow, or its middle.
+    private func ink(_ rendering: Rendering, from left: CGFloat, to right: CGFloat) -> CGRect? {
+        var bounds: CGRect?
+        for x in stride(from: left + 0.125, to: right, by: 0.25) {
+            for y in stride(from: -rendering.layout.descent - 1, to: rendering.layout.ascent + 1, by: 0.25)
+            where rendering.color(at: CGPoint(x: x, y: y)).alpha > 0.2 {
+                let sample = CGRect(x: x - 0.125, y: y - 0.125, width: 0.25, height: 0.25)
+                bounds = bounds.map { $0.union(sample) } ?? sample
+            }
+        }
+        return bounds
+    }
+
+    /// Without a MATH table every arrow is drawn, and a drawn arrow has to be its glyph's shape:
+    /// a head at the end it points to and at no other, a tail, bar, hook or loop where the glyph
+    /// has one, barbs on the side its name gives, and as many shafts and lines.
+    func testADrawnArrowHasTheShapeOfItsGlyph() throws {
+        // An end of an arrow is the ink of its last 0.6 em, and its tip the last 0.05 em. A head is tall and
+        // comes to a point; a bar, a tail, a hook or a loop is tall to the last; the end of a bare shaft is neither.
+        typealias End = (ink: CGRect, tip: CGFloat)
+        func shape(_ arrow: Unicode.Scalar) throws -> (left: End, right: End, middle: CGRect) {
+            let rendering = Rendering(try typeset("<munder><mo>\(arrow)</mo><mspace width=\"80px\"/></munder>", font: "Helvetica")), label = "\(arrow)"
+            let whole = try XCTUnwrap(rendering.bounds(), label)
+            XCTAssertEqual(whole.width, 80, accuracy: 1.5, label)
+            func part(_ from: CGFloat, _ to: CGFloat) throws -> CGRect { try XCTUnwrap(ink(rendering, from: from, to: to), label) }
+            let left = try part(whole.minX, whole.minX + 0.6 * em), leftTip = try part(whole.minX, whole.minX + 0.05 * em)
+            let right = try part(whole.maxX - 0.6 * em, whole.maxX), rightTip = try part(whole.maxX - 0.05 * em, whole.maxX)
+            return ((left, leftTip.height), (right, rightTip.height), try part(whole.midX - 0.2 * em, whole.midX + 0.2 * em))
+        }
+        // The three heads, by the arrows that are a shaft and a head: one line, two and three.
+        let single = try shape("→"), double = try shape("⇒"), triple = try shape("⇛")
+        for (arrow, lines) in [(single, 1), (double, 2), (triple, 3)] {
+            XCTAssertGreaterThan(arrow.right.ink.height, arrow.left.ink.height + 0.2 * em, "the head of \(lines)")
+            XCTAssertLessThan(arrow.right.tip, arrow.right.ink.height / 2, "the point of \(lines)")
+            XCTAssertEqual(arrow.middle.height, arrow.left.ink.height, accuracy: 0.3, "the shaft of \(lines)")
+        }
+        XCTAssertGreaterThan(double.middle.height, single.middle.height + 0.1 * em)
+        XCTAssertGreaterThan(triple.middle.height, double.middle.height + 0.1 * em)
+        func isHead(_ end: End, _ head: End) -> Bool { abs(end.ink.height - head.ink.height) < 0.5 && abs(end.tip - head.tip) < 0.5 }
+        // Each arrow has the head of its kind at the ends it points to, and something else at the other.
+        for (arrows, head, pointsLeft, pointsRight) in [("←⟵↚↜↢↤⟻↩↫", single.right, true, false), ("→⟶↛↝↣↦⟼↪↬", single.right, false, true),
+                                                        ("↔⟷↮↭", single.right, true, true), ("⇐⟸⇍⟽", double.right, true, false),
+                                                        ("⇒⟹⇏⟾", double.right, false, true), ("⇔⟺⇎", double.right, true, true),
+                                                        ("⇚", triple.right, true, false), ("⇛", triple.right, false, true)] {
+            for arrow in arrows.unicodeScalars {
+                let found = try shape(arrow)
+                XCTAssertEqual(isHead(found.left, head), pointsLeft, "the left end of \(arrow)")
+                XCTAssertEqual(isHead(found.right, head), pointsRight, "the right end of \(arrow)")
+                // What is at the other end is as tall as a head, or taller, to the last: not the shaft's bare end.
+                if "↢↤⟻↩↫⟽".unicodeScalars.contains(arrow) { XCTAssertGreaterThan(found.right.tip, 0.15 * em, "the tail of \(arrow)") }
+                if "↣↦⟼↪↬⟾".unicodeScalars.contains(arrow) { XCTAssertGreaterThan(found.left.tip, 0.15 * em, "the tail of \(arrow)") }
+            }
+        }
+        // The others, and what a hook and a loop add, by the end whose ink rises higher and the end whose ink falls
+        // lower: 1 the right, -1 the left, 0 neither. Two heads, paired arrows, harpoons, one arrow or harpoon over
+        // another, a hook above the shaft and a loop across it.
+        for (arrow, rises, falls) in [("↠", 1, 1), ("↞", -1, -1), ("⇉", 1, 1), ("⇇", -1, -1), ("⇀", 1, 0), ("⇁", 0, 1), ("↼", -1, 0), ("↽", 0, -1),
+                                      ("⇄", 1, -1), ("⇆", -1, 1), ("⇌", 1, -1), ("⇋", -1, 1), ("↩", 1, -1), ("↪", -1, 1), ("↫", 1, 1), ("↬", -1, -1)]
+        as [(Unicode.Scalar, CGFloat, CGFloat)] {
+            let found = try shape(arrow)
+            for (name, difference, side) in [("rises", found.right.ink.maxY - found.left.ink.maxY, rises), ("falls", found.left.ink.minY - found.right.ink.minY, falls)] {
+                if side == 0 { XCTAssertEqual(difference, 0, accuracy: 0.05 * em, "\(arrow) \(name) at neither end") } else {
+                    XCTAssertGreaterThan(difference * side, 0.05 * em, "\(arrow) \(name) at the \(side > 0 ? "right" : "left")")
+                }
+            }
+        }
+        // Harpoons lie closer than whole arrows, whose inner arms need the room; both are two shafts.
+        let harpoons = try shape("⇌").middle.height, arrows = try shape("⇄").middle.height
+        XCTAssertGreaterThan(harpoons, single.middle.height + 0.1 * em)
+        XCTAssertGreaterThan(arrows, harpoons + 0.05 * em)
+        // A stroke through the middle is taller than the head, and a wave shorter but no straight line.
+        XCTAssertGreaterThan(try shape("↛").middle.height, single.right.ink.height)
+        XCTAssertGreaterThan(try shape("⇏").middle.height, double.right.ink.height)
+        let wave = try shape("↝").middle.height
+        XCTAssertGreaterThan(wave, single.middle.height + 0.1 * em)
+        XCTAssertLessThan(wave, single.right.ink.height)
+    }
+
+    /// A drawn arrow is as wide as it is asked to be, and its box is larger than its ink by what the
+    /// single arrow's is: no arrow is cramped or loose beside another.
+    func testADrawnArrowsBoxHasTheSingleArrowsMargins() throws {
+        for font in [nil, "Helvetica"] as [String?] {
+            /// The box's margins about the ink of a stretched arrow; nil when the font assembles it.
+            func margins(_ arrow: Unicode.Scalar) throws -> [CGFloat]? {
+                let box = try box(ofStretched: arrow, font: font)
+                guard isDrawn(box), let ink = box.inkBounds else { return nil }
+                XCTAssertEqual(box.width, 80, "\(arrow)")
+                return [ink.minX, box.width - ink.maxX, box.ascent - ink.maxY, box.descent + ink.minY]
+            }
+            let single = try XCTUnwrap(try margins("⟶"), "⟶ is drawn with any font")
+            XCTAssertGreaterThanOrEqual(try XCTUnwrap(single.min()), 0)
+            var drawn: [Unicode.Scalar] = []
+            for arrow in OperatorDictionary.horizontalArrows.unicodeScalars {
+                guard let found = try margins(arrow) else { continue }
+                drawn.append(arrow)
+                for (margin, expected) in zip(found, single) { XCTAssertEqual(margin, expected, accuracy: 0.001, "\(arrow) in \(font ?? "the math font")") }
+            }
+            if font == nil { XCTAssertTrue(drawn.contains("⇌")) } else { XCTAssertEqual(drawn.count, OperatorDictionary.horizontalArrows.unicodeScalars.count) }
+        }
     }
 
     func testBracesTakeLabels() throws {
