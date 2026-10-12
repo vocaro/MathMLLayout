@@ -24,6 +24,12 @@ Line breaking, `mglyph`, elementary math and localized readings
 
 ### Fixed
 
+- Selected French, German, Spanish and Italian spoken names now follow pinned MathCAT and
+  Speech Rule Engine rules and fixtures, including double-dot accents, several hat/bar
+  accents, partial derivatives and the German contour integral. French `<` and `>` readings
+  omit `strictement`. The [wording audit](Documentation/SpeechWordingAudit.md) records sources
+  and unresolved terminology; these readings have not been validated by native speakers
+  ([#31](https://github.com/vocaro/MathMLLayout/issues/31)).
 - Neighbouring wrapping parts receive independent width budgets when a shared budget overflows.
   The reported `widestUnbreakableWidth` is verified by laying out at that width, including
   height-dependent padding, forced rows and the layout's geometry bounds

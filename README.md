@@ -96,15 +96,18 @@ are included; see [how to regenerate the images](doc/usage.md#regenerating-the-r
 - [Line breaking](doc/line-breaking.md): wrapping formulas and placing rows.
 - [Images](doc/images.md): supplying images for `mglyph`.
 - [Spoken readings](doc/speech.md): accessibility and language selection.
+- [Speech wording audit](Documentation/SpeechWordingAudit.md): source evidence and remaining questions from #31.
 - [Supported markup](doc/markup.md): elements, attributes and layout rules.
 - [Fonts](doc/fonts.md): font selection and fallbacks.
 - [Bounds and limitations](doc/limits.md): input limits and unsupported behavior.
 - [Testing](doc/testing.md): debug, release, simulator and fuzz testing.
 - [External validation](doc/external-validation.md): pinned standards, reference rendering, font checks and corpus sampling.
-- [Notices](doc/notices.md): specification and font acknowledgments.
+- [Notices](doc/notices.md): speech attribution, specification and font acknowledgments.
 - [Swift examples](doc/examples): source code linked from the guides.
 - [Changelog](CHANGELOG.md): release history.
 
 ## License
 
-MathMLLayout is available under the [MIT license](LICENSE).
+MathMLLayout's original code is available under the [MIT license](LICENSE).
+Selected speech material retains MathCAT's MIT and Speech Rule Engine's Apache-2.0
+requirements; see [third-party notices and redistribution instructions](THIRD_PARTY_NOTICES.md).

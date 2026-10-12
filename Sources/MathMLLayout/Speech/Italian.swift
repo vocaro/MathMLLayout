@@ -1,5 +1,7 @@
-/// Italian, as it is read aloud in class: "x al quadrato", "a fratto b", "radice quadrata di x",
-/// "aperta parentesi", and a stack as the "operazione in colonna" pupils learn.
+// Selected wording adapted from Speech Rule Engine (Apache-2.0).
+// Modified for MathMLLayout's phrase templates; see THIRD_PARTY_NOTICES.md and
+// Documentation/SpeechWordingAudit.md for sources, decisions and remaining uncertainty.
+/// Italian formula readings.
 enum ItalianVocabulary: MathVocabulary {
     static let language = "it"
 
@@ -12,7 +14,7 @@ enum ItalianVocabulary: MathVocabulary {
         implies: "implica", ifAndOnlyIf: "se e solo se", element: "appartiene a", notElement: "non appartiene a",
         subset: "è sottoinsieme di", subsetOrEqual: "è sottoinsieme di o uguale a", union: "unione",
         intersection: "intersezione", sum: "la sommatoria", product: "la produttoria", integral: "l'integrale",
-        contourIntegral: "l'integrale di contorno", partial: "de parziale", nabla: "nabla",
+        contourIntegral: "l'integrale di contorno", partial: "derivata parziale", nabla: "nabla",
         squareRoot: "radice quadrata", prime: "primo", doublePrime: "secondo", factorial: "fattoriale",
         percent: "per cento", degrees: "gradi", infinity: "infinito", openParen: "aperta parentesi",
         closeParen: "chiusa parentesi", openBracket: "aperta parentesi quadra",
@@ -23,8 +25,8 @@ enum ItalianVocabulary: MathVocabulary {
         not: "non", and: "e", or: "o")
 
     static let accents = MathAccents(
-        hat: .after("cappuccio"), tilde: .after("tilde"), bar: .after("segnato"), underbar: .after("sottolineato"),
-        dot: .after("punto"), doubleDot: .after("due punti"), vector: .before("vettore"), check: .after("caron"),
+        hat: .after("accento circonflesso"), tilde: .after("tilde"), bar: .after("barra sopra"), underbar: .after("sottolineato"),
+        dot: .after("punto"), doubleDot: .after("dieresi"), vector: .before("vettore"), check: .after("caron"),
         breve: .after("breve"), overbrace: .after("con graffa sopra"), underbrace: .after("con graffa sotto"))
 
     static func fraction(_ numerator: String, _ denominator: String, simple: Bool) -> String {
