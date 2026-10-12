@@ -1,5 +1,10 @@
 # Initial external validation report
 
+**Best-effort follow-up for #52:** a reproducible 100-equation OpenStax sample and
+eight additional operator/table WPT cases are now measured. See the
+[follow-up results below](#best-effort-follow-up-for-52) and
+[machine-readable follow-up report](external-validation-best-effort-results.json).
+
 **Current result after the #54 fix:** all 81 pinned assertions pass their unchanged upstream
 expectations, including all eight under/over limit checks. Strict mode passes as well.
 The [machine-readable comparison](external-validation-results.json) reflects the fixed code.
@@ -75,6 +80,9 @@ expectation begins passing without review. Strict mode exposes the standards fai
 
 ## Remaining work
 
+This section describes the original broader milestone. The best-effort follow-up below
+adds a modest real-world sample; it does not complete the original 1,000-equation plan.
+
 The ar5iv release requires its license agreement and download access. No dataset was acquired,
 so **the approximately 1,000-equation real-world milestone remains unfinished**. The importer
 and on-demand invariant runner are implemented, with source hashes, original files,
@@ -119,3 +127,65 @@ now run as ordinary passing assertions; their upstream expectations and font dat
 - Regenerated native/Chromium comparison: **81 of 81 assertions pass**, no native clipping.
 - All ten tooling regressions pass; fixture reimport/conversion reproduce the updated
   manifest byte-for-byte.
+
+## Best-effort follow-up for #52
+
+Measured October 12, 2026, on arm64 macOS 27, Xcode 27.1 / Swift 6.4, against base
+`4ca33a78e106b2344d6f56bc544b43de57417fff` plus validation-only changes.
+
+Eight new checks port two more files at the same pinned WPT revision:
+
+- Six embellished/non-embellished operator cases for `mrow`, `mstyle` and `mpadded`.
+  The original Ahem font is preserved. Both upstream spacing assertions pass in each
+  case: outer/inner gaps are 50/0 or 0/50 points at 25-point type, tolerance 1 point.
+- Two table-cell checks compare implicit/explicit `mrow` child geometry. Every
+  child rectangle agrees exactly after translation; ink width/height are 30/60 points.
+  Table baseline placement is deliberately outside the cell-equivalence assertion.
+
+The original 81 numeric assertions still pass in strict mode. The supplement preserves
+source files, hashes, original markup, specific upstream test names, transformations,
+specification links and Ahem's public-domain/CC0 declaration. It does not port CSS
+out-of-flow children, unknown grouping elements, or phantom/error wrappers.
+
+Six pinned OpenStax Calculus modules supplied 2,888 equation occurrences, or 1,807
+unique normalized inputs. Seed 52 selected **100 equations: 58 inline and 42 display**,
+stratified by display mode, complexity and rarest element. The sample contains fractions,
+scripts, radicals, integrals/limits, tables, fences, accents and Unicode operators.
+CNXML equation wrappers supply display mode when MathML omits it; this transformation
+is recorded. Original modules, hashes, occurrence indices and normalizations survive
+local import. No input-limit or raster-budget exclusions occurred.
+
+- All 100 pass finite/bounded dimensions, deterministic layout and 2x ink-containment
+  checks. Native 4x batch rendering has zero errors or detected clipping.
+- Pinned Chromium 151.0.7922.34 / Playwright 1.62.1 renders all 100 without errors,
+  using the same system STIX Two Math font.
+- A limited visual review inspected 24 pairs, prioritizing rare constructs and complex
+  equations: **12 had no obvious defect**, **two had unsuitable reference renderings**,
+  and **ten retain unadjudicated differences**. The remaining 76 were not visually inspected.
+  These are a lightweight model review, not human expert validation or a conformance rate.
+- Chromium omits `mfenced` delimiters in the two relevant inputs, so those renderings
+  cannot validate native fence geometry. Nine inspected table constructions show
+  spacing/alignment or script/limit differences. One inherited bold `mstyle` construction
+  differs in font treatment. These remain uncertain rather than inferred native bugs.
+
+The machine report records every input hash, source occurrence, feature profile,
+invariant result, native/browser dimensions and review disposition. Its corpus `pass`
+means only that the limited visual check found no obvious defect; 86 inputs remain
+`unreviewed` and two are `unsuitable reference/test`. No new production bug was confirmed.
+DOM box widths and native ink-covering bounds are still different quantities.
+
+The OpenStax sources and derived corpus retain **CC-BY-NC-SA-4.0**, separate from
+MathMLLayout's MIT license. They are generated locally outside the package and are not
+included in this repository or binary resources. The repository retains source pins,
+import commands and measurement/review data; local outputs retain the original license
+and attribution. No ar5iv license agreement or dataset access was needed.
+
+Validation: the six selected XCTest methods (standards, corpus and required independent
+font oracle) pass in debug, without skips. All twelve tooling tests, including native/Chromium
+integrations, pass. Corpus and supplemental WPT reimports reproduce their manifests
+byte-for-byte. Release verification could not finish: the build ran out of disk space
+during compilation; no release-test result is claimed for this follow-up. Production
+files under `Sources/` are unchanged.
+
+Larger corpora, further MathML 3 cases, MathJax/Firefox/WebKit runs, speech/human review,
+regular supported-runner CI and adjudication of the noted differences remain follow-up work.

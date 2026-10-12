@@ -1,6 +1,6 @@
 {
-  "revision": "38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d",
   "files": {
+    "fonts/Ahem.ttf": "b719ecb31c5b21fc573c03f6421c74ac63c271a5a3ff841e34f9705fb94b8448",
     "fonts/math/fraction-axisheight7000-rulethickness1000.woff": "959aa71732b7ede5ff66f74c12e254b0c51250fed955f2b5755fafb2d47a2315",
     "fonts/math/fraction-denominatordisplaystylegapmin5000-rulethickness1000.woff": "49439e854af835548c12c8ffd21cee006ba2359320026d3f5b6f8b171128f438",
     "fonts/math/fraction-denominatordisplaystyleshiftdown6000-axisheight1000-rulethickness1000.woff": "87e7836fe719fb73d7904d110fb18326b5fa8ffad0486e41c59b4bdabbac42a6",
@@ -39,8 +39,11 @@
     "fonts/math/stack-topshiftup9000-axisheight1000.woff": "696bc6e2b8ade44dc8f629b3f5a91a848aef2b358bf34030448ae3797fcc5de2",
     "mathml/presentation-markup/fractions/frac-parameters-1.html": "44d3130327157eadb8470f45fc349130512b54f9734662c8d78195353e05e8bc",
     "mathml/presentation-markup/fractions/frac-parameters-2.html": "ad15b7656341071a5f024ae3cca0e1888f3d846328cb907ec6c1680dc0818c82",
+    "mathml/presentation-markup/operators/embellished-operator-001.html": "a63e5bd461a2a2155cc7710bd4bb279e2fc357d0a7de88527b60a6de81d56ba9",
     "mathml/presentation-markup/radicals/root-parameters-1.html": "e071d8112537bf077b0726dfc6fd2d0b45663d89b5e4ca74f4f46f8f4d7d5351",
     "mathml/presentation-markup/scripts/subsup-parameters-1.html": "88ac24d9c98b4bcbda74b2aba6d2951367420c5a2c49b8fdbd49f23ad2ce2309",
-    "mathml/presentation-markup/scripts/underover-parameters-1.html": "ef11decdae2c2cda59f2bf47b402f1119b36873d8c9a50e289651c4bdee23da8"
-  }
+    "mathml/presentation-markup/scripts/underover-parameters-1.html": "ef11decdae2c2cda59f2bf47b402f1119b36873d8c9a50e289651c4bdee23da8",
+    "mathml/presentation-markup/tables/table-cell-mrow-layout.html": "6af7ee05b6e4ce5690ce8aea09aadc17ca61ea3e1c6a581037c4702233ec47e5"
+  },
+  "revision": "38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d"
 }

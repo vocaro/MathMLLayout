@@ -13,6 +13,14 @@ contains **81 individual numeric assertions from five WPT files**, at revision
 script shifts/gaps, under/over limits, and radical parameters. This is a count of assertions,
 not 81 distinct upstream HTML documents.
 
+[`supplemental.json`](../Tests/MathMLLayoutTests/ExternalFixtures/supplemental.json)
+adds eight checks from two more WPT files at that revision: six grouping-operator
+spacing cases and two table-cell `mrow` equivalences. The original Ahem font is included
+unchanged for operator measurements. Source markup, hashes and transformations are
+recorded separately from the 81-case numeric manifest. These checks run in the same
+`ExternalValidationTests` class; set `MATHML_EXTERNAL_SUPPLEMENT_REPORT` to export their
+measurements. Their expectations are upstream geometry assertions, not library baselines.
+
 Each case records its upstream assertion name and URL, specification section, original markup,
 normalized standalone XML, SHA-256 hashes, transformations, expected value, and upstream tolerance.
 The original upstream HTML files and BSD license are included. Thirty-six purpose-built fonts
@@ -137,6 +145,53 @@ this oracle with MathMLLayout's own decoder.
 
 ## Real-world corpus
 
+### Modest OpenStax sample
+
+The best-effort follow-up measured **100 sampled equations** from six pinned OpenStax
+Calculus CNXML modules. All 100 passed invariants and rendered in native/Chromium engines;
+24 pairs received a limited visual review. See the
+[report](external-validation-report.md#best-effort-follow-up-for-52) and
+[per-case results](external-validation-best-effort-results.json) for review limits and
+unadjudicated differences. This is a single-source calculus sample, not a broad corpus.
+
+The sources and derived corpus retain **CC-BY-NC-SA-4.0**. Keep them outside the repository
+and distributed library resources. The offline importer verifies the six exact source
+hashes and license hash, retains originals and attribution, and uses seed 52. Its XML
+parser rejects DOCTYPE/entities; display mode is inferred from CNXML equation wrappers
+only when MathML omits it. No arbitrary source scripts or external entities run.
+
+For research validation under the source license, acquire the pinned local inputs:
+
+```sh
+python3 - <<'PY'
+import json
+import urllib.request
+from pathlib import Path
+pins = json.loads(Path('Tools/ExternalValidation/openstax-pins.json').read_text())
+root = Path('/tmp/mathml-openstax-input'); root.mkdir(exist_ok=True)
+base = f'https://raw.githubusercontent.com/{pins["repository"]}/{pins["revision"]}/'
+for source in pins['sources'] + [{'file': 'LICENSE', 'path': 'LICENSE'}]:
+    raw = urllib.request.urlopen(base + source['path'], timeout=30).read()
+    (root / source['file']).write_bytes(raw)
+PY
+/tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/import_openstax.py \
+  /tmp/mathml-openstax-input /tmp/mathml-openstax-corpus
+MATHML_CORPUS_MANIFEST=/tmp/mathml-openstax-corpus/manifest.json \
+  MATHML_CORPUS_REPORT=/tmp/openstax-results.json swift test --filter ExternalCorpusTests
+swift run MathMLExternalRender /tmp/mathml-openstax-corpus/manifest.json /tmp/openstax-gallery
+node Tools/ExternalValidation/references.cjs \
+  /tmp/mathml-openstax-corpus/manifest.json /tmp/openstax-gallery chromium
+/tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/gallery.py \
+  /tmp/mathml-openstax-corpus/manifest.json /tmp/openstax-gallery
+```
+
+The gallery initially labels all corpus inputs `unreviewed`. Human or model review must
+record a separate disposition, not change the original standards expectations. The committed
+results identify the 24 inspected inputs and describe the selection policy. Corpus `pass`
+means only a limited visual review found no obvious defect; it is not a standards claim.
+
+### Larger ar5iv sample
+
 The [ar5iv April 2024 release](https://sigmathling.kwarc.info/resources/ar5iv-dataset-2024/)
 requires its license agreement and download access. **No ar5iv dataset was acquired in this
 implementation**, and no 1,000-equation validation result is claimed. Supply a licensed local
@@ -180,6 +235,8 @@ and rectangle assertions; it never executes upstream JavaScript.
 /tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/import_wpt.py \
   /path/to/pinned/wpt Tests/MathMLLayoutTests/ExternalFixtures
 /tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/convert_fonts.py \
+  /path/to/pinned/wpt Tests/MathMLLayoutTests/ExternalFixtures
+/tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/import_wpt_supplement.py \
   /path/to/pinned/wpt Tests/MathMLLayoutTests/ExternalFixtures
 /tmp/mathml-validation-venv/bin/python -m unittest discover \
   -s Tools/ExternalValidation -p test_tools.py

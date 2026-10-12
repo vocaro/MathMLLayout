@@ -1,0 +1,46 @@
+{
+  "repository": "openstax/osbooks-calculus-bundle",
+  "revision": "8dbc2ce19e804924b2517b89ac72ee45be949d15",
+  "license": "CC-BY-NC-SA-4.0",
+  "licenseSHA256": "61288b08584b51308cbc7128a809bbffdfc1529eb303de26c2adbb396a8e9431",
+  "count": 100,
+  "seed": 52,
+  "sources": [
+    {
+      "file": "m53477.cnxml",
+      "path": "modules/m53477/index.cnxml",
+      "title": "Review of Functions",
+      "sha256": "af2f69b144694d5aa48dc46f48f3e94d88bf85f4abfb6a533f379b8253a059c2"
+    },
+    {
+      "file": "m53611.cnxml",
+      "path": "modules/m53611/index.cnxml",
+      "title": "Maxima and Minima",
+      "sha256": "0f24ae3fb0c7ddf20870efdc5085f05ec755e9e55a05a08a85e632a2beb4689c"
+    },
+    {
+      "file": "m53657.cnxml",
+      "path": "modules/m53657/index.cnxml",
+      "title": "Trigonometric Integrals",
+      "sha256": "dc9e7bd1693ed4c07fdaa71623e868927fdc7b4d117945ba2d297f222eade060"
+    },
+    {
+      "file": "m53840.cnxml",
+      "path": "modules/m53840/index.cnxml",
+      "title": "Area and Arc Length in Polar Coordinates",
+      "sha256": "c77724fe91612caa15a58b6e9d3e24800fe082b8971a822de5bd66044d41a528"
+    },
+    {
+      "file": "m53970.cnxml",
+      "path": "modules/m53970/index.cnxml",
+      "title": "Change of Variables in Multiple Integrals",
+      "sha256": "f39ec5758b042e2b5096fd8390740f4e4829a9c2b5e28d7d94c5c82c2898d7e5"
+    },
+    {
+      "file": "m54050.cnxml",
+      "path": "modules/m54050/index.cnxml",
+      "title": "Table of Derivatives",
+      "sha256": "7baf91d3cd548cbaa6b3d49395a698900ed6513c9d0f3926f11f6cd67602213d"
+    }
+  ]
+}

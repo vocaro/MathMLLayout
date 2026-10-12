@@ -1,0 +1,187 @@
+{
+  "revision": "38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d",
+  "cases": [
+    {
+      "id": "mrow-op-1",
+      "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html",
+      "sourceSHA256": "a63e5bd461a2a2155cc7710bd4bb279e2fc357d0a7de88527b60a6de81d56ba9",
+      "originalMarkup": "<math>\n      <mn>X</mn>\n      <mrow id=\"mrow-op-1\" class=\"testedElement\">\n        <mo lspace=\"2em\" rspace=\"0em\">X</mo>\n        <mtext class=\"space-like\">X</mtext>\n      </mrow>\n      <mn>X</mn>\n    </math>",
+      "markup": "<math mathsize=\"25px\" xmlns=\"http://www.w3.org/1998/Math/MathML\">\n      <mn mathsize=\"25px\" mathcolor=\"red\" mathbackground=\"red\">X</mn>\n      <mrow id=\"mrow-op-1\" mathsize=\"25px\" mathbackground=\"blue\">\n        <mo lspace=\"2em\" rspace=\"0em\" mathsize=\"25px\" mathcolor=\"lime\">X</mo>\n        <mtext mathsize=\"25px\">X</mtext>\n      </mrow>\n      <mn mathsize=\"25px\">X</mn>\n    </math>",
+      "sha256": "e2e6c117bf7fd7a2f744e42fb80ea40fb6b925be10b15c56406373ec18b2494d",
+      "tolerance": 1,
+      "feature": "embellished operators",
+      "kind": "operator",
+      "upstreamTest": "mrow (embellished operator)",
+      "specification": "https://www.w3.org/TR/mathml-core/#embellished-operators",
+      "fontSize": 25,
+      "font": "fonts/Ahem.ttf",
+      "expectedOuterGap": 50,
+      "expectedInnerGap": 0,
+      "normalization": [
+        "CSS font:25px/1 Ahem replaced by fixed mathsize on all nodes",
+        "CSS blue backgrounds and colored glyphs identify wrapper and core operator; DOM positions compared via Ahem ink",
+        "transparent foreground draw exposes measured backgrounds without changing geometry"
+      ]
+    },
+    {
+      "id": "mrow-nonop-1",
+      "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html",
+      "sourceSHA256": "a63e5bd461a2a2155cc7710bd4bb279e2fc357d0a7de88527b60a6de81d56ba9",
+      "originalMarkup": "<math>\n      <mn>X</mn>\n      <mrow id=\"mrow-nonop-1\" class=\"testedElement\">\n        <mo lspace=\"2em\" rspace=\"0em\">X</mo>\n        <mn>X</mn> <!-- \"mn\" is not space-like -->\n      </mrow>\n      <mn>X</mn>\n    </math>",
+      "markup": "<math mathsize=\"25px\" xmlns=\"http://www.w3.org/1998/Math/MathML\">\n      <mn mathsize=\"25px\" mathcolor=\"red\" mathbackground=\"red\">X</mn>\n      <mrow id=\"mrow-nonop-1\" mathsize=\"25px\" mathbackground=\"blue\">\n        <mo lspace=\"2em\" rspace=\"0em\" mathsize=\"25px\" mathcolor=\"lime\">X</mo>\n        <mn mathsize=\"25px\">X</mn> <!-- \"mn\" is not space-like -->\n      </mrow>\n      <mn mathsize=\"25px\">X</mn>\n    </math>",
+      "sha256": "5d42a0f84e190e0cd03d5621e422ffe95b6ecd4235ea5ad9b0cf0c47428e5d27",
+      "tolerance": 1,
+      "feature": "embellished operators",
+      "kind": "operator",
+      "upstreamTest": "mrow (not embellished operator)",
+      "specification": "https://www.w3.org/TR/mathml-core/#embellished-operators",
+      "fontSize": 25,
+      "font": "fonts/Ahem.ttf",
+      "expectedOuterGap": 0,
+      "expectedInnerGap": 50,
+      "normalization": [
+        "CSS font:25px/1 Ahem replaced by fixed mathsize on all nodes",
+        "CSS blue backgrounds and colored glyphs identify wrapper and core operator; DOM positions compared via Ahem ink",
+        "transparent foreground draw exposes measured backgrounds without changing geometry"
+      ]
+    },
+    {
+      "id": "mstyle-op-1",
+      "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html",
+      "sourceSHA256": "a63e5bd461a2a2155cc7710bd4bb279e2fc357d0a7de88527b60a6de81d56ba9",
+      "originalMarkup": "<math>\n      <mn>X</mn>\n      <mstyle id=\"mstyle-op-1\" class=\"testedElement\">\n        <mo lspace=\"2em\" rspace=\"0em\">X</mo>\n      </mstyle>\n      <mn>X</mn>\n    </math>",
+      "markup": "<math mathsize=\"25px\" xmlns=\"http://www.w3.org/1998/Math/MathML\">\n      <mn mathsize=\"25px\" mathcolor=\"red\" mathbackground=\"red\">X</mn>\n      <mstyle id=\"mstyle-op-1\" mathsize=\"25px\" mathbackground=\"blue\">\n        <mo lspace=\"2em\" rspace=\"0em\" mathsize=\"25px\" mathcolor=\"lime\">X</mo>\n      </mstyle>\n      <mn mathsize=\"25px\">X</mn>\n    </math>",
+      "sha256": "805f7cf72e9d83e6c0131afe64210b91faa5b895b8e47b11474c0ee7b4d1c5b8",
+      "tolerance": 1,
+      "feature": "embellished operators",
+      "kind": "operator",
+      "upstreamTest": "mstyle (embellished operator)",
+      "specification": "https://www.w3.org/TR/mathml-core/#embellished-operators",
+      "fontSize": 25,
+      "font": "fonts/Ahem.ttf",
+      "expectedOuterGap": 50,
+      "expectedInnerGap": 0,
+      "normalization": [
+        "CSS font:25px/1 Ahem replaced by fixed mathsize on all nodes",
+        "CSS blue backgrounds and colored glyphs identify wrapper and core operator; DOM positions compared via Ahem ink",
+        "transparent foreground draw exposes measured backgrounds without changing geometry"
+      ]
+    },
+    {
+      "id": "mstyle-nonop-1",
+      "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html",
+      "sourceSHA256": "a63e5bd461a2a2155cc7710bd4bb279e2fc357d0a7de88527b60a6de81d56ba9",
+      "originalMarkup": "<math>\n      <mn>X</mn>\n      <mstyle id=\"mstyle-nonop-1\" class=\"testedElement\">\n        <mo lspace=\"2em\" rspace=\"0em\">X</mo>\n        <mn>X</mn> <!-- \"mn\" is not space-like -->\n      </mstyle>\n      <mn>X</mn>\n    </math>",
+      "markup": "<math mathsize=\"25px\" xmlns=\"http://www.w3.org/1998/Math/MathML\">\n      <mn mathsize=\"25px\" mathcolor=\"red\" mathbackground=\"red\">X</mn>\n      <mstyle id=\"mstyle-nonop-1\" mathsize=\"25px\" mathbackground=\"blue\">\n        <mo lspace=\"2em\" rspace=\"0em\" mathsize=\"25px\" mathcolor=\"lime\">X</mo>\n        <mn mathsize=\"25px\">X</mn> <!-- \"mn\" is not space-like -->\n      </mstyle>\n      <mn mathsize=\"25px\">X</mn>\n    </math>",
+      "sha256": "134a28aa2e3f73ef3810aa4a98b330885ed99e0a901d80b40426d856b64acb59",
+      "tolerance": 1,
+      "feature": "embellished operators",
+      "kind": "operator",
+      "upstreamTest": "mstyle (not embellished operator)",
+      "specification": "https://www.w3.org/TR/mathml-core/#embellished-operators",
+      "fontSize": 25,
+      "font": "fonts/Ahem.ttf",
+      "expectedOuterGap": 0,
+      "expectedInnerGap": 50,
+      "normalization": [
+        "CSS font:25px/1 Ahem replaced by fixed mathsize on all nodes",
+        "CSS blue backgrounds and colored glyphs identify wrapper and core operator; DOM positions compared via Ahem ink",
+        "transparent foreground draw exposes measured backgrounds without changing geometry"
+      ]
+    },
+    {
+      "id": "mpadded-op-1",
+      "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html",
+      "sourceSHA256": "a63e5bd461a2a2155cc7710bd4bb279e2fc357d0a7de88527b60a6de81d56ba9",
+      "originalMarkup": "<math>\n      <mn>X</mn>\n      <mpadded id=\"mpadded-op-1\" class=\"testedElement\">\n        <mo lspace=\"2em\" rspace=\"0em\">X</mo>\n      </mpadded>\n      <mn>X</mn>\n    </math>",
+      "markup": "<math mathsize=\"25px\" xmlns=\"http://www.w3.org/1998/Math/MathML\">\n      <mn mathsize=\"25px\" mathcolor=\"red\" mathbackground=\"red\">X</mn>\n      <mpadded id=\"mpadded-op-1\" mathsize=\"25px\" mathbackground=\"blue\">\n        <mo lspace=\"2em\" rspace=\"0em\" mathsize=\"25px\" mathcolor=\"lime\">X</mo>\n      </mpadded>\n      <mn mathsize=\"25px\">X</mn>\n    </math>",
+      "sha256": "ead0170fcc56e6a308cf0cdf8c4e9d3416e986da097b1049464387db00c84398",
+      "tolerance": 1,
+      "feature": "embellished operators",
+      "kind": "operator",
+      "upstreamTest": "mpadded (embellished operator)",
+      "specification": "https://www.w3.org/TR/mathml-core/#embellished-operators",
+      "fontSize": 25,
+      "font": "fonts/Ahem.ttf",
+      "expectedOuterGap": 50,
+      "expectedInnerGap": 0,
+      "normalization": [
+        "CSS font:25px/1 Ahem replaced by fixed mathsize on all nodes",
+        "CSS blue backgrounds and colored glyphs identify wrapper and core operator; DOM positions compared via Ahem ink",
+        "transparent foreground draw exposes measured backgrounds without changing geometry"
+      ]
+    },
+    {
+      "id": "mpadded-nonop-1",
+      "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/operators/embellished-operator-001.html",
+      "sourceSHA256": "a63e5bd461a2a2155cc7710bd4bb279e2fc357d0a7de88527b60a6de81d56ba9",
+      "originalMarkup": "<math>\n      <mn>X</mn>\n      <mpadded id=\"mpadded-nonop-1\" class=\"testedElement\">\n        <mo lspace=\"2em\" rspace=\"0em\">X</mo>\n        <mn>X</mn> <!-- \"mn\" is not space-like -->\n      </mpadded>\n      <mn>X</mn>\n    </math>",
+      "markup": "<math mathsize=\"25px\" xmlns=\"http://www.w3.org/1998/Math/MathML\">\n      <mn mathsize=\"25px\" mathcolor=\"red\" mathbackground=\"red\">X</mn>\n      <mpadded id=\"mpadded-nonop-1\" mathsize=\"25px\" mathbackground=\"blue\">\n        <mo lspace=\"2em\" rspace=\"0em\" mathsize=\"25px\" mathcolor=\"lime\">X</mo>\n        <mn mathsize=\"25px\">X</mn> <!-- \"mn\" is not space-like -->\n      </mpadded>\n      <mn mathsize=\"25px\">X</mn>\n    </math>",
+      "sha256": "b9d80e7c71733e020eac07110a60574b77aad7d3bec71976e294f0c587939163",
+      "tolerance": 1,
+      "feature": "embellished operators",
+      "kind": "operator",
+      "upstreamTest": "mpadded (not embellished operator)",
+      "specification": "https://www.w3.org/TR/mathml-core/#embellished-operators",
+      "fontSize": 25,
+      "font": "fonts/Ahem.ttf",
+      "expectedOuterGap": 0,
+      "expectedInnerGap": 50,
+      "normalization": [
+        "CSS font:25px/1 Ahem replaced by fixed mathsize on all nodes",
+        "CSS blue backgrounds and colored glyphs identify wrapper and core operator; DOM positions compared via Ahem ink",
+        "transparent foreground draw exposes measured backgrounds without changing geometry"
+      ]
+    },
+    {
+      "id": "mtd-reference",
+      "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/tables/table-cell-mrow-layout.html",
+      "sourceSHA256": "6af7ee05b6e4ce5690ce8aea09aadc17ca61ea3e1c6a581037c4702233ec47e5",
+      "originalMarkup": "<math>\n      <mtable id=\"mtable\">\n        <mtr>\n          <mtd id=\"mtd\">\n            <mspace width=\"10px\" depth=\"20px\" height=\"20px\" style=\"background: blue\"/>\n            <mspace width=\"10px\" depth=\"10px\" height=\"30px\" style=\"background: lightblue\"/>\n            <mspace width=\"10px\" depth=\"30px\" height=\"10px\" style=\"background: black\"/>\n          </mtd>\n        </mtr>\n      </mtable>\n    </math>",
+      "markup": "<math mathsize=\"20px\" xmlns=\"http://www.w3.org/1998/Math/MathML\">\n      <mtable id=\"mtable\" mathsize=\"20px\">\n        <mtr mathsize=\"20px\">\n          <mtd id=\"mtd\" mathsize=\"20px\">\n            <mspace width=\"10px\" depth=\"20px\" height=\"20px\" mathsize=\"20px\" mathbackground=\"red\"/>\n            <mspace width=\"10px\" depth=\"10px\" height=\"30px\" mathsize=\"20px\" mathbackground=\"lime\"/>\n            <mspace width=\"10px\" depth=\"30px\" height=\"10px\" mathsize=\"20px\" mathbackground=\"blue\"/>\n          </mtd>\n        </mtr>\n      </mtable>\n    </math>",
+      "sha256": "9b89276a6fdd7fda02c9dcd0fc6255bf4656742023be68e6a1101ee515ebfe91",
+      "tolerance": 1,
+      "feature": "tables",
+      "kind": "table",
+      "upstreamTest": "<mtd> relies on mrow algorithm to layout its children",
+      "specification": "https://www.w3.org/TR/mathml-core/#table-or-matrix-mtable",
+      "fontSize": 20,
+      "referenceMarkup": "<math mathsize=\"20px\" xmlns=\"http://www.w3.org/1998/Math/MathML\">\n      <mrow id=\"mtd-reference\" mathsize=\"20px\">\n        <mspace width=\"10px\" depth=\"20px\" height=\"20px\" mathsize=\"20px\" mathbackground=\"red\"/>\n        <mspace width=\"10px\" depth=\"10px\" height=\"30px\" mathsize=\"20px\" mathbackground=\"lime\"/>\n        <mspace width=\"10px\" depth=\"30px\" height=\"10px\" mathsize=\"20px\" mathbackground=\"blue\"/>\n      </mrow>\n    </math>",
+      "referenceSHA256": "55afd10a2f23590838c367f2f05e802fe8f804f22f5c4d735457f073a3655f70",
+      "normalization": [
+        "CSS mtd padding:0 matches native cell layout",
+        "mspace CSS backgrounds replaced by mathbackground",
+        "cell comparison uses colored child geometry relative to the first child, excluding table axis placement"
+      ]
+    },
+    {
+      "id": "mtable-reference",
+      "source": "https://github.com/web-platform-tests/wpt/blob/38d608e1005d6d7f0fecefb3b7b14109ab3c3b1d/mathml/presentation-markup/tables/table-cell-mrow-layout.html",
+      "sourceSHA256": "6af7ee05b6e4ce5690ce8aea09aadc17ca61ea3e1c6a581037c4702233ec47e5",
+      "originalMarkup": "<math>\n      <mtable id=\"mtable\">\n        <mtr>\n          <mtd id=\"mtd\">\n            <mspace width=\"10px\" depth=\"20px\" height=\"20px\" style=\"background: blue\"/>\n            <mspace width=\"10px\" depth=\"10px\" height=\"30px\" style=\"background: lightblue\"/>\n            <mspace width=\"10px\" depth=\"30px\" height=\"10px\" style=\"background: black\"/>\n          </mtd>\n        </mtr>\n      </mtable>\n    </math>",
+      "markup": "<math mathsize=\"20px\" xmlns=\"http://www.w3.org/1998/Math/MathML\">\n      <mtable id=\"mtable\" mathsize=\"20px\">\n        <mtr mathsize=\"20px\">\n          <mtd id=\"mtd\" mathsize=\"20px\">\n            <mspace width=\"10px\" depth=\"20px\" height=\"20px\" mathsize=\"20px\" mathbackground=\"red\"/>\n            <mspace width=\"10px\" depth=\"10px\" height=\"30px\" mathsize=\"20px\" mathbackground=\"lime\"/>\n            <mspace width=\"10px\" depth=\"30px\" height=\"10px\" mathsize=\"20px\" mathbackground=\"blue\"/>\n          </mtd>\n        </mtr>\n      </mtable>\n    </math>",
+      "sha256": "9b89276a6fdd7fda02c9dcd0fc6255bf4656742023be68e6a1101ee515ebfe91",
+      "tolerance": 1,
+      "feature": "tables",
+      "kind": "table",
+      "upstreamTest": "<mtable> layout does not change if children of <mtd> elements are wrapped in an explicit <mrow>",
+      "specification": "https://www.w3.org/TR/mathml-core/#table-or-matrix-mtable",
+      "fontSize": 20,
+      "referenceMarkup": "<math mathsize=\"20px\" xmlns=\"http://www.w3.org/1998/Math/MathML\">\n      <mtable id=\"mtable-reference\" mathsize=\"20px\">\n        <mtr mathsize=\"20px\">\n          <mtd mathsize=\"20px\">\n            <mrow mathsize=\"20px\">\n              <mspace width=\"10px\" depth=\"20px\" height=\"20px\" mathsize=\"20px\" mathbackground=\"red\"/>\n              <mspace width=\"10px\" depth=\"10px\" height=\"30px\" mathsize=\"20px\" mathbackground=\"lime\"/>\n              <mspace width=\"10px\" depth=\"30px\" height=\"10px\" mathsize=\"20px\" mathbackground=\"blue\"/>\n            </mrow>\n          </mtd>\n        </mtr>\n      </mtable>\n    </math>",
+      "referenceSHA256": "84e7dab0c1a93a7b17ea5e9fa97eafca222b1f42c2b1639593e823d8b5929edc",
+      "normalization": [
+        "CSS mtd padding:0 matches native cell layout",
+        "mspace CSS backgrounds replaced by mathbackground",
+        "cell comparison uses colored child geometry relative to the first child, excluding table axis placement"
+      ]
+    }
+  ],
+  "fonts": [
+    {
+      "path": "fonts/Ahem.ttf",
+      "postScriptName": "Ahem",
+      "sha256": "b719ecb31c5b21fc573c03f6421c74ac63c271a5a3ff841e34f9705fb94b8448",
+      "license": "Public domain / CC0; declaration retained in font name table"
+    }
+  ]
+}

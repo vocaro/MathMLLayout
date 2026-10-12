@@ -17,7 +17,7 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def sample(inputs, output, count, seed, release, license_name, source_url):
+def sample(inputs, output, count, seed, release, license_name, source_url, input_format='html'):
     if count < 1: raise ValueError('count must be positive')
     if not inputs.is_dir(): raise ValueError('inputs must be an existing directory')
     if output.resolve().is_relative_to(inputs.resolve()): raise ValueError('output must be outside inputs')
@@ -25,23 +25,34 @@ def sample(inputs, output, count, seed, release, license_name, source_url):
     originals = output / 'originals'
     originals.mkdir(parents=True, exist_ok=True)
     file_count, equations = 0, 0
-    paths = sorted(p for p in inputs.rglob('*') if p.suffix.lower() in {'.html', '.xhtml', '.htm'})
+    if input_format not in {'html', 'xml'}: raise ValueError('Unknown input format')
+    extensions = {'.html', '.xhtml', '.htm'} if input_format == 'html' else {'.xml', '.cnxml'}
+    paths = sorted(p for p in inputs.rglob('*') if p.suffix.lower() in extensions)
     for path in paths:
         file_count += 1
         with path.open('rb') as source:
             raw = source.read(32 * 1024 * 1024 + 1)
         if len(raw) > 32 * 1024 * 1024:
             errors.append({'source': str(path.relative_to(inputs)), 'classification': 'invalid/out-of-bounds input',
-                           'reason': 'HTML exceeds importer 32 MiB budget'}); continue
+                           'reason': 'Source exceeds importer 32 MiB budget'}); continue
         try:
             # HTML parser resolves only built-in named character references, not XML external entities.
-            raw.decode('utf-8')  # ar5iv HTML is UTF-8; reject other encodings explicitly.
-            doc = html.fromstring(raw, parser=html.HTMLParser(encoding='utf-8', no_network=True, recover=False))
-        except (UnicodeDecodeError, etree.ParserError, etree.XMLSyntaxError) as error:
+            raw.decode('utf-8')  # Reject other encodings explicitly.
+            if input_format == 'xml':
+                # CNXML textbook sources contain namespace-qualified presentation MathML.
+                # Reject declarations rather than retaining unresolved entity nodes.
+                if b'<!DOCTYPE' in raw.upper() or b'<!ENTITY' in raw.upper():
+                    raise ValueError('XML DOCTYPE/entity declarations are not accepted')
+                doc = etree.fromstring(raw, parser=etree.XMLParser(resolve_entities=False, no_network=True))
+            else:
+                doc = html.fromstring(raw, parser=html.HTMLParser(encoding='utf-8', no_network=True, recover=False))
+        except (ValueError, etree.ParserError, etree.XMLSyntaxError) as error:
             errors.append({'source': str(path.relative_to(inputs)), 'classification': 'invalid/out-of-bounds input',
                            'reason': str(error)}); continue
         raw_hash = sha(raw)
         sources = doc.xpath('//*[local-name()="math"]')
+        if input_format == 'xml':
+            sources = [e for e in sources if etree.QName(e).namespace == NS]
         if sources:
             (originals / (raw_hash + path.suffix.lower())).write_bytes(raw)
         for index, element in enumerate(sources):
@@ -70,6 +81,11 @@ def sample(inputs, output, count, seed, release, license_name, source_url):
                 if not preserves_text(e) and len(e) and e.text and e.text.isspace(): e.text = None
                 parent = e.getparent()
                 if parent is not None and not preserves_text(parent) and e.tail and e.tail.isspace(): e.tail = None
+            original_display = root.get('display')
+            # CNXML equation wrappers distinguish display equations from inline math.
+            inferred_display = input_format == 'xml' and any(
+                etree.QName(p).localname == 'equation' for p in element.iterancestors())
+            if original_display is None and inferred_display: root.set('display', 'block')
             normalized = etree.tostring(root, encoding='unicode', with_tail=False)
             digest = sha(normalized.encode())
             provenance = {'sourceFile': str(path.relative_to(inputs)), 'sourceSHA256': raw_hash,
@@ -86,9 +102,11 @@ def sample(inputs, output, count, seed, release, license_name, source_url):
             candidates[digest] = {'id': 'corpus-' + digest[:20], 'markup': normalized, 'sha256': digest,
                 'feature': 'corpus', 'features': dict(features), 'attributes': attrs, 'provenance': [provenance],
                 'nodeCount': nodes, 'depth': depth, 'display': display, 'fontSize': 20,
-                'normalization': ['UTF-8 HTML; named entities decoded to Unicode by lxml; external access disabled',
+                'normalization': [('UTF-8 XML; declarations rejected; external access disabled' if input_format == 'xml'
+                    else 'UTF-8 HTML; named entities decoded to Unicode by lxml; external access disabled'),
                     'standalone MathML namespace outside annotation-xml payloads', 'DOM id/class removed for deduplication',
-                    'inter-element indentation removed; token text and annotations preserved'],
+                    'inter-element indentation removed; token text and annotations preserved'] +
+                    (['display=block inferred from CNXML equation wrapper'] if inferred_display and original_display is None else []),
                 'classification': 'unreviewed', 'stratum': display + ':' + str(int(math.log2(max(1, nodes))))}
     frequencies = Counter()
     for c in candidates.values(): frequencies.update(c['features'].keys())
@@ -122,7 +140,8 @@ if __name__ == '__main__':
     parser.add_argument('--release', required=True)
     parser.add_argument('--license', required=True, dest='license_name')
     parser.add_argument('--source-url', required=True)
+    parser.add_argument('--input-format', choices=['html', 'xml'], default='html')
     args = parser.parse_args()
     if args.count < 1: parser.error('count must be positive')
     if args.output.resolve().is_relative_to(args.inputs.resolve()): parser.error('output must be outside inputs')
-    sample(args.inputs, args.output, args.count, args.seed, args.release, args.license_name, args.source_url)
+    sample(args.inputs, args.output, args.count, args.seed, args.release, args.license_name, args.source_url, args.input_format)

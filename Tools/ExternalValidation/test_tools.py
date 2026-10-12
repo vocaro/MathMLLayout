@@ -9,12 +9,49 @@ import unittest
 from pathlib import Path
 from lxml import etree
 from sample_corpus import sample
+from import_openstax import import_corpus
 from import_wpt import number, apply_reviewed
 from gallery import aligned, outcome, validate_reports
 from PIL import Image
 
 
 class ExternalToolTests(unittest.TestCase):
+    def testPinnedOpenStaxImporterRejectsExtraXMLBeforeSampling(self):
+        pins = json.loads((Path(__file__).parent / 'openstax-pins.json').read_text())
+        for extra in ['extra.xml', 'nested/extra.cnxml', 'nested/extra.XML']:
+            with self.subTest(extra=extra), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp); inputs = root/'inputs'; inputs.mkdir()
+                for source in pins['sources']:
+                    (inputs/source['file']).write_text('<document/>')
+                unexpected = inputs/extra
+                unexpected.parent.mkdir(parents=True, exist_ok=True)
+                unexpected.write_text('<document/>')
+                with self.assertRaisesRegex(ValueError, 'Supply exactly the six pinned'):
+                    import_corpus(inputs, root/'out')
+                self.assertFalse((root/'out').exists())
+
+    def testCNXMLPreservesNamespacesAndInfersDisplayWithoutResolvingEntities(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); inputs = root/'inputs'; inputs.mkdir()
+            (inputs/'a.cnxml').write_text('<document xmlns="http://cnx.rice.edu/cnxml" '
+                'xmlns:m="http://www.w3.org/1998/Math/MathML"><math>foreign</math>'
+                '<equation><m:math id="original"><m:mtext> a &amp; b </m:mtext></m:math></equation>'
+                '<m:math><m:mi>x</m:mi></m:math></document>')
+            (inputs/'b.cnxml').write_text('<!DOCTYPE document [<!ENTITY e SYSTEM "file:///etc/hosts">]>'
+                '<document xmlns:m="http://www.w3.org/1998/Math/MathML"><m:math><m:mtext>&e;</m:mtext></m:math></document>')
+            with contextlib.redirect_stdout(io.StringIO()):
+                sample(inputs, root/'out', 100, 52, 'test', 'test', 'https://example.invalid/', 'xml')
+            manifest = json.loads((root/'out'/'manifest.json').read_text())
+            self.assertEqual(manifest['population']['equations'], 2)
+            self.assertEqual(len(manifest['exclusions']), 1)
+            display = next(c for c in manifest['cases'] if c['display'] == 'block')
+            doc = etree.fromstring(display['markup'].encode())
+            self.assertEqual(etree.QName(doc).namespace, 'http://www.w3.org/1998/Math/MathML')
+            self.assertEqual(doc[0].text, ' a & b ')
+            self.assertNotIn('id=', display['markup'])
+            self.assertEqual(display['provenance'][0]['sourceElementID'], 'original')
+            self.assertIn('display=block inferred from CNXML equation wrapper', display['normalization'])
+
     def testReviewedOutcomesCannotReplaceTheUpstreamExpectation(self):
         case = {'id': 'a', 'expected': 30, 'tolerance': 1, 'classification': 'pass'}
         reviewed = {'classification': 'bug', 'issue': 'https://github.com/vocaro/MathMLLayout/issues/54', 'observed': 35}
