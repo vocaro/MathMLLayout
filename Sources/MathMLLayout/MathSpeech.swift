@@ -187,16 +187,31 @@ private struct Speaker {
                 return words.limits(base, from: lower, to: over.map { reading(of: $0, depth: depth + 1) } ?? "")
             }
         case "mmultiscripts":
-            var parts = [child(0)]
+            // Base, right pairs, then left pairs, each in source order. In the LTR
+            // layout, right pairs go outward and left pairs go toward the base.
+            // A silent none still occupies a subscript or superscript slot.
+            var parts = [child(0)], prescript = false, superscript = false
             for item in children.dropFirst() {
                 guard count < MathLimits.nodes else { break }
-                // Placeholders and the prescripts marker are silent, but visiting them still
-                // spends a node. A shared list of placeholders may occur under many parents.
-                if item.name == "none" || item.name == "mprescripts" {
+                if item.name == "mprescripts" {
+                    count += 1
+                    prescript = true
+                    superscript = false
+                    continue
+                }
+                if item.name == "none" {
                     count += 1
                 } else {
-                    parts.append(words.script(reading(of: item, depth: depth + 1)))
+                    let position: MathScriptPosition = prescript
+                        ? (superscript ? .leftSuperscript : .leftSubscript)
+                        : (superscript ? .rightSuperscript : .rightSubscript)
+                    let script = reading(of: item, depth: depth + 1)
+                    // A silent or bounded-out expression must not leave a dangling label.
+                    if !script.isEmpty {
+                        parts.append(words.script(script, position: position, simple: isSimple(item)))
+                    }
                 }
+                superscript.toggle()
             }
             return words.phrase(parts)
         case "mtable":

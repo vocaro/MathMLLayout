@@ -51,7 +51,18 @@ enum GermanVocabulary: MathVocabulary {
     static func limits(_ base: String, from lower: String, to upper: String) -> String {
         phrase(base, "von", lower, "bis", upper)
     }
-    static func script(_ script: String) -> String { phrase("Index", script) }
+    // Positional script names adapted from pinned MathCAT/SRE; compound closing
+    // phrases composed for MathMLLayout. See Documentation/SpeechWordingAudit.md.
+    static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String {
+        let label: String, end: String
+        switch position {
+        case .rightSubscript: label = "rechter unterer Index"; end = "Ende Index"
+        case .rightSuperscript: label = "rechter oberer Index"; end = "Ende Index"
+        case .leftSubscript: label = "linker unterer Index"; end = "Ende Index"
+        case .leftSuperscript: label = "linker oberer Index"; end = "Ende Index"
+        }
+        return phrase(label, script, simple ? "" : end)
+    }
     static func table(rows: Int) -> String { "Tabelle mit \(rows) \(rows == 1 ? "Zeile" : "Zeilen")" }
     static func row(_ number: Int) -> String { "Zeile \(number):" }
 

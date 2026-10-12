@@ -51,7 +51,18 @@ enum SpanishVocabulary: MathVocabulary {
     static func limits(_ base: String, from lower: String, to upper: String) -> String {
         phrase(base, "desde", lower, "hasta", upper)
     }
-    static func script(_ script: String) -> String { phrase("índice", script) }
+    // Positional script names adapted from pinned MathCAT/SRE; compound closing
+    // phrases composed for MathMLLayout. See Documentation/SpeechWordingAudit.md.
+    static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String {
+        let label: String, end: String
+        switch position {
+        case .rightSubscript: label = "subíndice derecho"; end = "fin de subíndice"
+        case .rightSuperscript: label = "superíndice derecho"; end = "fin de superíndice"
+        case .leftSubscript: label = "subíndice izquierdo"; end = "fin de subíndice"
+        case .leftSuperscript: label = "superíndice izquierdo"; end = "fin de superíndice"
+        }
+        return phrase(label, script, simple ? "" : end)
+    }
     static func table(rows: Int) -> String { "tabla de \(rows) \(rows == 1 ? "fila" : "filas")" }
     static func row(_ number: Int) -> String { "fila \(number):" }
 

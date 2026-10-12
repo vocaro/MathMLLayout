@@ -1,5 +1,8 @@
+// Selected multiscript wording adapted from MathCAT (MIT) and Speech Rule Engine
+// (Apache-2.0), modified for explicit sides and compound closure in MathMLLayout.
+// See THIRD_PARTY_NOTICES.md and Documentation/SpeechWordingAudit.md for sources.
 /// English, and the reading of every locale without a vocabulary of its own. Its wording for the
-/// constructs 0.1.0 spoke is fixed: hosts and their tests quote it.
+/// constructs 0.1.0 spoke is retained except for positional multiscript readings (#55).
 enum EnglishVocabulary: MathVocabulary {
     static let language = "en"
 
@@ -49,7 +52,18 @@ enum EnglishVocabulary: MathVocabulary {
     static func limits(_ base: String, from lower: String, to upper: String) -> String {
         phrase(base, "from", lower, "to", upper)
     }
-    static func script(_ script: String) -> String { phrase("script", script) }
+    // Positional script names adapted from pinned MathCAT/SRE; compound closing
+    // phrases composed for MathMLLayout. See Documentation/SpeechWordingAudit.md.
+    static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String {
+        let label: String, end: String
+        switch position {
+        case .rightSubscript: label = "right subscript"; end = "end subscript"
+        case .rightSuperscript: label = "right superscript"; end = "end superscript"
+        case .leftSubscript: label = "left subscript"; end = "end subscript"
+        case .leftSuperscript: label = "left superscript"; end = "end superscript"
+        }
+        return phrase(label, script, simple ? "" : end)
+    }
     static func table(rows: Int) -> String { rows == 1 ? "table with 1 row" : "table with \(rows) rows" }
     static func row(_ number: Int) -> String { "row \(number):" }
 
