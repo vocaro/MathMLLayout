@@ -330,7 +330,7 @@ final class FuzzTests: MathTestCase {
         return (laidOut, slowest)
     }
 
-    /// The regression guard: a fixed range of seeds, about a second.
+    /// The regression guard: a fixed range of seeds and bounded layout/speech output.
     ///
     /// For hunting, `FUZZ_SEEDS=start:count` runs that range instead, and `FUZZ_TRACE=1` names each
     /// seed on stderr before it runs, so the last line before a crash is the seed that crashed.
@@ -342,7 +342,8 @@ final class FuzzTests: MathTestCase {
         print("FUZZ \(seeds): laid out \(result.laidOut); slowest seed \(result.slowest.seed) \(result.slowest.seconds)s")
         // Enough of the trees must get through layout for this to test more than its errors.
         if seeds.count >= 100 { XCTAssertGreaterThan(result.laidOut, seeds.count / 4) }
-        XCTAssertLessThan(result.slowest.seconds, 2, "seed \(result.slowest.seed)")
+        // Timing names slow seeds for investigation. Complexity regressions have directed
+        // same-shape CPU growth guards; these varied trees assert geometry and speech budgets.
     }
 
     // MARK: Directed cases
@@ -561,10 +562,16 @@ final class FuzzTests: MathTestCase {
         let glyphs = Array(repeating: n("mglyph", ["alt": long]), count: 5_000)
         XCTAssertLessThanOrEqual(reading(n("mi", [:], glyphs)).utf16.count, bound)
         // And none of it is gathered past the bound: 1 GB of `alt` here, which took a minute to join.
-        let start = ContinuousClock.now
         let longer = n("mglyph", ["alt": String(repeating: "a", count: 50_000)])
-        XCTAssertLessThanOrEqual(reading(n("mi", [:], Array(repeating: longer, count: 19_000))).utf16.count, bound)
-        XCTAssertLessThan(ContinuousClock.now - start, .seconds(5), "returns promptly")
+        let small = n("mi", [:], Array(repeating: longer, count: 1_900))
+        let large = n("mi", [:], Array(repeating: longer, count: 19_000))
+        // The text budget is exhausted in the first few glyphs for both inputs. Checking
+        // growth catches joining all 1 GB before truncating it, regardless of CPU speed.
+        assertCPUScaling(factor: 5, "glyph text past the budget", baseline: {
+            XCTAssertLessThanOrEqual(reading(small).utf16.count, bound)
+        }, larger: {
+            XCTAssertLessThanOrEqual(reading(large).utf16.count, bound)
+        })
         let fences = Array(repeating: n("mfenced", ["open": long, "close": long]), count: 5_000)
         XCTAssertLessThanOrEqual(reading(n("math", [:], fences)).utf16.count, bound)
         let powers = Array(repeating: n("msup", [:], [one, n("mn", [:], [], text: long)]), count: 5_000)

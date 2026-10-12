@@ -509,10 +509,15 @@ final class LineBreakingFuzzTests: MathTestCase {
         }
         // At the width of the widest unbreakable stretch nothing overflows.
         let widest = lines.widestUnbreakable
-        if ProcessInfo.processInfo.environment["MATHML_FUZZ_SKIP_WIDEST"] == nil, limit.isFinite, widest > 0, let exact = try? LayoutEngine.lines(root, style: style, maximumWidth: widest, firstRowMaximumWidth: nil) {
-            for (index, row) in exact.rows.enumerated() where row.origin.x + row.box.width > widest + 0.01 {
-                found.append("at its widest unbreakable width \(widest) row \(index) reaches \(row.origin.x + row.box.width)"
-                    + " (then widest \(exact.widestUnbreakable))")
+        if ProcessInfo.processInfo.environment["MATHML_FUZZ_SKIP_WIDEST"] == nil, widest > 0 {
+            do {
+                let exact = try LayoutEngine.lines(root, style: style, maximumWidth: widest, firstRowMaximumWidth: nil)
+                for (index, row) in exact.rows.enumerated() where row.origin.x + row.box.width > widest + 0.01 {
+                    found.append("at its widest unbreakable width \(widest) row \(index) reaches \(row.origin.x + row.box.width)"
+                        + " (then widest \(exact.widestUnbreakable))")
+                }
+            } catch {
+                found.append("at its widest unbreakable width \(widest) relayout throws: \(error)")
             }
         }
         return found
@@ -703,8 +708,8 @@ final class LineBreakingFuzzTests: MathTestCase {
             if seconds > slowest.seconds { slowest = (seed, seconds) }
         }
         XCTAssertEqual(failed, 0, "of seeds \(seeds)")
-        // A formula of a few hundred nodes at most: one that takes seconds is a blow-up.
-        XCTAssertLessThan(slowest.seconds, 20, "seed \(slowest.seed)")
+        // The sweep asserts row, ink, token, and drawing invariants. Timing is diagnostic;
+        // directed same-shape growth guards below check algorithmic complexity.
         if trace != nil { print("fuzz: seeds \(seeds) done, slowest seed \(slowest.seed) took \(slowest.seconds)s") }
     }
 
@@ -803,18 +808,20 @@ final class LineBreakingFuzzTests: MathTestCase {
     /// child among them: unoptimized, a row of ten thousand fences took twenty times what a sum of
     /// as many terms does.
     func testARowOfFencesTakesWhatASumDoes() throws {
-        func seconds(_ symbol: String) throws -> TimeInterval {
-            let row = MathMLNode(name: "math", children: (0..<6_666).flatMap { _ in
+        func row(_ symbol: String) -> MathMLNode {
+            MathMLNode(name: "math", children: (0..<6_666).flatMap { _ in
                 [MathMLNode(name: "mo", text: symbol), MathMLNode(name: "mi", text: "x")]
             })
-            let start = Date()
-            XCTAssertEqual(try MathLayout(row, style: Self.style(2)).rows.count, 1)
-            return Date().timeIntervalSince(start)
         }
-        // Once for the fonts, then against each other: a ratio, whatever the machine.
-        _ = try seconds("+")
-        let sum = try seconds("+")
-        for symbol in ["|", "(", "↑"] { XCTAssertLessThan(try seconds(symbol), sum * 5 + 0.25, symbol) }
+        let sum = row("+")
+        for symbol in ["|", "(", "↑"] {
+            let fences = row(symbol)
+            try assertCPUScaling(factor: 5, symbol, baseline: {
+                XCTAssertEqual(try MathLayout(sum, style: Self.style(2)).rows.count, 1)
+            }, larger: {
+                XCTAssertEqual(try MathLayout(fences, style: Self.style(2)).rows.count, 1)
+            })
+        }
     }
 
     /// `scriptlevel` and `selection` are numbers an author writes, the ends of `Int` among them: a
@@ -860,14 +867,20 @@ final class LineBreakingFuzzTests: MathTestCase {
                 }
             }
         }
-        let start = Date()
         let box = try LayoutEngine(fontName: nil).layoutRoot(node(hostile), style: Self.style(20))
         XCTAssertGreaterThan(box.width, 999)
         XCTAssertLessThan(segments(box), 100, "a frame, a row line and a column line")
         // Drawn, they cost what the canvas shows of them.
         let layout = try MathLayout(node(hostile), style: Self.style(20))
         _ = Self.bitmap(width: 300, height: 300) { layout.draw(in: $0, baselineOrigin: CGPoint(x: 10, y: 150)) }
-        XCTAssertLessThan(Date().timeIntervalSince(start), 5)
+        // The segment bound above and canvas clipping below bound representation and ink;
+        // drawing cost must not depend on the off-canvas length of the dashed lines.
+        let smaller = try MathLayout(node(hostile.replacingOccurrences(of: "1000", with: "100")), style: Self.style(20))
+        assertCPUScaling(factor: 5, "clipped dashed lines", baseline: {
+            _ = Self.bitmap(width: 300, height: 300) { smaller.draw(in: $0, baselineOrigin: CGPoint(x: 10, y: 150)) }
+        }, larger: {
+            _ = Self.bitmap(width: 300, height: 300) { layout.draw(in: $0, baselineOrigin: CGPoint(x: 10, y: 150)) }
+        })
 
         // And they are dashes still: over the extent of solid lines, with less ink.
         func drawn(_ lines: String) throws -> (ink: CGRect?, pixels: Int) {

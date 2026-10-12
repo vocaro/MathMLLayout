@@ -254,14 +254,19 @@ final class LayoutEngine {
         }
     }
 
+    /// Elements visited without a box still count toward the formula's node bound.
+    func countNodes(_ count: Int = 1) throws {
+        nodeCount += count
+        guard nodeCount <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
+    }
+
     func layout(_ node: MathMLNode, _ outer: LayoutContext, _ embellishment: Embellishment = .none,
                 depth: Int) throws -> MathBox {
         guard depth < MathLimits.depth else { throw MathLayoutError.limitExceeded }
         // The depth bound counts levels, not bytes, and a thread's stack may be spent well within it.
         if depth == 0 { stackFloor = MathLimits.stackFloor() }
         guard !MathLimits.isStackSpent(stackFloor) else { throw MathLayoutError.limitExceeded }
-        nodeCount += 1
-        guard nodeCount <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
+        try countNodes()
         let context = inherit(node, outer)
         let children = node.children
         var box: MathBox
@@ -306,7 +311,9 @@ final class LayoutEngine {
         case "mtable":
             box = try table(node, context, depth: depth)
         case "mtr", "mlabeledtr":
-            box = try table(MathMLNode(name: "mtable", children: [node]), context, depth: depth)
+            // The inferred table applies the row's attributes itself, as an explicit table does.
+            // Passing `context` would apply relative sizes and script levels a second time.
+            box = try table(MathMLNode(name: "mtable", children: [node]), outer, depth: depth)
         case "mstack", "mlongdiv", "msgroup", "msrow", "mscarries", "mscarry", "msline":
             box = try elementaryMath(node, context, depth: depth)
         case "mfenced":
@@ -347,6 +354,10 @@ final class LayoutEngine {
     /// formula. And the widest such thing in this pass: no `wrapWidth` beyond it changes anything.
     var mayNarrow = false
     var loosest: CGFloat = 0
+    /// Stable traversal indices give each wrapping part its own budget on a retry.
+    var wrapOverrides: [Int: CGFloat] = [:]
+    var wrapParts: [(natural: CGFloat, width: CGFloat, minimum: CGFloat)] = []
+    var nextWrapWidth: CGFloat { wrapOverrides[wrapParts.count] ?? wrapWidth }
 
     /// Starts the counts of untrusted input again, to lay the same formula out once more.
     func restart() {
@@ -354,6 +365,7 @@ final class LayoutEngine {
         textLength = 0
         narrowable = nil
         loosest = 0
+        wrapParts.removeAll(keepingCapacity: true)
     }
 
     // MARK: Embellished operators

@@ -1134,14 +1134,23 @@ final class LineBreakingTests: MathTestCase {
         let small = MathStyle(fontSize: 2, color: black)
         let whole = try MathLayout(large, style: small)
         XCTAssertEqual(whole.rows.count, 1)
-        let start = Date()
-        for limit in [whole.width - 1, whole.width / 2, whole.width / 40, 50, 0] {
-            let layout = try MathLayout(large, style: small, maximumWidth: limit)
-            XCTAssertGreaterThan(layout.rows.count, 1)
-            XCTAssertLessThanOrEqual(layout.width, max(limit, layout.widestUnbreakableWidth) + 0.001)
-            if limit == whole.width / 2 { XCTAssertEqual(layout.rows.count, 3) }
+        let shorter = MathMLNode(name: "math", children: Array(terms.prefix(terms.count / 4)) + [MathMLNode(name: "mi", text: "x")])
+        let shorterWhole = try MathLayout(shorter, style: small)
+        func exercise(_ root: MathMLNode, width: CGFloat) throws {
+            for limit in [width - 1, width / 2, width / 40, 50, 0] {
+                let layout = try MathLayout(root, style: small, maximumWidth: limit)
+                XCTAssertGreaterThan(layout.rows.count, 1)
+                XCTAssertLessThanOrEqual(layout.width, max(limit, layout.widestUnbreakableWidth) + 0.001)
+                if limit == width / 2 { XCTAssertEqual(layout.rows.count, 3) }
+            }
         }
-        XCTAssertLessThan(Date().timeIntervalSince(start), 60, "five layouts of 19,801 nodes: seconds, where a quadratic search takes minutes")
+        // Four times as many terms should require near-linear work for the same five
+        // line-width shapes. Quadratic search grows sixteenfold, beyond this allowance.
+        try assertCPUScaling(factor: 12, "bounded row search", baseline: {
+            try exercise(shorter, width: shorterWhole.width)
+        }, larger: {
+            try exercise(large, width: whole.width)
+        })
         // Ids and targets everywhere, and a forced break at every operator: still bounded.
         let targeted = MathMLNode(name: "math", attributes: ["indentalign": "id", "indenttarget": "t0"], children: (0..<3_000).flatMap {
             [MathMLNode(name: "mi", attributes: ["id": "t\($0)"], text: "x"),
