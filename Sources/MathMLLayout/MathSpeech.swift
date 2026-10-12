@@ -227,7 +227,11 @@ private struct Speaker {
         case "semantics", "maction":
             // The child layout draws, which need not be the first: an annotation may come before
             // it, and `selection` may name another.
-            return LayoutEngine.shownChild(node).map { reading(of: $0, depth: depth + 1) } ?? ""
+            let shown = LayoutEngine.shownIndex(node)
+            // The annotations passed over to find it count as layout counts them: past the bound
+            // the rest of the formula is left out.
+            if node.name == "semantics" { count += shown ?? children.count }
+            return shown.map { reading(of: children[$0], depth: depth + 1) } ?? ""
         case "mphantom", "mspace", "none", "mprescripts", "annotation", "annotation-xml":
             return ""
         default:

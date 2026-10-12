@@ -311,6 +311,45 @@ final class RobustnessTests: XCTestCase {
         }
     }
 
+    /// A `semantics` stands for its first child that is no annotation, and finding it passes over
+    /// the annotations before it. They are nodes of the formula though none is laid out or read.
+    /// Uncounted, ten thousand of them before the child, under ten thousand parents that share
+    /// them, were a hundred million to pass over in a formula of twenty thousand nodes by the
+    /// count: twenty-three seconds to lay out unoptimized, and seven to read.
+    func testAnnotationsPassedOverCountTowardTheNodeBound() {
+        let annotation = MathMLNode(name: "annotation", text: "x")
+        func semantics(_ annotations: Int, _ shown: MathMLNode?...) -> MathMLNode {
+            MathMLNode(name: "semantics", children: Array(repeating: annotation, count: annotations) + shown.compactMap { $0 })
+        }
+        // The bound is exact: the root, the semantics, its annotations and its child.
+        let most = MathLimits.nodes - 3
+        XCTAssertEqual(survive(math(semantics(most, mi("x"))), size: 1, "annotations to the bound"), .laidOut)
+        XCTAssertEqual(survive(math(semantics(most + 1, mi("x"))), size: 1, "one annotation more"), .threw(.limitExceeded))
+        XCTAssertEqual(survive(math(semantics(most + 1)), size: 1, "annotations and no child"), .laidOut)
+        XCTAssertEqual(survive(math(semantics(most + 2)), size: 1, "one more, and no child"), .threw(.limitExceeded))
+        // Those after the child are never reached, and cost nothing.
+        XCTAssertEqual(survive(math(MathMLNode(name: "semantics", children: [mi("x")] + Array(repeating: annotation, count: 5 * MathLimits.nodes))), size: 1,
+                               "annotations after the child"), .laidOut)
+        // One list under many parents, in the shapes that ask what the semantics is before laying it out.
+        let shared = semantics(10_000, mi("x"))
+        let shapes: [(String, MathMLNode)] = [
+            ("siblings", MathMLNode(name: "math", children: Array(repeating: shared, count: 9_990))),
+            ("beside an operator", MathMLNode(name: "math", children: [mo("(")] + Array(repeating: shared, count: 9_000))),
+            ("in rows", MathMLNode(name: "math", children: Array(repeating: MathMLNode(name: "mrow", children: [shared]), count: 6_000))),
+            ("under roots", MathMLNode(name: "math", children: Array(repeating: MathMLNode(name: "msqrt", children: [shared]), count: 6_000))),
+        ]
+        for (name, root) in shapes {
+            var outcome = Outcome.laidOut
+            let elapsed = ContinuousClock().measure { outcome = survive(root, size: 1, name) }
+            XCTAssertEqual(outcome, .threw(.limitExceeded), name)
+            XCTAssertLessThan(elapsed, .seconds(2), "layout of \(name) took \(elapsed)")
+            var reading = ""
+            let read = ContinuousClock().measure { reading = root.accessibilityDescription }
+            XCTAssertLessThan(read, .seconds(2), "reading \(name) took \(read)")
+            XCTAssertTrue(reading.contains("x"), "\(name): what comes before the bound is read")
+        }
+    }
+
     // MARK: Mutated input
 
     /// Corpus formulas with bytes changed, dropped and repeated: whatever the parser accepts,

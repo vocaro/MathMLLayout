@@ -99,6 +99,10 @@ Line breaking, `mglyph`, elementary math and localized readings
     stack runs out.
   - A row of thousands of stretchy operators took quadratic time, and a NaN font size gave a
     NaN box.
+  - The annotations a `semantics` has before its child were passed over uncounted. A tree built
+    by hand with ten thousand of them, under ten thousand parents that share them, was inside
+    every bound and took most of a minute to lay out. They count toward the 20,000 nodes
+    ([#40](https://github.com/vocaro/MathMLLayout/issues/40)).
 
 ### Changed
 
