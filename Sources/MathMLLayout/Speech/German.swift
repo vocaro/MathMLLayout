@@ -1,5 +1,7 @@
-/// German, as it is read aloud in class: "x Quadrat", "a durch b", "Quadratwurzel aus x",
-/// "Klammer auf", and a stack as the "schriftliche Rechnung" pupils learn.
+// Selected wording adapted from MathCAT (MIT) and Speech Rule Engine (Apache-2.0).
+// Modified for MathMLLayout's phrase templates; see THIRD_PARTY_NOTICES.md and
+// Documentation/SpeechWordingAudit.md for sources, decisions and remaining uncertainty.
+/// German formula readings.
 enum GermanVocabulary: MathVocabulary {
     static let language = "de"
 
@@ -12,7 +14,7 @@ enum GermanVocabulary: MathVocabulary {
         ifAndOnlyIf: "genau dann wenn", element: "Element von", notElement: "kein Element von",
         subset: "Teilmenge von", subsetOrEqual: "Teilmenge von oder gleich", union: "vereinigt mit",
         intersection: "geschnitten mit", sum: "die Summe", product: "das Produkt", integral: "das Integral",
-        contourIntegral: "das Ringintegral", partial: "del", nabla: "Nabla", squareRoot: "Quadratwurzel",
+        contourIntegral: "das Randintegral", partial: "partielle Ableitung", nabla: "Nabla", squareRoot: "Quadratwurzel",
         prime: "Strich", doublePrime: "zwei Strich", factorial: "Fakultät", percent: "Prozent", degrees: "Grad",
         infinity: "unendlich", openParen: "Klammer auf", closeParen: "Klammer zu",
         openBracket: "eckige Klammer auf", closeBracket: "eckige Klammer zu", openBrace: "geschweifte Klammer auf",
@@ -22,8 +24,8 @@ enum GermanVocabulary: MathVocabulary {
         not: "nicht", and: "und", or: "oder")
 
     static let accents = MathAccents(
-        hat: .after("Dach"), tilde: .after("Tilde"), bar: .after("quer"), underbar: .after("unterstrichen"),
-        dot: .after("Punkt"), doubleDot: .after("zwei Punkt"), vector: .before("Vektor"), check: .after("Hatschek"),
+        hat: .after("Zirkumflex"), tilde: .after("Tilde"), bar: .after("Überstrich"), underbar: .after("unterstrichen"),
+        dot: .after("Punkt"), doubleDot: .after("diaeresis"), vector: .before("Vektor"), check: .after("Caron"),
         breve: .after("Breve"), overbrace: .after("mit Klammer darüber"), underbrace: .after("mit Klammer darunter"))
 
     static func fraction(_ numerator: String, _ denominator: String, simple: Bool) -> String {

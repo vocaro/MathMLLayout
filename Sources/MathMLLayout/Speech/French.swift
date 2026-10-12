@@ -1,13 +1,14 @@
-/// French, as it is read aloud in class: "x au carré", "a sur b", "racine carrée de x", and a
-/// stack as the "opération posée" pupils learn. A label's colon takes a space before it.
+// Selected wording adapted from MathCAT (MIT) and Speech Rule Engine (Apache-2.0).
+// Modified for MathMLLayout's phrase templates; see THIRD_PARTY_NOTICES.md and
+// Documentation/SpeechWordingAudit.md for sources, decisions and remaining uncertainty.
+/// French formula readings. A label's colon takes a space before it.
 enum FrenchVocabulary: MathVocabulary {
     static let language = "fr"
 
     static let symbols = MathSymbols(
         plus: "plus", minus: "moins", plusOrMinus: "plus ou moins", minusOrPlus: "moins ou plus", times: "fois",
         dividedBy: "divisé par", slash: "sur", equals: "égale", notEqual: "est différent de",
-        // Alone, French "inférieur" can include equality, so textbooks read < as strictly so.
-        less: "est strictement inférieur à", greater: "est strictement supérieur à",
+        less: "est inférieur à", greater: "est supérieur à",
         lessOrEqual: "est inférieur ou égal à", greaterOrEqual: "est supérieur ou égal à",
         approximately: "est approximativement égal à", equivalent: "est équivalent à",
         similar: "est semblable à", proportional: "est proportionnel à",
@@ -15,7 +16,7 @@ enum FrenchVocabulary: MathVocabulary {
         ifAndOnlyIf: "si et seulement si", element: "appartient à", notElement: "n'appartient pas à",
         subset: "est inclus dans", subsetOrEqual: "est inclus dans ou égal à", union: "union",
         intersection: "inter", sum: "la somme", product: "le produit", integral: "l'intégrale",
-        contourIntegral: "l'intégrale de contour", partial: "d rond", nabla: "nabla", squareRoot: "racine carrée",
+        contourIntegral: "l'intégrale de contour", partial: "dérivée partielle", nabla: "nabla", squareRoot: "racine carrée",
         prime: "prime", doublePrime: "seconde", factorial: "factorielle", percent: "pour cent", degrees: "degrés",
         infinity: "l'infini", openParen: "parenthèse ouvrante", closeParen: "parenthèse fermante",
         openBracket: "crochet ouvrant", closeBracket: "crochet fermant", openBrace: "accolade ouvrante",
@@ -24,8 +25,8 @@ enum FrenchVocabulary: MathVocabulary {
         forAll: "pour tout", exists: "il existe", not: "non", and: "et", or: "ou")
 
     static let accents = MathAccents(
-        hat: .after("chapeau"), tilde: .after("tilde"), bar: .after("barre"), underbar: .after("souligné"),
-        dot: .after("point"), doubleDot: .after("point point"), vector: .before("vecteur"), check: .after("caron"),
+        hat: .after("accent circonflexe"), tilde: .after("tilde"), bar: .after("barre"), underbar: .after("souligné"),
+        dot: .after("point"), doubleDot: .after("tréma"), vector: .before("vecteur"), check: .after("caron"),
         breve: .after("brève"), overbrace: .after("avec accolade au-dessus"),
         underbrace: .after("avec accolade en dessous"))
 
