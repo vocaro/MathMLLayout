@@ -605,11 +605,20 @@ extension LayoutEngine {
             let (left, right) = ends(of: line.cells.indices, on: index)
             reach = (min(reach.left, left), max(reach.right, right))
         }
-        /// The ends of the rule that is line `index`, with its overhangs.
+        /// The ends of the rule that is line `index`. An overhang is how far it runs past the leftmost or the
+        /// rightmost column it spans (3.6.7.2), not past a sign that overflows that column. A rule across the
+        /// stack reaches such a sign as well, so it ends at whichever of the two is further out: an overhang
+        /// no longer than the sign's overflow changes nothing.
         func ends(ofRule index: Int) -> (left: CGFloat, right: CGFloat) {
             let line = lines[index]
-            let (left, right) = line.count > 0 ? ends(ofColumns: 0..<line.count, on: index) : line.isFrame ? (0, width) : reach
-            return (left - line.overhang.left, right + line.overhang.right)
+            var (left, right) = line.count > 0 ? ends(ofColumns: 0..<line.count, on: index) : (0, width)
+            left -= line.overhang.left; right += line.overhang.right
+            if line.count == 0, !line.isFrame {
+                // Without a sign to reach, the rule keeps to its overhang, which may shorten it.
+                if reach.left < 0 { left = min(left, reach.left) }
+                if reach.right > width { right = max(right, reach.right) }
+            }
+            return (left, right)
         }
         var backgrounds: [MathItem] = [], groups: [MathItem] = []
         for (index, line) in lines.enumerated() {

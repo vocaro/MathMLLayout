@@ -449,7 +449,7 @@ final class ElementaryMathTests: MathTestCase {
 
     /// A line with no length spans the stack (3.6.7.2). The stack is as wide as its rows, so the
     /// line goes on under a sign that overflows the first or the last column, as the line under
-    /// a sum does on paper.
+    /// a sum does on paper. Its overhangs are measured from those columns all the same.
     func testALineAcrossTheStackReachesASignThatOverflows() throws {
         func stack(_ line: String = "", sign: String = "<mo>+</mo>") throws -> Drawing {
             let body = "<mstack><mn>99</mn><msrow>\(sign)<mn>11</mn></msrow><msline\(line)/><mn>110</mn></mstack>"
@@ -463,21 +463,42 @@ final class ElementaryMathTests: MathTestCase {
         equal(sum.rules[0].rect.minX, plus.origin.x); equal(sum.rules[0].rect.maxX, total[2].right)
         equal(sum.rules[0].rect.minX, 0); equal(sum.rules[0].rect.width, sum.box.width)
         // A trailing sign overflows to the right.
-        let trailing = try drawing("<mstack stackalign='right'><mn>123</mn><msrow><mn>456</mn><mo>+</mo></msrow><msline/><mn>579</mn></mstack>")
+        func ending(_ line: String = "") throws -> Drawing {
+            try drawing("<mstack stackalign='right'><mn>123</mn><msrow><mn>456</mn><mo>+</mo></msrow><msline\(line)/><mn>579</mn></mstack>")
+        }
+        let trailing = try ending()
         XCTAssertGreaterThan(try trailing.glyph("plus").right, try trailing.glyph("nine").right + 1)
         equal(trailing.rules[0].rect.minX, try trailing.glyph("four").origin.x)
         equal(trailing.rules[0].rect.maxX, try trailing.glyph("plus").right)
-        // Every such line of a stack is the same, wherever the sign is, and overhangs start from there.
+        // Every such line of a stack is the same, wherever the sign is.
         let lines = try drawing("<mstack><msline/><mn>99</mn><msrow><mo>+</mo><mn>11</mn></msrow><msline/><mn>110</mn><msline/></mstack>")
         XCTAssertEqual(lines.rules.count, 3)
         for rule in lines.rules { equal(rule.rect.minX, try lines.glyph("plus").origin.x); equal(rule.rect.width, sum.rules[0].rect.width) }
+        // An overhang is past the column the line spans, not past the sign (3.6.7.2), and the line ends at
+        // whichever is further out. So one no longer than the sign overflows changes nothing, nor does a negative one.
+        let overflow = total[0].origin.x - plus.origin.x
+        XCTAssertGreaterThan(overflow, 0.2 * em); XCTAssertLessThan(overflow, 0.5 * em - 1)
+        for overhang in ["1px", "0.2em", "-0.2em"] {
+            let under = try stack(" leftoverhang='\(overhang)'")
+            equal(under.rules[0].rect.minX, try under.glyph("plus").origin.x, overhang)
+            equal(under.rules[0].rect.maxX, under.row(2)[2].right, overhang)
+        }
+        equal(try ending(" rightoverhang='1px'").rules[0].rect.maxX, try trailing.glyph("plus").right)
+        // A longer one is as long as it says: half an em left of the hundreds, which is past the sign.
         let hanging = try stack(" leftoverhang='0.5em' rightoverhang='3px'")
-        equal(hanging.rules[0].rect.minX, try hanging.glyph("plus").origin.x - 0.5 * em)
+        equal(hanging.rules[0].rect.minX, hanging.row(2)[0].origin.x - 0.5 * em)
+        XCTAssertLessThan(hanging.rules[0].rect.minX, try hanging.glyph("plus").origin.x - 1)
         equal(hanging.rules[0].rect.maxX, hanging.row(2)[2].right + 3)
-        // A line with a length is a number of that many digits, and keeps to their columns.
+        equal(try ending(" rightoverhang='0.5em'").rules[0].rect.maxX, try trailing.glyph("nine").right + 0.5 * em)
+        // With no sign to reach, a negative one shortens the line.
+        let bare = try drawing("<mstack><mn>99</mn><msline leftoverhang='-0.2em'/><mn>11</mn></mstack>")
+        equal(bare.rules[0].rect.minX, bare.row(1)[0].origin.x + 0.2 * em); equal(bare.rules[0].rect.maxX, bare.box.width)
+        // A line with a length is a number of that many digits, and keeps to their columns and its overhangs.
         let counted = try stack(" length='3'")
         equal(counted.rules[0].rect.minX, counted.row(2)[0].origin.x); equal(counted.rules[0].rect.maxX, counted.row(2)[2].right)
         XCTAssertGreaterThan(counted.rules[0].rect.minX, try counted.glyph("plus").origin.x + 1)
+        let short = try stack(" length='3' leftoverhang='1px'")
+        equal(short.rules[0].rect.minX, short.row(2)[0].origin.x - 1)
         // A sign with a column of its own overflows nothing, and carries have no width (3.6.1.1).
         let fitting = try stack(sign: "<mo>+</mo><none/>")
         equal(fitting.rules[0].rect.minX, try fitting.glyph("plus").origin.x); equal(fitting.rules[0].rect.width, fitting.box.width)
