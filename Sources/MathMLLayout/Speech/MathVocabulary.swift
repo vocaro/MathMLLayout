@@ -1,3 +1,8 @@
+/// The four corners of an `mmultiscripts` base, independent of reading order.
+enum MathScriptPosition: CaseIterable, Sendable {
+    case rightSubscript, rightSuperscript, leftSubscript, leftSuperscript
+}
+
 /// One language's way of reading a formula aloud. The speaker walks the tree and hands each
 /// construct's spoken parts to these functions, so every language puts its own words in its own
 /// order: "x squared" is "x au carré", "x vector" is "vecteur x". Nothing here is optional: a
@@ -23,8 +28,8 @@ protocol MathVocabulary: Sendable {
     static func under(_ base: String, _ script: String) -> String
     static func over(_ base: String, _ script: String) -> String
     static func limits(_ base: String, from lower: String, to upper: String) -> String
-    /// One script of an `mmultiscripts`, whichever corner it sits in.
-    static func script(_ script: String) -> String
+    /// One script at a named corner; compound readings explicitly mark their end.
+    static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String
     static func table(rows: Int) -> String
     /// Introduces row `number`, from 1, of a table or of a stack.
     static func row(_ number: Int) -> String

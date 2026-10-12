@@ -33,6 +33,11 @@ Line breaking, `mglyph`, elementary math and localized readings
 
 ### Fixed
 
+- `mmultiscripts` spoken readings distinguish right/left subscripts and superscripts
+  in all five languages. Pairs follow source order after the base, including silent
+  placeholders, and compound scripts announce their end. The speech guide and
+  wording audit record templates, pinned evidence and remaining linguistic uncertainty
+  ([#55](https://github.com/vocaro/MathMLLayout/issues/55)).
 - Inline large operators retain their font baseline instead of being shifted onto the math
   axis. This corrects under/over limit placement; display-style centering is preserved
   ([#54](https://github.com/vocaro/MathMLLayout/issues/54)).

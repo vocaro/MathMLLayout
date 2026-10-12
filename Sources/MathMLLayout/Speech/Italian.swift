@@ -52,7 +52,18 @@ enum ItalianVocabulary: MathVocabulary {
     static func limits(_ base: String, from lower: String, to upper: String) -> String {
         phrase(base, "da", lower, "fino a", upper)
     }
-    static func script(_ script: String) -> String { phrase("indice", script) }
+    // Positional script names adapted from pinned MathCAT/SRE; compound closing
+    // phrases composed for MathMLLayout. See Documentation/SpeechWordingAudit.md.
+    static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String {
+        let label: String, end: String
+        switch position {
+        case .rightSubscript: label = "pedice destro"; end = "fine pedice"
+        case .rightSuperscript: label = "apice destro"; end = "fine apice"
+        case .leftSubscript: label = "pedice sinistro"; end = "fine pedice"
+        case .leftSuperscript: label = "apice sinistro"; end = "fine apice"
+        }
+        return phrase(label, script, simple ? "" : end)
+    }
     static func table(rows: Int) -> String { "tabella di \(rows) \(rows == 1 ? "riga" : "righe")" }
     static func row(_ number: Int) -> String { "riga \(number):" }
 

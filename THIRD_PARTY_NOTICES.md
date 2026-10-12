@@ -16,8 +16,9 @@ Licensed under MIT; the complete copyright and permission notice is retained in
 [Licenses/MathCAT-MIT.txt](Licenses/MathCAT-MIT.txt).
 
 Adapted material: French and German accent names and ∂ names, German ∮ name,
-French comparison wording, Spanish double-dot accent name, and selected regression
-expectations. References for retained wording are also recorded in the
+French comparison wording, Spanish double-dot accent name, English/French multiscript
+names, the tensor multiscript regression structure, and selected regression expectations.
+References for retained wording are also recorded in the
 [speech wording audit](Documentation/SpeechWordingAudit.md).
 
 ## Speech Rule Engine
@@ -33,7 +34,10 @@ is retained unchanged in [Licenses/SRE-NOTICE.txt](Licenses/SRE-NOTICE.txt).
 
 Adapted material: selected accent and operator names from the French, German, Spanish
 and Italian `mathmaps` files; German overbar wording; Italian ClearSpeak bar wording;
-and selected regression expectations. In MathMLLayout these are incorporated into Swift
+French left-script labels and German/Spanish/Italian positional script labels;
+and selected regression expectations. French right-side counterparts and compound
+closing phrases are composed for MathMLLayout, and its reading order follows source order.
+In MathMLLayout these are incorporated into Swift
 phrase templates and isolated test formulas, with existing operand and alias handling.
 The affected vocabulary and test files prominently identify this adaptation.
 The [audit](Documentation/SpeechWordingAudit.md) records exact source files and decisions.

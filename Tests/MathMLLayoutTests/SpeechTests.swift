@@ -65,7 +65,9 @@ final class SpeechTests: MathTestCase {
         // Most languages name a vector before its letter.
         ("<mover><mi>v</mi><mo>→</mo></mover>", ["v vector", "vecteur v", "Vektor v", "vector v", "vettore v"]),
         ("<mmultiscripts><mi>C</mi><mi>k</mi><none/><mprescripts/><mi>n</mi><none/></mmultiscripts>",
-         ["C script k script n", "C indice k indice n", "C Index k Index n", "C índice k índice n", "C indice k indice n"]),
+         ["C right subscript k left subscript n", "C indice droit k indice gauche n",
+          "C rechter unterer Index k linker unterer Index n", "C subíndice derecho k subíndice izquierdo n",
+          "C pedice destro k pedice sinistro n"]),
         ("<mtable><mtr><mtd><mi>a</mi></mtd><mtd><mi>b</mi></mtd></mtr><mtr><mtd><mi>c</mi></mtd><mtd><mi>d</mi></mtd></mtr></mtable>",
          ["table with 2 rows row 1: a , b row 2: c , d", "tableau de 2 lignes ligne 1 : a , b ligne 2 : c , d",
           "Tabelle mit 2 Zeilen Zeile 1: a , b Zeile 2: c , d", "tabla de 2 filas fila 1: a , b fila 2: c , d",
@@ -230,14 +232,17 @@ final class SpeechTests: MathTestCase {
                 (words.squareRoot("Q1", closed: true), ["Q1"]), (words.cubeRoot("Q1"), ["Q1"]),
                 (words.root("Q1", index: "Q2"), ["Q1", "Q2"]), (words.under("Q1", "Q2"), ["Q1", "Q2"]),
                 (words.over("Q1", "Q2"), ["Q1", "Q2"]), (words.limits("Q1", from: "Q2", to: "Q3"), ["Q1", "Q2", "Q3"]),
-                (words.script("Q1"), ["Q1"]), (words.table(rows: 1), ["1"]), (words.table(rows: 12), ["12"]),
+                (words.table(rows: 1), ["1"]), (words.table(rows: 12), ["12"]),
                 (words.row(12), []), (words.stack(rows: 1), ["1"]), (words.stack(rows: 12), ["12"]), (words.endStack, []),
                 (words.line, []), (words.carries("Q1"), ["Q1"]), (words.blank, []), (words.crossedOut("Q1"), ["Q1"]),
                 (words.longDivision(rows: 0), []), (words.longDivision(rows: 1), ["1"]), (words.longDivision(rows: 12), ["12"]),
                 (words.divisor("Q1"), ["Q1"]), (words.dividend("Q1"), ["Q1"]), (words.result("Q1"), ["Q1"]),
                 (words.endLongDivision, []),
             ]
-            for (phrase, operands) in phrases {
+            let scripts = MathScriptPosition.allCases.flatMap { position in
+                [true, false].map { (words.script("Q1", position: position, simple: $0), ["Q1"]) }
+            }
+            for (phrase, operands) in phrases + scripts {
                 let said = phrase.split(separator: " ").map(String.init)
                 for operand in operands { XCTAssertEqual(said.filter { $0 == operand }.count, 1, "\(words.language): \(phrase)") }
                 XCTAssertGreaterThan(said.count, operands.count, "\(words.language): \(phrase)")

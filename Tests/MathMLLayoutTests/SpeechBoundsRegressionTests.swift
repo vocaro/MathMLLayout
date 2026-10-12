@@ -31,6 +31,69 @@ final class SpeechBoundsRegressionTests: XCTestCase {
         }
     }
 
+    func testPositionalScriptIncludesLastAllowedNodeAndOmitsBoundedLabels() {
+        for prescript in [false, true] {
+            for superscript in [false, true] {
+                // math, multiscripts, base, silent slots/marker, then last and past.
+                let marker = prescript ? [MathMLNode(name: "mprescripts")] : []
+                let slots = MathLimits.nodes - 4 - marker.count
+                // Choose slot parity for the last token, adding one empty row outside
+                // the multiscripts when necessary so the total budget stays identical.
+                let extra = (slots % 2 == 1) == superscript ? 0 : 1
+                let placeholders = Array(repeating: MathMLNode(name: "none"), count: slots - extra)
+                let children = [base] + marker + placeholders + [MathMLNode(name: "mi", text: "last"), MathMLNode(name: "mi", text: "past")]
+                let parent = MathMLNode(name: "mmultiscripts", children: children)
+                let root = MathMLNode(name: "math", children: Array(repeating: MathMLNode(name: "mrow"), count: extra) + [parent])
+                let side = prescript ? "left" : "right", kind = superscript ? "superscript" : "subscript"
+                XCTAssertEqual(root.accessibilityDescription, "x \(side) \(kind) last")
+                for language in MathReading.languages {
+                    let text = root.accessibilityDescription(locale: Locale(identifier: language)).text
+                    XCTAssertTrue(text.hasSuffix(" last"), language)
+                    XCTAssertFalse(text.contains("past"), language)
+                }
+            }
+        }
+    }
+
+    func testMultiscriptDepthBoundLeavesNoDanglingScriptLabels() {
+        let token = MathMLNode(name: "mi", text: "last")
+        for extra in [0, 1] {
+            let script = (0..<(MathLimits.depth - 3 + extra)).reduce(token) { inner, _ in
+                MathMLNode(name: "mrow", children: [inner])
+            }
+            let parent = MathMLNode(name: "mmultiscripts", children: [base, script, MathMLNode(name: "none")])
+            let root = MathMLNode(name: "math", children: [parent])
+            XCTAssertEqual(root.accessibilityDescription, extra == 0 ? "x right subscript last" : "x")
+            for language in MathReading.languages {
+                let text = root.accessibilityDescription(locale: Locale(identifier: language)).text
+                if extra == 0 { XCTAssertTrue(text.hasSuffix(" last"), language) }
+                else { XCTAssertEqual(text, "x", language) }
+            }
+        }
+    }
+
+    func testMultiscriptTextBoundCountsUTF16AndLeavesNoDanglingLabels() {
+        for text in [String(repeating: "a", count: MathLimits.textLength - 1),
+                     String(repeating: "𝑥", count: (MathLimits.textLength - 2) / 2)] {
+            // The base spends one UTF-16 unit; the script fills or nearly fills the remaining budget.
+            let script = MathMLNode(name: "mi", text: text)
+            let parent = MathMLNode(name: "mmultiscripts", children: [base, script, MathMLNode(name: "mi", text: "past")])
+            let root = MathMLNode(name: "math", children: [parent])
+            XCTAssertEqual(root.accessibilityDescription, "x right subscript \(text)")
+            for language in MathReading.languages {
+                let reading = root.accessibilityDescription(locale: Locale(identifier: language)).text
+                XCTAssertTrue(reading.hasSuffix(text), language)
+                XCTAssertFalse(reading.contains("past"), language)
+            }
+        }
+        let script = MathMLNode(name: "mi", text: String(repeating: "a", count: MathLimits.textLength))
+        let parent = MathMLNode(name: "mmultiscripts", children: [base, script, MathMLNode(name: "mi", text: "past")])
+        let root = MathMLNode(name: "math", children: [parent])
+        for language in MathReading.languages {
+            XCTAssertEqual(root.accessibilityDescription(locale: Locale(identifier: language)).text, "x", language)
+        }
+    }
+
     func testSilentMultiscriptChildrenCountTowardLayoutBound() throws {
         let style = MathStyle(fontSize: 1, color: black)
         for name in ["none", "mprescripts"] {

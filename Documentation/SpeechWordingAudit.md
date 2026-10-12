@@ -8,7 +8,8 @@ Audited on 2026-10-12 against these pinned revisions:
 Scope: the wording table and wording questions in
 [issue #31](https://github.com/vocaro/MathMLLayout/issues/31).
 This is a source comparison, not native-speaker or screen-reader-user validation.
-The engine's structural omissions are recorded below, not repaired by this audit.
+The engine's remaining structural omissions are recorded below. The follow-up for
+[#55](https://github.com/vocaro/MathMLLayout/issues/55) repairs multiscript positions.
 
 ## How evidence was used
 
@@ -78,14 +79,9 @@ Spain and Latin America.
   change handles token type, ordinal generation and compound-index scope. The Spanish
   SimpleSpeak root rule even contains an English `-th` pronunciation branch
   [M-es-simple]; do not adopt it.
-- **Generic mmultiscripts “script” names — unresolved.** SRE distinguishes subscript,
-  superscript and side: its French utility produces `indice gauche` versus
-  `exposant gauche` [S-fr-script], German ClearSpeak actions have
-  `linker unterer Index` versus `linker oberer Index` [S-de-roots], and Italian
-  messages distinguish `pedice` / `apice` [S-it-messages].
-  That supports positional readings in a future engine change, not applying a
-  subscript name indiscriminately to every script. Keep the current generic
-  `indice` / `Index` / `índice` labels as documented limitations.
+- **Generic mmultiscripts names — resolved structurally in #55.** Readings now
+  distinguish all four corners; the source comparison, templates and remaining
+  linguistic uncertainty are recorded in the follow-up below.
 - **Agreement and French elision — unresolved.** The inspected rules give
   `racine carrée de` followed by an operand. They do not establish a general rule for
   joining arbitrary formula readings such as `a`, digits, spoken letters or compound
@@ -104,10 +100,93 @@ The following issue items still need engine work or a separately justified polic
 - Integral limits in `msubsup` use subscript/power templates; `munder` does not name accents.
 - Only a single prime receives the special superscript reading.
 - `mfenced` speech ignores `separators`.
-- `mmultiscripts` speech omits each script's corner.
 
 Issue #31 also references #16. The current suite already tests that `maction` and
 `semantics` speech follows the child selected for drawing; that is outside this wording audit.
+
+## Multiscript follow-up (#55)
+
+The [MathML 3 paired-slot definition](https://www.w3.org/TR/MathML3/chapter3.html#presm.mmultiscripts)
+places subscripts before superscripts in each pair and orders both pair lists
+left to right in an LTR context. Thus right pairs go outward from the base,
+and left pairs go toward it. MathMLLayout reads the base, right pairs, then left pairs,
+preserving source order within each side. Silent `none` elements occupy slots; `mprescripts`
+starts the left subscript slot. This source-order policy avoids buffering or revisiting
+children and retains the bounded speech traversal from #46. All pairs receive explicit
+side and kind labels, including those beyond upstream special-case counts.
+
+### Pinned vocabulary and fixture evidence
+
+The revisions at the top of this audit also apply to these additional inspected files.
+MathCAT's `default` rule tagged `mmultiscripts` in each language's
+`SharedRules/default.yaml` distinguishes subscript and superscript, skips `none`,
+and reads the base, prescripts, then postscripts. Its limited positional special cases
+and its prescript-first order are not copied. The `shared.rs::tensor_mmultiscripts`
+fixture exercises alternating occupied/empty slots across four right pairs:
+
+- English [rules][M-en-scripts] and [fixture][M-en-test] supply `subscript` / `superscript`.
+- French [rules][M-fr-scripts] and [fixture][M-fr-test] supply `indice` / `exposant`.
+  SRE's `leftSubscriptVerbose` and `leftSuperscriptVerbose` [S-fr-script] directly
+  supply `indice gauche` / `exposant gauche`. ClearSpeak
+  `right-sub` / `right-super` [S-fr-roots] instead say `indice droite` /
+  `exposant droite`; MathMLLayout composes `indice droit` / `exposant droit`
+  as masculine adjective counterparts rather than adopting those strings verbatim.
+- German [rules][M-de-scripts] and [fixture][M-de-test] use `Index` / `Hochstellung`.
+  MathMLLayout instead adopts SRE's `left-sub` / `left-super` and
+  `right-sub` / `right-super` ClearSpeak action labels [S-de-roots], including
+  `linker unterer Index` / `linker oberer Index` and their explicit right counterparts.
+- Spanish [rules][M-es-scripts] retain English `subscript` / `superscript` strings.
+  The [tensor fixture][M-es-test] explicitly calls `test_prefs("en", ...)`, so it is
+  structural evidence only. SRE's Spanish `MS.SUBSCRIPT` / `MS.SUPERSCRIPT`
+  [S-es-messages] supply `subíndice` / `superíndice`. Its prefix actions
+  `leftsub`, `leftsuper`, `rightsub`, `rightsuper` [S-es-prefix] directly supply
+  all four complete positional labels adopted here.
+- MathCAT has no Italian directory at this revision. SRE's Italian
+  `MS.SUBSCRIPT` / `MS.SUPERSCRIPT` [S-it-messages] supply `pedice` / `apice`. Its prefix actions
+  `leftsub`, `leftsuper`, `rightsub`, `rightsuper` [S-it-prefix] directly supply
+  all four complete positional labels adopted here.
+
+SRE's `mathspeak_tensors.json::PartialTensorABCD_default` fixtures also provide
+actual four-slot utterances in [English][S-en-tensors], [French][S-fr-tensors],
+[German][S-de-tensors], [Spanish][S-es-tensors] and [Italian][S-it-tensors].
+French explicitly uses left `indice gauche` / `exposant gauche`; Spanish and Italian
+confirm their subscript/superscript nouns in complete readings. German Mathspeak uses
+`Index` / `hoch`, so the more positional German wording is adopted from ClearSpeak
+rules instead. These SRE fixtures read left slots, base, then right slots and use a
+baseline announcement; MathMLLayout deliberately keeps its base-first source order
+and explicit side labels. The fixture comparison does not claim identical utterances.
+
+The complete four-corner templates and reading order are in the
+[speech guide](../doc/speech.md#multiscripts). Compound expressions close with
+language-specific subscript/superscript endings (German uses `Ende Index` for both).
+These closing phrases are MathMLLayout compositions, following its existing explicit
+fraction, power and radical closure policy; they are not claimed as complete upstream
+utterances. A selected single token through `semantics` or `maction` stays simple.
+A nested multiscript closes before its next outer partner, so the outer side labels
+can be interpreted without guessing where the nested expression ends.
+
+The vocabulary comparison supports the chosen names, not native-speaker naturalness,
+regional suitability or usability with particular voices. The composed French right-side and
+all closing phrases especially warrant linguistic and user validation; source agreement
+for the other labels does not certify their naturalness or regional suitability.
+Other unresolved wording and structural items in #31 remain open.
+
+`MultiscriptSpeechTests` checks parsed formulas in all five languages, every combination
+of occupied/empty corners, five pairs on each side, empty pairs, the adapted tensor
+fixture, incomplete partners and repeated markers, compound/nested expressions,
+selected simple tokens, silent expressions, regional/script language tags and whole-language
+fallback. `SpeechBoundsRegressionTests` retains all #46 tests and adds the last allowed
+positional script, depth cutoff, UTF-16 text cutoff and absence of dangling labels.
+Neither the node, depth nor source-text budgets have changed.
+
+Follow-up validation on 2026-10-12 with Swift 6.4, Xcode 27.1 and macOS 27:
+full debug and release suites each completed 435 tests with zero failures and one skip
+(the optional licensed external corpus was not configured). Release used
+`-Xswiftc -enable-testing`. All 38 selected speech tests passed on the iPhone 17 Pro
+with iOS 27.0. SwiftPM used `--disable-sandbox --build-system native`, scratch paths
+and writable module caches under `/tmp`; the iOS run used `MathMLLayout-Package`.
+All 45 pinned source-file links were checked against the downloaded immutable
+revisions; local documentation targets and `git diff --check` also passed.
 
 ## Regression coverage and attribution
 
@@ -125,7 +204,7 @@ The notices also retain the German fixtures' ETH Zurich sponsorship and the Ital
 fixtures' TextHelp acknowledgment. Apps distributing the compiled speech material must
 include the [license and attribution copies](../THIRD_PARTY_NOTICES.md#redistributing-mathmllayout).
 
-Validation on 2026-10-12 with Swift 6.4 on macOS: the full debug and release suites
+Initial #53 audit validation on 2026-10-12 with Swift 6.4 on macOS: the full debug and release suites
 each passed all 394 tests with zero failures. The release run used `-Xswiftc -enable-testing`.
 SwiftPM's native build system, writable module caches and `--disable-sandbox` were used
 because the default build setup could not run within this task's filesystem sandbox.
@@ -162,3 +241,20 @@ local documentation links and `git diff --check` also passed.
 [S-fr-script]: https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/ts/speech_rules/mathspeak_french_util.ts
 [S-it-messages]: https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/mathmaps/it/messages/messages.json
 [S-bar-input]: https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/input/clearspeak/clearspeak_part3_adornments.json
+
+[M-en-scripts]: https://github.com/daisy/MathCAT/blob/85c89a37073d6efdb08efba5765dd69c7efddaf9/Rules/Languages/en/SharedRules/default.yaml
+[M-fr-scripts]: https://github.com/daisy/MathCAT/blob/85c89a37073d6efdb08efba5765dd69c7efddaf9/Rules/Languages/fr/SharedRules/default.yaml
+[M-de-scripts]: https://github.com/daisy/MathCAT/blob/85c89a37073d6efdb08efba5765dd69c7efddaf9/Rules/Languages/de/SharedRules/default.yaml
+[M-es-scripts]: https://github.com/daisy/MathCAT/blob/85c89a37073d6efdb08efba5765dd69c7efddaf9/Rules/Languages/es/SharedRules/default.yaml
+[M-en-test]: https://github.com/daisy/MathCAT/blob/85c89a37073d6efdb08efba5765dd69c7efddaf9/tests/Languages/en/shared.rs
+[M-es-test]: https://github.com/daisy/MathCAT/blob/85c89a37073d6efdb08efba5765dd69c7efddaf9/tests/Languages/es/shared.rs
+[S-es-messages]: https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/mathmaps/es/messages/messages.json
+
+[S-en-tensors]: https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/expected/en/mathspeak/mathspeak_tensors.json
+[S-fr-tensors]: https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/expected/fr/mathspeak/mathspeak_tensors.json
+[S-de-tensors]: https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/expected/de/mathspeak/mathspeak_tensors.json
+[S-es-tensors]: https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/expected/es/mathspeak/mathspeak_tensors.json
+[S-it-tensors]: https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/expected/it/mathspeak/mathspeak_tensors.json
+
+[S-es-prefix]: https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/mathmaps/es/rules/prefix_spanish_actions.json
+[S-it-prefix]: https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/mathmaps/it/rules/prefix_italian_actions.json

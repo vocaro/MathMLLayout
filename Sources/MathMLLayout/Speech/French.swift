@@ -53,7 +53,18 @@ enum FrenchVocabulary: MathVocabulary {
     static func limits(_ base: String, from lower: String, to upper: String) -> String {
         phrase(base, "de", lower, "à", upper)
     }
-    static func script(_ script: String) -> String { phrase("indice", script) }
+    // Positional script names adapted from pinned MathCAT/SRE; compound closing
+    // phrases composed for MathMLLayout. See Documentation/SpeechWordingAudit.md.
+    static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String {
+        let label: String, end: String
+        switch position {
+        case .rightSubscript: label = "indice droit"; end = "fin d'indice"
+        case .rightSuperscript: label = "exposant droit"; end = "fin d'exposant"
+        case .leftSubscript: label = "indice gauche"; end = "fin d'indice"
+        case .leftSuperscript: label = "exposant gauche"; end = "fin d'exposant"
+        }
+        return phrase(label, script, simple ? "" : end)
+    }
     /// French counts none and one in the singular.
     static func table(rows: Int) -> String { "tableau de \(rows) \(rows < 2 ? "ligne" : "lignes")" }
     static func row(_ number: Int) -> String { "ligne \(number) :" }
