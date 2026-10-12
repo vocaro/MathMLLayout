@@ -140,11 +140,14 @@ private struct Stack {
     var bands: [Band] = []
     /// Those of the rows of digits, the rows `align` counts.
     var rows: [Band] = []
+    /// The top bar's item, so a division can lengthen it when its side moves clear of work.
+    var frame: Int?
     /// What each line draws, top to bottom: the rectangle around the boxes of its characters and of the
     /// carries beside them, or its rule. x is from the left edge of the columns and y down from the top
     /// of the stack, as a band's. A line that draws nothing has none. A band will not do to tell what is
     /// drawn over what: it has the line's leading, so a division's result, which stands a rule's thickness
     /// lower than the work beside it, is always in the band of the next row.
+    /// The division's own bar is excluded: its sides intentionally meet it.
     var drawn: [CGRect] = []
 }
 
@@ -649,8 +652,11 @@ extension LayoutEngine {
                 if left < right, line.thickness > 0 {
                     let rect = CGRect(x: left, y: -band.bottom, width: right - left, height: line.thickness)
                     backgrounds += line.backgrounds.map { .rect(rect, $0.color) }
+                    if line.isFrame { stack.frame = stack.box.items.count }
                     stack.box.items.append(.rect(rect, line.color))
-                    stack.drawn.append(CGRect(x: left, y: band.top, width: right - left, height: line.thickness))
+                    if !line.isFrame {
+                        stack.drawn.append(CGRect(x: left, y: band.top, width: right - left, height: line.thickness))
+                    }
                 }
                 continue
             }
@@ -699,6 +705,7 @@ extension LayoutEngine {
             if !drawn.isNull { stack.drawn.append(drawn) }
         }
         stack.box.items.insert(contentsOf: groups + backgrounds, at: 0)
+        if let frame = stack.frame { stack.frame = frame + groups.count + backgrounds.count }
         return stack
     }
 
@@ -796,8 +803,16 @@ extension LayoutEngine {
             lines.append(StackLine(kind: .digits, em: em, color: color))
             dividend = lines.count - 1
         }
-        let stack = try arrange(lines, style, context)
+        var stack = try arrange(lines, style, context)
         let row = stack.bands[dividend!]
+
+        /// Keep the bar attached to the frame while the frame moves away from overflowing work.
+        func extendBar(left: CGFloat = 0, right: CGFloat = 0) {
+            guard let frame = stack.frame, case .rect(var rect, let color) = stack.box.items[frame] else { return }
+            rect.origin.x -= left
+            rect.size.width += left + right
+            stack.box.items[frame] = .rect(rect, color)
+        }
 
         // Everything is placed y down from the top of the dividend's stack, then moved so that
         // the top of the whole is at 0.
@@ -866,14 +881,16 @@ extension LayoutEngine {
             }
         }
         /// Moves what has been placed since `mark`, which follows the dividend, right to clear the work.
-        func clear(from mark: Int = 0, gap: CGFloat) {
+        @discardableResult
+        func clear(from mark: Int = 0, gap: CGFloat) -> CGFloat {
             let distance = clearance(gap: gap)
-            guard distance > 0 else { return }
+            guard distance > 0 else { return 0 }
             var piece = MathBox()
             piece.items = Array(box.items[mark...])
             box.items.removeSubrange(mark...)
             box.add(piece, at: CGPoint(x: distance, y: 0))
             right += distance
+            return distance
         }
         let divisorWidth = divisor?.width ?? 0, resultWidth = result?.width ?? 0
         /// The line under the divisor: below the dividend's row, and below the divisor.
@@ -887,7 +904,12 @@ extension LayoutEngine {
             path.move(to: CGPoint(x: x, y: -barY))
             path.addQuadCurve(to: CGPoint(x: x, y: -row.bottom), control: CGPoint(x: x + 0.35 * em, y: -(barY + row.bottom) / 2))
             box.items.append(.path(path, lineWidth: rule, color: color, fill: false))
+            let bounds = path.boundingBoxOfPath.insetBy(dx: -rule / 2, dy: -rule / 2)
+            placed.append(CGRect(x: bounds.minX, y: -bounds.maxY, width: bounds.width, height: bounds.height))
             bottom = max(bottom, row.bottom + rule / 2)
+            let distance = clearance(leftwards: true, gap: 0.3 * em)
+            left += distance
+            extendBar(left: distance)
         case .stackedLeftLineTop:
             // The divisor, underlined, left of a bar that turns down into a line before the
             // dividend; the result above the bar.
@@ -895,6 +917,9 @@ extension LayoutEngine {
             place(divisor, x: pad, y: level(divisor))
             horizontal(from: 0, to: x + rule, y: under)
             vertical(x: x, from: stack.bands[bar!].top, to: under + rule)
+            let distance = clearance(leftwards: true, gap: pad)
+            left += distance
+            extendBar(left: distance)
         case .rightTop:
             // The result over a bar; under it the dividend, then the divisor in a corner of
             // the bar, a line before it and a line below it.
@@ -902,6 +927,7 @@ extension LayoutEngine {
             place(divisor, x: x + rule + pad, y: level(divisor))
             vertical(x: x, from: stack.bands[bar!].top, to: under + rule)
             horizontal(from: x, to: x + rule + pad + divisorWidth + pad, y: under)
+            extendBar(right: clear(gap: 2 * pad))
         case .stackedRightRight, .mediumStackedRightRight, .shortStackedRightRight:
             // The dividend, a vertical line, then the divisor over a line over the result. The
             // vertical line runs the height of the work, of the divisor and result, or of the
@@ -917,8 +943,8 @@ extension LayoutEngine {
             case .mediumStackedRightRight: vertical(x: x, from: min(row.top, level(divisor)), to: resultBottom)
             default:
                 vertical(x: x, from: min(row.top, level(divisor)), to: under + rule)
-                clear(gap: pad)
             }
+            clear(gap: pad)
         case .stackedLeftLeft:
             // The same, mirrored: divisor over result, flush against the line, then the dividend.
             let x = pad + max(divisorWidth, resultWidth) + pad
@@ -927,6 +953,7 @@ extension LayoutEngine {
             horizontal(from: 0, to: x, y: under)
             place(result, x: x - pad - resultWidth, y: under + rule)
             vertical(x: x, from: min(0, level(divisor)), to: max(stack.height, under + rule + (result?.height ?? 0)))
+            left += clearance(leftwards: true, gap: pad)
         case .leftSlashRight, .leftParenRight, .colonRightEqualsRight:
             // One line: divisor / dividend \ result, divisor ) dividend ( result, or
             // dividend : divisor = result. The signs go around the dividend's own digits, and

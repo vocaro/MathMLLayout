@@ -24,6 +24,27 @@ Line breaking, `mglyph`, elementary math and localized readings
 
 ### Fixed
 
+- Neighbouring wrapping parts receive independent width budgets when a shared budget overflows.
+  The reported `widestUnbreakableWidth` is verified by laying out at that width, including
+  height-dependent padding, forced rows and the layout's geometry bounds
+  ([#26](https://github.com/vocaro/MathMLLayout/issues/26)).
+- Empty tables, and tables smaller than their rule in either dimension, omit their frame so it
+  cannot draw outside the table's box
+  ([#41](https://github.com/vocaro/MathMLLayout/issues/41)). Bare `mtr` and `mlabeledtr` rows apply
+  relative sizes and script levels once, as rows inside a table do
+  ([#47](https://github.com/vocaro/MathMLLayout/issues/47)).
+- A long row with a negative space keeps the fitting rows before it; the search for a row's end
+  includes its ink's reach, so a window of candidates cannot skip those rows
+  ([#42](https://github.com/vocaro/MathMLLayout/issues/42)).
+- Silent `none` and `mprescripts` children of `mmultiscripts` count toward the node bound in
+  readings and layout, including incomplete script pairs discarded by a marker
+  ([#46](https://github.com/vocaro/MathMLLayout/issues/46)).
+- All six enclosing long-division styles move their frame clear of a sign that overflows an
+  outer digit column, lengthening the top bar when it moves
+  ([#48](https://github.com/vocaro/MathMLLayout/issues/48)).
+- Performance regression tests compare CPU work against smaller cases rather than asserting
+  wall-clock limits, so scheduler delays under heavy load do not fail them
+  ([#45](https://github.com/vocaro/MathMLLayout/issues/45)).
 - An operator among `mtext` operands keeps its spacing: `future value = principal × rate` was
   drawn as "future value=principal" when it had one operator, and with the `×` as a sign when
   it had two.

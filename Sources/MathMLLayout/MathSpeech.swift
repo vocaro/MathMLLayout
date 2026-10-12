@@ -188,9 +188,15 @@ private struct Speaker {
             }
         case "mmultiscripts":
             var parts = [child(0)]
-            for item in children.dropFirst() where item.name != "none" && item.name != "mprescripts"
-                && count < MathLimits.nodes {
-                parts.append(words.script(reading(of: item, depth: depth + 1)))
+            for item in children.dropFirst() {
+                guard count < MathLimits.nodes else { break }
+                // Placeholders and the prescripts marker are silent, but visiting them still
+                // spends a node. A shared list of placeholders may occur under many parents.
+                if item.name == "none" || item.name == "mprescripts" {
+                    count += 1
+                } else {
+                    parts.append(words.script(reading(of: item, depth: depth + 1)))
+                }
             }
             return words.phrase(parts)
         case "mtable":

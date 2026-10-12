@@ -20,8 +20,7 @@ declarations in any encoding, so no entity expands and nothing external loads; i
   being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
   a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
   drawn on a `mathbackground` of its own does not wrap.
-  Where several wrapping units share a row (two radicals side by side), a row can still run a
-  few percent past `widestUnbreakableWidth`. `overflow` and `maxwidth` on `math` are not read:
+  `overflow` and `maxwidth` on `math` are not read:
   the host decides by the `maximumWidth` it passes.
 - **`mglyph`.** MathML 2's `fontfamily` and `index` glyphs have no image and show their `alt`.
   An image has no scale of its own: size a 2x asset with `width` and `height`. An `mo` with an

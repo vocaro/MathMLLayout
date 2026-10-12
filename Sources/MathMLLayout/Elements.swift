@@ -156,7 +156,7 @@ extension LayoutEngine {
         let base = try layout(children[0], context, embellishment, depth: depth + 1)
         let subscriptContext = scriptContext(context, cramped: true), superscriptContext = scriptContext(context)
         func script(_ child: MathMLNode, lower: Bool) throws -> MathBox? {
-            guard child.name != "none" else { return nil }
+            guard child.name != "none" else { try countNodes(); return nil }
             return try layout(child, lower ? subscriptContext : superscriptContext, depth: depth + 1)
         }
         var post: [(MathBox?, MathBox?)] = [], pre: [(MathBox?, MathBox?)] = []
@@ -168,7 +168,12 @@ extension LayoutEngine {
             var isPre = false
             var pending: [MathMLNode] = []
             for child in children.dropFirst() {
-                if child.name == "mprescripts" { isPre = true; pending = []; continue }
+                if child.name == "mprescripts" {
+                    // The marker and any incomplete pair it discards have been visited even
+                    // though none of them gets a box.
+                    try countNodes(1 + pending.count)
+                    isPre = true; pending = []; continue
+                }
                 pending.append(child)
                 if pending.count == 2 {
                     let pair = try (script(pending[0], lower: true), script(pending[1], lower: false))
@@ -414,7 +419,8 @@ extension LayoutEngine {
         if notations.contains("radical") { left += em * 0.6 }
         // Content too wide for the line stacks in lines inside the one enclosure. A circle is √2 times
         // as wide as its padded content, so it leaves that share of the line.
-        let bulge = notations.contains("circle") && wrapWidth.isFinite ? (wrapWidth - left - right + 2 * pad) * (1 - 0.5.squareRoot()) : 0
+        let budget = nextWrapWidth
+        let bulge = notations.contains("circle") && budget.isFinite ? (budget - left - right + 2 * pad) * (1 - 0.5.squareRoot()) : 0
         content = wrapped(content, beside: left + right + bulge, align: .left) ?? content
         if notations.contains("circle") {
             // An ellipse through the padded box's corners.
@@ -662,7 +668,7 @@ extension LayoutEngine {
             }
             lineX += columnGaps[index] / 2
         }
-        if frame != "none" {
+        if frame != "none", hasRoom {
             let rect = CGRect(x: gridLeft + stroke / 2, y: top - height + stroke / 2, width: gridRight - gridLeft - stroke,
                               height: height - stroke)
             (frame == "dashed" ? dashed : solid).addRect(rect)

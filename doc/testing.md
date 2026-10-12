@@ -25,8 +25,7 @@ MATHML_FUZZ_SEEDS=0-40000 swift test -c release -Xswiftc -enable-testing \
   --filter LineBreakingFuzzTests/testRandomFormulasBreakAsTheyMust
 ```
 
-It fails on a known set of seeds, all for one property and listed in
-[#26](https://github.com/vocaro/MathMLLayout/issues/26). A failure on any other seed, or for
-another property, is new.
+The fuzzer also checks that laying a formula out at its reported `widestUnbreakableWidth`
+succeeds and that every row fits that width, including formulas with wrapping units side by side.
 
 [Documentation index](../README.md#documentation)
