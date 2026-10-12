@@ -107,4 +107,6 @@ are included; see [how to regenerate the images](doc/usage.md#regenerating-the-r
 
 ## License
 
-MathMLLayout is available under the [MIT license](LICENSE).
+MathMLLayout's original code is available under the [MIT license](LICENSE).
+Selected speech material retains MathCAT's MIT and Speech Rule Engine's Apache-2.0
+requirements; see [third-party notices and redistribution instructions](THIRD_PARTY_NOTICES.md).

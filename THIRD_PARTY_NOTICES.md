@@ -39,5 +39,28 @@ The affected vocabulary and test files prominently identify this adaptation.
 The [audit](Documentation/SpeechWordingAudit.md) records exact source files and decisions.
 These adaptations retain the Apache license and notice obligations.
 
+The adapted ClearSpeak fixtures also carry these attribution notices, retained here
+from the pinned source files:
+
+- German [adornments fixtures](https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/expected/de/clearspeak/clearspeak_part3_adornments.json): "This work was sponsored by ETH Zurich".
+- Italian [adornments fixtures](https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/testsuite/expected/it/clearspeak/clearspeak_part3_adornments.json): "With support from TextHelp."
+
 SRE's full original NOTICE is included for preservation. MathMLLayout does not use
 SRE's browser or Node dependencies, including wicked good XPath.
+
+## Redistributing MathMLLayout
+
+For source distributions, retain this file, [LICENSE](LICENSE), the three files in
+[Licenses](Licenses), and the adaptation notices in the affected Swift files.
+Keep those notices when modifying the adapted material, and identify further changes.
+
+For compiled libraries or apps containing the adapted speech material, include readable
+copies of this file, LICENSE, MathCAT-MIT.txt, SRE-Apache-2.0.txt and SRE-NOTICE.txt
+with the distribution, for example in the app's bundled acknowledgments or accompanying
+documentation. A link to this repository alone does not supply those copies.
+SwiftPM does not automatically copy these root-level files into an app bundle;
+the distributing app or binary package must include them.
+
+These instructions preserve the upstream MIT notice condition and Apache-2.0
+[section 4](https://www.apache.org/licenses/LICENSE-2.0) requirements.
+The MIT license for MathMLLayout's original code does not replace those conditions.

@@ -7,4 +7,8 @@ specifications and appendix G of *The TeXbook*. It draws with the copy of STIX T
 Math (SIL Open Font License 1.1, Copyright 2001–2021 The STIX Fonts Project Authors) that Apple's
 platforms install; it does not distribute the font.
 
+When distributing source, compiled libraries or apps, follow the
+[redistribution instructions](../THIRD_PARTY_NOTICES.md#redistributing-mathmllayout).
+SwiftPM does not automatically put the license and attribution files into an app bundle.
+
 [Documentation index](../README.md#documentation)
