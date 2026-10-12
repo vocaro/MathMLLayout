@@ -14,7 +14,7 @@ swift test -c release -Xswiftc -enable-testing
 For iOS, run the same tests on a simulator, for example:
 
 ```sh
-xcodebuild test -scheme MathMLLayout -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild test -scheme MathMLLayout-Package -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
 The suite runs the line-breaking fuzzer over seeds 0 to 119. A wider range takes a few minutes
@@ -29,3 +29,31 @@ The fuzzer also checks that laying a formula out at its reported `widestUnbreaka
 succeeds and that every row fits that width, including formulas with wrapping units side by side.
 
 [Documentation index](../README.md#documentation)
+
+## External validation
+
+The pinned subset added for [#52](https://github.com/vocaro/MathMLLayout/issues/52) is described
+in [external-validation.md](external-validation.md). Its 81 WPT-derived numeric assertions and
+independent real-font checks run in the normal test suite without network access or Python.
+Eight assertions remain known discrepancies tracked in
+[#54](https://github.com/vocaro/MathMLLayout/issues/54); their upstream expectations are preserved.
+The ordinary run checks their reviewed observed values, so a changed discrepancy requires review.
+
+```sh
+MATHML_EXTERNAL_REPORT=/tmp/external-debug.json swift test \
+  --filter 'ExternalValidationTests|IndependentFontTests'
+MATHML_EXTERNAL_REPORT=/tmp/external-release.json swift test -c release \
+  -Xswiftc -enable-testing --filter 'ExternalValidationTests|IndependentFontTests'
+```
+
+To expose known standards failures as XCTest failures:
+
+```sh
+MATHML_STRICT_EXTERNAL=1 swift test --filter ExternalValidationTests
+```
+
+The batch renderer, Chromium/Firefox/WebKit adapter, gallery, corpus importer, fixture-update
+commands, and reporting limits are documented in [external-validation.md](external-validation.md).
+The optional [CI workflow](../.github/workflows/external-validation.yml) can be called by normal
+CI or invoked manually after configuring a macOS 27/Xcode 27 runner with label `mathml-xcode27`.
+It does not assume that a hosted macOS 26 runner can execute this package.

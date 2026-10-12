@@ -9,6 +9,9 @@ let package = Package(
     ],
     targets: [
         .target(name: "MathMLLayout"),
-        .testTarget(name: "MathMLLayoutTests", dependencies: ["MathMLLayout"]),
+        .executableTarget(name: "MathMLExternalRender", dependencies: ["MathMLLayout"],
+                          path: "Tools/ExternalValidation/Renderer"),
+        .testTarget(name: "MathMLLayoutTests", dependencies: ["MathMLLayout"],
+                    resources: [.copy("ExternalFixtures")]),
     ]
 )

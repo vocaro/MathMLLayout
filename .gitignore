@@ -3,3 +3,6 @@
 *.xcodeproj/
 DerivedData/
 .DS_Store
+Tools/ExternalValidation/node_modules/
+Tools/ExternalValidation/__pycache__/
+external-validation-output/
