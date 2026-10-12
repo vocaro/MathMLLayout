@@ -7,6 +7,15 @@ Line breaking, `mglyph`, elementary math and localized readings
 
 ### Added
 
+- Long single arrows `⟵`, `⟶` and `⟷` use the font's short-arrow assemblies when their own
+  glyph has none. Drawn horizontal shafts use the font's rule thickness, with a half-point minimum
+  ([#38](https://github.com/vocaro/MathMLLayout/issues/38)).
+- Vertical arrows without a MATH construction stretch as drawn shapes, including barred,
+  paired and harpoon arrows. They keep their natural advance and horizontal ink alignment
+  ([#39](https://github.com/vocaro/MathMLLayout/issues/39)).
+- A bracket pair wholly on one output row resizes to that row's content after line breaking,
+  compacting the row and reattaching scripts. A pair split across rows keeps its original size
+  ([#43](https://github.com/vocaro/MathMLLayout/issues/43)).
 - **Line breaking.** `MathLayout(_:style:maximumWidth:firstRowMaximumWidth:)` breaks a formula
   into `rows` that fit a line, each with its `origin` and box, and each drawable alone, so an
   inline formula can continue on the next text lines. Breaks follow MathML 3 §3.1.7: authored

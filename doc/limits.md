@@ -15,8 +15,7 @@ declarations in any encoding, so no entity expands and nothing external loads; i
 
 - **Line breaking.** No breaks inside `mpadded`, `mphantom`, `merror`, `munder`/`mover`/
   `munderover`, a script, or a row with a `mathbackground`; none between adjacent identifiers or
-  inside a number. A stretchy operator keeps the size it has in the unbroken row, so brackets
-  whose tall content moved to another row stay tall. `indenttarget` must name a child of a row
+  inside a number. `indenttarget` must name a child of a row
   being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
   a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
   drawn on a `mathbackground` of its own does not wrap.
