@@ -1,9 +1,9 @@
 # External MathML validation
 
 This is a partial implementation of [#52](https://github.com/vocaro/MathMLLayout/issues/52).
-It establishes a reproducible baseline, without changing production layout code or claiming
-complete MathML conformance. [The initial report](external-validation-report.md) lists measured
-outcomes and unfinished work.
+The harness originally established a reproducible baseline without changing production layout
+code or claiming complete MathML conformance. [The initial report](external-validation-report.md)
+preserves the pre-fix measurements and records the current result after fixing #54.
 
 ## Pinned standards subset
 
@@ -39,7 +39,9 @@ suite. One symbolic radical-width assertion awaits a separate reviewed port. Thi
 not enumerate every unselected WPT test; its exclusion records are not a denominator for a
 conformance percentage.
 
-Known discrepancies live in `reviewed-outcomes.json`. Their classification, issue link, and
+The eight limit-placement discrepancies from [#54](https://github.com/vocaro/MathMLLayout/issues/54)
+now pass their unchanged upstream expectations. `reviewed-outcomes.json` is currently empty.
+Any future known discrepancies live there. Their classification, issue link, and
 observed measurement survive re-import. Tests still evaluate the original standards expectation,
 report `bug`, and ensure the observed discrepancy has not changed. Set `MATHML_STRICT_EXTERNAL=1`
 to fail against the original expectation. A newly passing case requires review of the outcome
@@ -166,7 +168,7 @@ bitmap quantization/smoothing. Input limit errors are categorized separately, in
 Robustness success remains `unreviewed` for typography. Differential comparisons and manual
 review must classify **pass**, **bug**, **intentional difference**, **unsupported feature**,
 **invalid/out-of-bounds input**, or **unsuitable reference/test** with specific evidence.
-Minimize unexpected failures and file them; do not change production code as part of this work.
+In validation-only work, minimize unexpected failures and file them for a separate production fix.
 
 ## Updating fixtures and CI
 

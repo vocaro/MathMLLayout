@@ -33,6 +33,9 @@ Line breaking, `mglyph`, elementary math and localized readings
 
 ### Fixed
 
+- Inline large operators retain their font baseline instead of being shifted onto the math
+  axis. This corrects under/over limit placement; display-style centering is preserved
+  ([#54](https://github.com/vocaro/MathMLLayout/issues/54)).
 - Selected French, German, Spanish and Italian spoken names now follow pinned MathCAT and
   Speech Rule Engine rules and fixtures, including double-dot accents, several hat/bar
   accents, partial derivatives and the German contour integral. French `<` and `>` readings

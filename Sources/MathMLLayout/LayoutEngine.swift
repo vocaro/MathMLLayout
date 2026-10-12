@@ -924,7 +924,9 @@ final class LayoutEngine {
             default: break
             }
         }
-        if properties.has(.largeop) { box = centered(box, on: value(\.axisHeight, context)) }
+        // Inline operators keep their font baseline; axis-centering here belongs to
+        // display-style large operators (MathML Core 3.2.4.3).
+        if properties.has(.largeop), context.display { box = centered(box, on: value(\.axisHeight, context)) }
         box.op = properties
         return box
     }

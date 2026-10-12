@@ -35,9 +35,10 @@ succeeds and that every row fits that width, including formulas with wrapping un
 The pinned subset added for [#52](https://github.com/vocaro/MathMLLayout/issues/52) is described
 in [external-validation.md](external-validation.md). Its 81 WPT-derived numeric assertions and
 independent real-font checks run in the normal test suite without network access or Python.
-Eight assertions remain known discrepancies tracked in
-[#54](https://github.com/vocaro/MathMLLayout/issues/54); their upstream expectations are preserved.
-The ordinary run checks their reviewed observed values, so a changed discrepancy requires review.
+All 81 assertions pass after fixing inline large-operator centering in
+[#54](https://github.com/vocaro/MathMLLayout/issues/54). The eight former discrepancies now
+check the original upstream expectations directly. Any future reviewed discrepancy must
+retain its upstream expectation and issue-linked observed value.
 
 ```sh
 MATHML_EXTERNAL_REPORT=/tmp/external-debug.json swift test \
@@ -46,7 +47,7 @@ MATHML_EXTERNAL_REPORT=/tmp/external-release.json swift test -c release \
   -Xswiftc -enable-testing --filter 'ExternalValidationTests|IndependentFontTests'
 ```
 
-To expose known standards failures as XCTest failures:
+To require every original standards expectation, including any future known discrepancy:
 
 ```sh
 MATHML_STRICT_EXTERNAL=1 swift test --filter ExternalValidationTests

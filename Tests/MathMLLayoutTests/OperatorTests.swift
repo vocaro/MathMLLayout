@@ -461,7 +461,7 @@ final class OperatorTests: XCTestCase {
 
     // MARK: Large operators
 
-    func testLargeOperatorsGrowInDisplayStyleAndCentreOnTheAxis() throws {
+    func testLargeOperatorsGrowAndCentreOnTheAxisInDisplayStyle() throws {
         let axis = constant(\.axisHeight), minimum = constant(\.displayOperatorMinHeight)
         for op in ["∑", "∏", "∐", "⋃", "⋂", "∫", "∬", "∮", "⨁", "⨂"] {
             let text = try XCTUnwrap(Rendering(try typeset("<mo>\(op)</mo>")).bounds())
@@ -469,7 +469,9 @@ final class OperatorTests: XCTestCase {
             XCTAssertGreaterThan(display.height, text.height * 1.25, op)
             if "∫∬∮".contains(op) { XCTAssertGreaterThanOrEqual(display.height, minimum - 1, "\(op) reaches DisplayOperatorMinHeight") }
             XCTAssertEqual(display.midY, axis, accuracy: 1, "\(op) in display style")
-            XCTAssertEqual(text.midY, axis, accuracy: 1, "\(op) in text style")
+            let natural = try XCTUnwrap(Rendering(try typeset("<mo largeop=\"false\">\(op)</mo>")).bounds())
+            XCTAssertEqual(text.minY, natural.minY, accuracy: 0.25, "\(op) keeps its natural inline baseline")
+            XCTAssertEqual(text.maxY, natural.maxY, accuracy: 0.25, op)
         }
     }
 

@@ -4,8 +4,7 @@
       "pass": 33
     },
     "scripts": {
-      "pass": 30,
-      "bug": 8
+      "pass": 38
     },
     "radicals": {
       "pass": 10
@@ -232,7 +231,7 @@
         }
       ],
       "fontSizeDefault": 20,
-      "manifestSHA256": "7bdf621adb630954ef4ff7b884b242385c3d4b21b6c81bac41944915170699aa",
+      "manifestSHA256": "0531471cb72cbe53f86818135de2f99b2bc66628ecef59f364908bad45a9fd3f",
       "margin": 16,
       "os": "Version 27.0 (Build 26A428)",
       "scale": 4
@@ -241,7 +240,7 @@
       "engine": "chromium",
       "version": "151.0.7922.34",
       "playwright": "1.62.1",
-      "manifestSHA256": "7bdf621adb630954ef4ff7b884b242385c3d4b21b6c81bac41944915170699aa",
+      "manifestSHA256": "0531471cb72cbe53f86818135de2f99b2bc66628ecef59f364908bad45a9fd3f",
       "scale": 4,
       "margin": 16,
       "coordinates": "CSS pixels, baseline-relative, y-down",
@@ -259,6 +258,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -271,6 +272,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -283,6 +286,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -295,6 +300,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -307,6 +314,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -319,6 +328,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -331,6 +342,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -343,6 +356,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -355,6 +370,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -367,6 +384,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -379,6 +398,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -391,6 +412,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -403,6 +426,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -415,6 +440,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -427,6 +454,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -439,6 +468,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -451,6 +482,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -463,6 +496,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -475,6 +510,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -487,6 +524,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -499,6 +538,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -511,6 +552,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -523,6 +566,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -535,6 +580,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -547,6 +594,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -559,6 +608,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -571,6 +622,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -583,6 +636,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -595,6 +650,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -607,6 +664,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -619,6 +678,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -631,6 +692,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -643,6 +706,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": -0.3999999999999986
     },
     {
@@ -655,6 +720,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -667,6 +734,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -679,6 +748,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -691,6 +762,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -703,6 +776,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -715,6 +790,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -727,6 +804,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -739,6 +818,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -751,6 +832,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -763,6 +846,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -775,6 +860,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -787,6 +874,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 9.300000000000011
     },
     {
@@ -799,6 +888,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 9.300000000000011
     },
     {
@@ -811,6 +902,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 9.300000000000011
     },
     {
@@ -823,6 +916,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 9.300000000000011
     },
     {
@@ -835,6 +930,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 9.300000000000011
     },
     {
@@ -847,6 +944,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -859,6 +958,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -871,6 +972,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -883,6 +986,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -895,6 +1000,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -907,6 +1014,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -919,6 +1028,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -931,6 +1042,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -943,6 +1056,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -955,6 +1070,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -967,6 +1084,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -979,6 +1098,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -991,6 +1112,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -1003,102 +1126,120 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
       "id": "underover-parameters-1-under00011-ref0001",
-      "classification": "bug",
-      "actual": 35,
+      "classification": "pass",
+      "actual": 30,
       "expected": 30.0,
-      "discrepancy": 5.0,
+      "discrepancy": 0.0,
       "referenceActual": 30,
       "referenceMeetsAssertion": true,
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0.041666666666671404
     },
     {
       "id": "underover-parameters-1-under00012-ref0001",
-      "classification": "bug",
-      "actual": 35,
+      "classification": "pass",
+      "actual": 30,
       "expected": 30.0,
-      "discrepancy": 5.0,
+      "discrepancy": 0.0,
       "referenceActual": 30,
       "referenceMeetsAssertion": true,
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0.041666666666671404
     },
     {
       "id": "underover-parameters-1-under00021-ref0002",
-      "classification": "bug",
-      "actual": 115,
+      "classification": "pass",
+      "actual": 110,
       "expected": 110.0,
-      "discrepancy": 5.0,
+      "discrepancy": 0.0,
       "referenceActual": 110,
       "referenceMeetsAssertion": true,
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0.041666666666671404
     },
     {
       "id": "underover-parameters-1-under00022-ref0002",
-      "classification": "bug",
-      "actual": 115,
+      "classification": "pass",
+      "actual": 110,
       "expected": 110.0,
-      "discrepancy": 5.0,
+      "discrepancy": 0.0,
       "referenceActual": 110,
       "referenceMeetsAssertion": true,
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0.041666666666671404
     },
     {
       "id": "underover-parameters-1-ref0003-over00031",
-      "classification": "bug",
-      "actual": 45,
+      "classification": "pass",
+      "actual": 50,
       "expected": 50.0,
-      "discrepancy": -5.0,
+      "discrepancy": 0.0,
       "referenceActual": 50,
       "referenceMeetsAssertion": true,
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0.041666666666671404
     },
     {
       "id": "underover-parameters-1-ref0003-over00032",
-      "classification": "bug",
-      "actual": 45,
+      "classification": "pass",
+      "actual": 50,
       "expected": 50.0,
-      "discrepancy": -5.0,
+      "discrepancy": 0.0,
       "referenceActual": 50,
       "referenceMeetsAssertion": true,
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0.041666666666671404
     },
     {
       "id": "underover-parameters-1-ref0004-over00041",
-      "classification": "bug",
-      "actual": 65,
+      "classification": "pass",
+      "actual": 70,
       "expected": 70.0,
-      "discrepancy": -5.0,
+      "discrepancy": 0.0,
       "referenceActual": 70,
       "referenceMeetsAssertion": true,
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0.041666666666671404
     },
     {
       "id": "underover-parameters-1-ref0004-over00042",
-      "classification": "bug",
-      "actual": 65,
+      "classification": "pass",
+      "actual": 70,
       "expected": 70.0,
-      "discrepancy": -5.0,
+      "discrepancy": 0.0,
       "referenceActual": 70,
       "referenceMeetsAssertion": true,
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
+      "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0.041666666666671404
     },
     {
@@ -1111,6 +1252,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -1123,6 +1266,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -1135,6 +1280,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -1147,6 +1294,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -1159,6 +1308,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -1171,6 +1322,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -1183,6 +1336,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -1195,6 +1350,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -1207,6 +1364,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     },
     {
@@ -1219,6 +1378,8 @@
       "referenceMeetsAssertion": true,
       "issue": null,
       "clipped": false,
+      "nativeError": null,
+      "referenceError": null,
       "widthDifference": 0
     }
   ]

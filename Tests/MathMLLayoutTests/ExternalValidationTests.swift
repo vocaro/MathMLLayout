@@ -85,6 +85,52 @@ final class ExternalValidationTests: XCTestCase {
         }
     }
 
+    /// WPT's summation glyph is a 1em square above its baseline, with AxisHeight=0.
+    /// Unlike STIX's nearly centered natural glyphs, it exposes an unwanted 0.5em shift.
+    func testInlineLargeOperatorRetainsItsBaselineThroughEmbellishments() throws {
+        let root = try fixtures()
+        let font = try XCTUnwrap(try manifest().fonts.first {
+            $0.postScriptName == "limits-lowerlimitbaselinedropmin3000"
+        })
+        try register(font, at: root)
+        let op = "<mo movablelimits=\"false\">∑</mo>"
+        let script = "<mspace width=\"1em\" height=\"1em\" depth=\"1em\"/>"
+        let bodies = [op, "<mrow>\(op)</mrow>", "<mstyle>\(op)</mstyle>",
+            "<msub>\(op)\(script)</msub>", "<msup>\(op)\(script)</msup>",
+            "<msubsup>\(op)\(script)\(script)</msubsup>",
+            "<munder>\(op)\(script)</munder>", "<mover>\(op)\(script)</mover>",
+            "<munderover>\(op)\(script)\(script)</munderover>"]
+        for body in bodies {
+            let layout = try typeset(body, size: 10, font: font.postScriptName)
+            let ink = try XCTUnwrap(Rendering(layout).bounds(), body)
+            XCTAssertEqual(ink.minY, 0, accuracy: 0.25, body)
+            XCTAssertEqual(ink.maxY, 10, accuracy: 0.25, body)
+            assertBoxCoversInk(layout, body)
+        }
+    }
+
+    func testLargeOperatorCenteringFollowsEffectiveDisplayStyle() throws {
+        let root = try fixtures()
+        let font = try XCTUnwrap(try manifest().fonts.first {
+            $0.postScriptName == "limits-lowerlimitbaselinedropmin3000"
+        })
+        try register(font, at: root)
+        let cases: [(String, Bool, CGFloat, CGFloat)] = [
+            ("<mo>∑</mo>", false, 0, 10),
+            ("<mo>∑</mo>", true, -5, 5),
+            ("<mo largeop=\"false\">∑</mo>", true, 0, 10),
+            ("<mstyle displaystyle=\"false\"><mo>∑</mo></mstyle>", true, 0, 10),
+            ("<mstyle displaystyle=\"true\"><mo>∑</mo></mstyle>", false, -5, 5),
+        ]
+        for (body, display, bottom, top) in cases {
+            let layout = try typeset(body, size: 10, display: display, font: font.postScriptName)
+            let ink = try XCTUnwrap(Rendering(layout).bounds(), body)
+            XCTAssertEqual(ink.minY, bottom, accuracy: 0.25, body)
+            XCTAssertEqual(ink.maxY, top, accuracy: 0.25, body)
+            assertBoxCoversInk(layout, body)
+        }
+    }
+
     func testPinnedWPTMeasurements() throws {
         let root = try fixtures(), manifest = try manifest()
         XCTAssertEqual(manifest.schemaVersion, 1)
