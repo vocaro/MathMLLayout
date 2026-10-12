@@ -79,3 +79,22 @@ arithmetic cases, MathJax rendering, and SRE/language review remain to be added.
 WebKit adapters are implemented but have not been executed. The CI subset is provided as an
 opt-in workflow requiring a supported macOS 27/Xcode 27 runner; no hosted runner or periodic
 broader jobs are configured. These pending validation tasks are not inferred production bugs.
+
+## Tooling review follow-up
+
+The PR review tightened report integrity, discrepancy classification and image alignment.
+The gallery now rejects stale/incomplete/duplicate reports, uses actual PNG baseline origins,
+and requires review for clipping or changed/newly passing known discrepancies. Reference
+adapters report unsupported markup and width constraints explicitly, verify font loading,
+and bound raster area. Corpus sampling preserves token/annotation whitespace and limits file
+reads; corpus tests verify markup hashes and bound both raster dimensions. Independent font
+tests use the installed glyph count, and reviewed outcome imports cannot overwrite standards
+expectations. Font-conversion checks remain active under Python optimization.
+
+Ten tooling regression tests, including the native/Chromium integrations, pass. Debug and
+release standards/font tests pass, and synthetic corpus checks cover integrity and raster
+exclusion. Deliberately corrupted corpus hashes and a truncated oracle fail as intended.
+Reimport/conversion still reproduce the manifest byte-for-byte. Regenerated native/Chromium
+reports and the gallery retain **73 passes and eight unchanged #54 discrepancies**, with all
+81 Chromium assertions passing and no native clipping. Strict mode still reports exactly
+the eight #54 failures. Production code and the #54 defect remain unchanged.

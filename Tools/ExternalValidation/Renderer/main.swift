@@ -14,7 +14,7 @@ struct Manifest: Decodable {
         let fontSize: CGFloat?
         let maximumWidth: CGFloat?
     }
-    struct Font: Decodable { let path: String; let postScriptName: String; let sha256: String }
+    struct Font: Decodable { let path: String; let postScriptName: String; let sha256: String; let mathSHA256: String? }
     let cases: [Case]
     let fonts: [Font]?
 }
@@ -33,19 +33,27 @@ func render(_ sample: Manifest.Case, fonts: [String: String], output: URL) throw
     }
     let font = sample.font.flatMap { fonts[$0] } ?? "STIXTwoMath-Regular"
     if sample.font != nil && fonts[sample.font!] == nil { throw failure("Unknown font \(sample.font!)") }
+    let loaded = CTFontCreateWithName(font as CFString, 10, nil)
+    guard CTFontCopyPostScriptName(loaded) as String == font else { throw failure("Font substitution: \(font)") }
     let node = try MathMLNode.parse(xml: Data(sample.markup.utf8))
     let size = sample.fontSize ?? 20
+    guard size.isFinite, size > 0 else { throw failure("fontSize must be finite and positive") }
+    if let width = sample.maximumWidth, !width.isFinite || width <= 0 {
+        throw failure("maximumWidth must be finite and positive")
+    }
     let style = MathStyle(fontSize: size, color: CGColor(gray: 0, alpha: 1), fontName: font)
     let layout: MathLayout
     if let width = sample.maximumWidth { layout = try MathLayout(node, style: style, maximumWidth: width) }
     else { layout = try MathLayout(node, style: style) }
     let scale: CGFloat = 4, margin: CGFloat = 16
-    let width = Int(ceil((layout.width + 2 * margin) * scale))
-    let height = Int(ceil((layout.ascent + layout.descent + 2 * margin) * scale))
+    let pixelWidth = ceil((layout.width + 2 * margin) * scale)
+    let pixelHeight = ceil((layout.ascent + layout.descent + 2 * margin) * scale)
     // Batch reports must stay bounded even when the library legitimately permits large layouts.
-    guard width > 0, height > 0, width <= 16_384, height <= 16_384, width * height <= 32_000_000 else {
-        throw failure("Raster exceeds batch budget: \(width) × \(height)")
+    guard pixelWidth.isFinite, pixelHeight.isFinite, pixelWidth > 0, pixelHeight > 0,
+          pixelWidth <= 16_384, pixelHeight <= 16_384, pixelWidth * pixelHeight <= 32_000_000 else {
+        throw failure("Raster exceeds batch budget: \(pixelWidth) × \(pixelHeight)")
     }
+    let width = Int(pixelWidth), height = Int(pixelHeight)
     guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
                                   bytesPerRow: width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
@@ -94,10 +102,12 @@ func render(_ sample: Manifest.Case, fonts: [String: String], output: URL) throw
     guard CGImageDestinationFinalize(dest) else { throw failure("Cannot write PNG") }
     var clipped = false
     if let ink = found["all"] {
-        clipped = ink.minX < -0.5 || ink.maxX > layout.width + 0.5 || ink.maxY > layout.ascent + 0.5 || ink.minY < -layout.descent - 0.5
+        let tolerance: CGFloat = 2 / scale + 1e-9
+        clipped = ink.minX < -tolerance || ink.maxX > layout.width + tolerance || ink.maxY > layout.ascent + tolerance || ink.minY < -layout.descent - tolerance
     }
     return ["id": sample.id, "image": filename, "requestedFont": font, "fontSize": size, "width": layout.width, "ascent": layout.ascent,
             "descent": layout.descent, "ink": found.mapValues(rect), "rectangles": rectangles.mapValues(rect), "clipped": clipped,
+            "imageOrigin": ["x": margin * scale, "y": CGFloat(height) - (margin + layout.descent) * scale],
             "widestUnbreakableWidth": layout.widestUnbreakableWidth,
             "rows": layout.rows.map { ["width": $0.width, "ascent": $0.ascent, "descent": $0.descent] },
             "reading": node.accessibilityDescription]
@@ -122,6 +132,7 @@ extension Optional {
         guard Set(manifest.cases.map(\.id)).count == manifest.cases.count else { throw failure("Duplicate IDs") }
         var fonts: [String: String] = [:]
         for font in manifest.fonts ?? [] {
+            guard fonts[font.path] == nil else { throw failure("Duplicate font path: \(font.path)") }
             let url = root.appendingPathComponent(font.path)
             let hash = SHA256.hash(data: try Data(contentsOf: url)).map { String(format: "%02x", $0) }.joined()
             guard hash == font.sha256 else { throw failure("Font hash mismatch: \(font.path)") }
@@ -132,6 +143,11 @@ extension Optional {
             }
             let loaded = CTFontCreateWithName(font.postScriptName as CFString, 10, nil)
             guard CTFontCopyPostScriptName(loaded) as String == font.postScriptName else { throw failure("Font substitution: \(font.path)") }
+            if let expected = font.mathSHA256 {
+                let math = try CTFontCopyTable(loaded, CTFontTableTag(kCTFontTableMATH), []).unwrap("Missing MATH table: \(font.path)") as Data
+                let hash = SHA256.hash(data: math).map { String(format: "%02x", $0) }.joined()
+                guard hash == expected else { throw failure("Loaded MATH table hash mismatch: \(font.path)") }
+            }
             fonts[font.path] = font.postScriptName
         }
         var results: [[String: Any]] = []

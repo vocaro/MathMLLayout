@@ -7,6 +7,7 @@ import ast
 import copy
 import hashlib
 import json
+import math
 import re
 from pathlib import Path
 from lxml import etree, html
@@ -38,6 +39,21 @@ def number(expression, values):
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def apply_reviewed(cases, reviewed):
+    unknown = set(reviewed) - {case['id'] for case in cases}
+    if unknown: raise ValueError(f'Reviewed outcomes refer to absent cases: {sorted(unknown)}')
+    for case in cases:
+        outcome = reviewed.get(case['id'])
+        if outcome is None: continue
+        if set(outcome) != {'classification', 'issue', 'observed'} or outcome['classification'] != 'bug':
+            raise ValueError('Reviewed outcomes may only record issue-linked bug observations')
+        if not isinstance(outcome['issue'], str) or not outcome['issue'] or type(outcome['observed']) not in (int, float) or not math.isfinite(outcome['observed']):
+            raise ValueError('A reviewed bug requires an issue and numeric observation')
+        if abs(outcome['observed'] - case['expected']) <= case['tolerance']:
+            raise ValueError('A reviewed bug observation must fail the upstream assertion')
+        case.update(outcome)
 
 
 def main():
@@ -123,8 +139,7 @@ def main():
                     'firstMetric': metric1, 'secondMetric': metric2,
                     'expected': number(expected, values), 'tolerance': 1,
                     'classification': 'pass', 'issue': None})
-    for case in cases:
-        case.update(reviewed.get(case['id'], {}))
+    apply_reviewed(cases, reviewed)
     manifest = {'schemaVersion': 1, 'revision': REVISION, 'license': 'WPT-LICENSE.md',
         'cases': cases, 'fonts': list(fonts.values()),
         'exclusions': exclusions + [

@@ -34,8 +34,8 @@ for item in manifest['fonts']:
     dest.parent.mkdir(parents=True, exist_ok=True)
     font.save(dest)
     result = TTFont(dest)
-    assert result.getTableData('MATH') == math
-    assert all(result.getTableData(tag) == value for tag, value in metrics.items())
+    if result.getTableData('MATH') != math or any(result.getTableData(tag) != value for tag, value in metrics.items()):
+        raise ValueError(f'Font conversion changed protected metric tables: {source}')
     item['sha256'] = hashlib.sha256(dest.read_bytes()).hexdigest()
 path.write_text(json.dumps(manifest, indent=2) + '\n')
 print(f'Converted {len(manifest["fonts"])} fonts; MATH bytes unchanged')

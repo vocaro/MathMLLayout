@@ -56,7 +56,8 @@ swift run MathMLExternalRender \
 
 The renderer exports PNGs and `mathmllayout.json`: root width/ascent/descent, rows, unbreakable
 width, ink bounds by color, measured background rectangles, readings, clipping observations,
-registered font identity, platform, and a hash of the input manifest. Errors are retained per case; very large
+registered font identity, platform, a hash of the input manifest, and the actual baseline origin
+in each PNG's pixel coordinates. Errors are retained per case; very large
 images are rejected by a separate batch raster budget. Root ink-covering bounds, row advances,
 DOM boxes, and ink bounds are distinct measurements.
 
@@ -78,7 +79,9 @@ but are not claims of equivalent support. The tool explicitly selects each origi
 awaits `FontFace.load()` and `document.fonts.ready`, and records the actual browser version.
 It parses input as XML and allows only presentation elements/attributes into an isolated DOM;
 external resources, event handlers, arbitrary scripts, DOCTYPE, and entity declarations do not run.
-Unknown/filtered reference features need review and must not be counted as library failures.
+Unsupported elements, namespaces and presentation attributes are reported as per-case reference
+errors instead of silently removed. Unknown reference features need review and must not be
+counted as library failures. The system-font fallback must load explicitly through FontFace.
 
 Install the Python tool dependencies in a virtual environment:
 
@@ -92,15 +95,21 @@ python3 -m venv /tmp/mathml-validation-venv
 Open `external-validation-output/index.html`. It is a standalone gallery with source markup,
 engine metadata, side-by-side images, baseline-aligned overlays, absolute RGB difference maps,
 outcome filtering, and numeric discrepancies. `comparison.json` groups results by feature and
-includes exclusions and issue links. Geometry determines standards outcomes; pixels are for
+includes exclusions, errors and issue links. Reports must match the supplied manifest's hash
+and contain every case ID exactly once. Regenerate older reports that lack PNG origin metadata
+before creating overlays. Clipped results and changed/newly passing known discrepancies require
+review; a failed reference assertion is categorized as an unsuitable reference/test.
+Geometry determines standards outcomes; pixels are for
 review. Antialiasing, font rendering, hinting, and layout-box conventions can produce harmless
 image differences. Cross-engine width differences are observations, not automatic failures.
 
 For arbitrary inputs the renderer accepts a manifest with `cases` containing safe unique `id`,
 standalone `markup`, optional `fontSize` (default 20), and optional `maximumWidth`.
+Sizes and width constraints must be finite and positive; invalid values are reported per case.
 An optional `fonts` array supplies local paths, PostScript names and SHA-256 hashes. Corpus
-cases without registered fonts use system STIX Two Math. Browser line breaking is not configured
-to match library width constraints; constrained corpus renderings require separate review.
+cases without registered fonts use system STIX Two Math. The browser adapter reports cases with
+`maximumWidth` constraints as unsupported references; matching browser line breaking requires
+separate implementation and review.
 
 ## Independently decoded font data
 
@@ -151,7 +160,7 @@ entity loads. Library parser/resource protections are unchanged. Input-limit exc
 shortfalls below the requested sample count are explicit. Start with a bounded source subset;
 this importer keeps candidate markup in memory and does not stream the full 318 GB dataset.
 
-Corpus tests check finite/bounded dimensions, determinism, and ink containment when the raster
+Corpus tests verify each markup hash and check finite/bounded dimensions, determinism, and ink containment when the raster
 budget permits. At 2x, they allow one point (the public contract's two device pixels) for
 bitmap quantization/smoothing. Input limit errors are categorized separately, including available-stack limits.
 Robustness success remains `unreviewed` for typography. Differential comparisons and manual
@@ -178,6 +187,20 @@ The importer and converter reject source/font hash mismatches using `wpt-pins.js
 Changing the WPT revision and pins is an explicit source review: inspect upstream assertions, fonts,
 license and normalization, rerun debug/release, regenerate the browser comparison, review the
 gallery, and retain original failures. Review `reviewed-outcomes.json` independently of imports.
+Reviewed entries can change only bug classification, issue link and observed measurement; they
+cannot replace upstream expectations. Absent case IDs and observations that already satisfy
+the assertion are rejected.
+
+Run tooling regressions with the pinned dependencies. The optional integration tests exercise
+per-case renderer errors and PNG origins; without these environment variables they skip:
+
+```sh
+swift build --product MathMLExternalRender
+MATHML_NATIVE_RENDERER="$(swift build --show-bin-path)/MathMLExternalRender" \
+  MATHML_BROWSER_NODE="$(command -v node)" \
+  /tmp/mathml-validation-venv/bin/python -m unittest discover \
+  -s Tools/ExternalValidation -p test_tools.py
+```
 
 The optional CI workflow targets a configured **macOS 27/Xcode 27** runner. It runs the pinned
 subset in debug/release and uploads JSON reports. The normal `swift test` suite includes it as

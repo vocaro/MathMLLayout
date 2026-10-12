@@ -18,14 +18,18 @@ def sha(data):
 
 
 def sample(inputs, output, count, seed, release, license_name, source_url):
+    if count < 1: raise ValueError('count must be positive')
+    if not inputs.is_dir(): raise ValueError('inputs must be an existing directory')
+    if output.resolve().is_relative_to(inputs.resolve()): raise ValueError('output must be outside inputs')
     candidates, errors = {}, []
     originals = output / 'originals'
     originals.mkdir(parents=True, exist_ok=True)
     file_count, equations = 0, 0
     paths = sorted(p for p in inputs.rglob('*') if p.suffix.lower() in {'.html', '.xhtml', '.htm'})
     for path in paths:
-        raw = path.read_bytes()
         file_count += 1
+        with path.open('rb') as source:
+            raw = source.read(32 * 1024 * 1024 + 1)
         if len(raw) > 32 * 1024 * 1024:
             errors.append({'source': str(path.relative_to(inputs)), 'classification': 'invalid/out-of-bounds input',
                            'reason': 'HTML exceeds importer 32 MiB budget'}); continue
@@ -53,12 +57,19 @@ def sample(inputs, output, count, seed, release, license_name, source_url):
                     e.tag = '{' + NS + '}' + etree.QName(e).localname
                 for a in ['id', 'class']: e.attrib.pop(a, None)
             etree.cleanup_namespaces(root, top_nsmap={None: NS})
-            normalized = etree.tostring(root, encoding='unicode', with_tail=False)
-            # HTML indentation is removed only between elements, never within tokens/annotations.
+            # Whitespace within tokens, annotations, foreign payloads, and xml:space
+            # regions is content. Only strip indentation in mathematical containers.
+            def preserves_text(e):
+                return any(isinstance(p.tag, str) and (
+                    etree.QName(p).localname in {'mi', 'mn', 'mo', 'mtext', 'ms', 'annotation', 'annotation-xml'}
+                    or p.get('xml:space') == 'preserve'
+                    or p.get('{http://www.w3.org/XML/1998/namespace}space') == 'preserve')
+                    for p in [e, *e.iterancestors()])
             for e in root.iter():
                 if not isinstance(e.tag, str): continue
-                if len(e) and e.text and e.text.isspace(): e.text = None
-                if e.tail and e.tail.isspace(): e.tail = None
+                if not preserves_text(e) and len(e) and e.text and e.text.isspace(): e.text = None
+                parent = e.getparent()
+                if parent is not None and not preserves_text(parent) and e.tail and e.tail.isspace(): e.tail = None
             normalized = etree.tostring(root, encoding='unicode', with_tail=False)
             digest = sha(normalized.encode())
             provenance = {'sourceFile': str(path.relative_to(inputs)), 'sourceSHA256': raw_hash,
@@ -76,7 +87,7 @@ def sample(inputs, output, count, seed, release, license_name, source_url):
                 'feature': 'corpus', 'features': dict(features), 'attributes': attrs, 'provenance': [provenance],
                 'nodeCount': nodes, 'depth': depth, 'display': display, 'fontSize': 20,
                 'normalization': ['UTF-8 HTML; named entities decoded to Unicode by lxml; external access disabled',
-                    'standalone MathML namespace on all elements', 'DOM id/class removed for deduplication',
+                    'standalone MathML namespace outside annotation-xml payloads', 'DOM id/class removed for deduplication',
                     'inter-element indentation removed; token text and annotations preserved'],
                 'classification': 'unreviewed', 'stratum': display + ':' + str(int(math.log2(max(1, nodes))))}
     frequencies = Counter()

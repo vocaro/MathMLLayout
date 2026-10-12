@@ -37,6 +37,11 @@ final class ExternalValidationTests: XCTestCase {
         let sha256: String
         let mathSHA256: String
     }
+    struct ReviewedOutcome: Decodable {
+        let classification: String
+        let issue: String
+        let observed: CGFloat
+    }
 
     private func fixtures() throws -> URL {
         try XCTUnwrap(Bundle.module.url(forResource: "ExternalFixtures", withExtension: nil))
@@ -86,10 +91,27 @@ final class ExternalValidationTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(manifest.cases.count, 50)
         XCTAssertLessThanOrEqual(manifest.cases.count, 100)
         XCTAssertEqual(Set(manifest.cases.map(\.id)).count, manifest.cases.count)
+        let reviewed = try JSONDecoder().decode([String: ReviewedOutcome].self,
+            from: Data(contentsOf: root.appendingPathComponent("reviewed-outcomes.json")))
+        XCTAssertEqual(Set(reviewed.keys), Set(manifest.cases.filter { $0.classification != "pass" }.map(\.id)))
+        guard Set(manifest.fonts.map(\.path)).count == manifest.fonts.count else {
+            XCTFail("Duplicate font paths"); return
+        }
         for font in manifest.fonts { try register(font, at: root) }
         let fonts = Dictionary(uniqueKeysWithValues: manifest.fonts.map { ($0.path, $0.postScriptName) })
         var report: [[String: Any]] = []
         for sample in manifest.cases {
+            guard sample.fontSize.isFinite, sample.fontSize > 0, sample.expected.isFinite,
+                  sample.tolerance.isFinite, sample.tolerance >= 0 else {
+                XCTFail("Invalid numeric fixture: \(sample.id)"); continue
+            }
+            if sample.classification != "pass" {
+                let outcome = try XCTUnwrap(reviewed[sample.id], sample.id)
+                XCTAssertEqual(sample.classification, "bug", sample.id)
+                XCTAssertEqual(sample.classification, outcome.classification, sample.id)
+                XCTAssertEqual(sample.issue, outcome.issue, sample.id)
+                XCTAssertEqual(sample.observed, outcome.observed, sample.id)
+            }
             XCTAssertEqual(hash(Data(sample.markup.utf8)), sample.sha256, sample.id)
             let sourceName = try XCTUnwrap(URL(string: sample.source)?.lastPathComponent)
             XCTAssertEqual(hash(try Data(contentsOf: root.appendingPathComponent("upstream").appendingPathComponent(sourceName))),
