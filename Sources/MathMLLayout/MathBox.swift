@@ -16,6 +16,8 @@ struct MathBox {
     var op: OperatorProperties?
     /// Set when the box is a row a line may break inside: its children, kept apart.
     var row: BreakableRow?
+    /// The source of a vertically stretched fence, for a pair that later stays on one output row.
+    var fenceLayout: FenceLayout?
     var items: [MathItem] = []
 
     var height: CGFloat { ascent + descent }
@@ -28,7 +30,9 @@ struct MathBox {
     /// their own metrics.
     mutating func add(_ box: MathBox, at point: CGPoint) {
         guard !box.items.isEmpty else { return }
-        if point == .zero, box.items.count == 1, case .box = box.items[0] { items.append(box.items[0]); return }
+        if point == .zero, box.fenceLayout == nil, box.items.count == 1, case .box = box.items[0] {
+            items.append(box.items[0]); return
+        }
         // What is drawn keeps no row structure: that is for whoever may still break the row.
         var box = box
         box.row = nil

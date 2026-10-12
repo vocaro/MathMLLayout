@@ -75,6 +75,41 @@ struct Embellishment {
     static let none = Embellishment()
 }
 
+/// Rebuilds an entire embellished fence, including its scripts, in its original inherited style.
+/// The outer context is retained: applying the element's own relative size twice would change it.
+final class FenceLayout {
+    let node: MathMLNode
+    let context: LayoutContext
+    let form: OperatorForm?
+    let engine: LayoutEngine
+    let lineWidth: CGFloat
+    let wrapWidth: CGFloat
+    let wrapParts: Range<Int>
+    let wrapOverrides: [Int: CGFloat]
+
+    init(node: MathMLNode, context: LayoutContext, form: OperatorForm?, engine: LayoutEngine,
+         lineWidth: CGFloat, wrapWidth: CGFloat, wrapParts: Range<Int>, wrapOverrides: [Int: CGFloat]) {
+        self.node = node; self.context = context; self.form = form; self.engine = engine
+        self.lineWidth = lineWidth; self.wrapWidth = wrapWidth
+        self.wrapParts = wrapParts; self.wrapOverrides = wrapOverrides
+    }
+
+    func box(ascent: CGFloat, descent: CGFloat) -> MathBox? {
+        let fresh = LayoutEngine(font: engine.font)
+        fresh.imageProvider = engine.imageProvider
+        fresh.imageCache = engine.imageCache
+        fresh.lineWidth = lineWidth
+        fresh.wrapWidth = wrapWidth
+        // A wrapping retry's part indices are relative to the complete formula; the rebuilt
+        // subtree starts at zero, but must keep the budgets that produced the chosen boxes.
+        for part in wrapParts {
+            if let width = wrapOverrides[part] { fresh.wrapOverrides[part - wrapParts.lowerBound] = width }
+        }
+        return try? fresh.layout(node, context, Embellishment(form: form,
+            stretch: .vertical(ascent: ascent, descent: descent)), depth: 0)
+    }
+}
+
 /// What was found of each of a formula's lists of children, kept so that it is found once.
 ///
 /// A node is a value: it has no identity to keep an answer by, and comparing two reads both to
@@ -111,6 +146,11 @@ final class LayoutEngine {
 
     init(fontName: String?) {
         font = MathFont.named(fontName)
+        constants = font.constants
+    }
+
+    fileprivate init(font: MathFont) {
+        self.font = font
         constants = font.constants
     }
 
@@ -268,6 +308,7 @@ final class LayoutEngine {
         guard !MathLimits.isStackSpent(stackFloor) else { throw MathLayoutError.limitExceeded }
         try countNodes()
         let context = inherit(node, outer)
+        let wrapStart = wrapParts.count
         let children = node.children
         var box: MathBox
         switch node.name {
@@ -335,6 +376,12 @@ final class LayoutEngine {
         }
         if let background = node.attributes["mathbackground"].flatMap(MathColor.parse) {
             box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), background), at: 0)
+        }
+        if box.op?.has(.fence) == true, case .vertical = embellishment.stretch,
+           isStretchy(node, form: embellishment.form, horizontal: false) {
+            box.fenceLayout = FenceLayout(node: node, context: outer, form: embellishment.form, engine: self,
+                                          lineWidth: lineWidth, wrapWidth: wrapWidth, wrapParts: wrapStart..<wrapParts.count,
+                                          wrapOverrides: wrapOverrides)
         }
         return box
     }

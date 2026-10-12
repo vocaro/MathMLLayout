@@ -431,7 +431,7 @@ final class ScriptAndLimitTests: XCTestCase {
         let shiftUp = constant(\.stretchStackTopShiftUp), shiftDown = constant(\.stretchStackBottomShiftDown)
         let gapAbove = constant(\.stretchStackGapAboveMin), gapBelow = constant(\.stretchStackGapBelowMin)
         // Arrows the font assembles, whose boxes end at their ink.
-        for arrow in ["→", "←", "⇒", "↔"] {
+        for arrow in ["→", "←", "⇒", "↔", "⟵", "⟶", "⟷"] {
             // A shallow script keeps the standard shift where the font's is large, as STIX Two
             // Math's are; a deep overscript or a tall underscript is pushed off by the gap.
             for (height, depth) in [(5, 0), (0, 5), (4, 30), (30, 4)] as [(CGFloat, CGFloat)] {
@@ -455,8 +455,8 @@ final class ScriptAndLimitTests: XCTestCase {
         // constants, whose two gaps differ, so neither can stand in for the other.
         let builtIn = MathFont.named("Helvetica").constants
         XCTAssertNotEqual(builtIn.stretchStackGapAboveMin, builtIn.stretchStackGapBelowMin)
-        // ⟶ is drawn, not assembled, so it is measured here by its box and not by its ink above.
-        for (font, arrow) in [(nil, "→"), (nil, "⟶"), ("Helvetica", "→"), ("Helvetica", "⟶")] as [(String?, String)] {
+        // ⇌ has no construction in STIX Two Math, so it also exercises a drawn base.
+        for (font, arrow) in [(nil, "→"), (nil, "⇌"), ("Helvetica", "→"), ("Helvetica", "⟶")] as [(String?, String)] {
             let constants = MathFont.named(font).constants, label = "\(arrow) in \(font ?? "the math font")"
             func box(_ element: String, _ height: CGFloat, _ depth: CGFloat) throws -> MathBox {
                 try innerBox("<\(element)><mo>\(arrow)</mo>\(bar(height, depth))</\(element)>", font: font)
@@ -631,13 +631,13 @@ final class ScriptAndLimitTests: XCTestCase {
                 XCTAssertEqual(box.width, 80, "\(arrow)")
                 return [ink.minX, box.width - ink.maxX, box.ascent - ink.maxY, box.descent + ink.minY]
             }
-            let single = try XCTUnwrap(try margins("⟶"), "⟶ is drawn with any font")
-            XCTAssertGreaterThanOrEqual(try XCTUnwrap(single.min()), 0)
+            let reference = try XCTUnwrap(try margins("⇌"), "⇌ is drawn with either font and has the single arrow's margins")
+            XCTAssertGreaterThanOrEqual(try XCTUnwrap(reference.min()), 0)
             var drawn: [Unicode.Scalar] = []
             for arrow in OperatorDictionary.horizontalArrows.unicodeScalars {
                 guard let found = try margins(arrow) else { continue }
                 drawn.append(arrow)
-                for (margin, expected) in zip(found, single) { XCTAssertEqual(margin, expected, accuracy: 0.001, "\(arrow) in \(font ?? "the math font")") }
+                for (margin, expected) in zip(found, reference) { XCTAssertEqual(margin, expected, accuracy: 0.001, "\(arrow) in \(font ?? "the math font")") }
             }
             if font == nil { XCTAssertTrue(drawn.contains("⇌")) } else { XCTAssertEqual(drawn.count, OperatorDictionary.horizontalArrows.unicodeScalars.count) }
         }

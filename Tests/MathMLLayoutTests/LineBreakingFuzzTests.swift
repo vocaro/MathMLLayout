@@ -331,7 +331,11 @@ final class LineBreakingFuzzTests: MathTestCase {
 
     /// Everything `box` draws, in drawing order. Space glyphs are left out: a line that breaks at a
     /// space in an `mtext` drops it.
-    static func marks(_ box: MathBox, at origin: CGPoint = .zero, into marks: inout [Mark]) {
+    static func marks(_ box: MathBox, at origin: CGPoint = .zero, into marks: inout [Mark],
+                      preservingFences: Bool = false, inFence: Bool = false, inCore: Bool = false) {
+        let inFence = inFence || preservingFences && box.fenceLayout != nil
+        let inCore = inCore || preservingFences && box.fenceLayout?.node.name == "mo"
+            && box.fenceLayout?.node.children.contains(where: { $0.name == "mglyph" }) != true
         for item in box.items {
             switch item {
             case .glyphs(let run):
@@ -339,20 +343,26 @@ final class LineBreakingFuzzTests: MathTestCase {
                 if !CTFontGetGlyphsForCharacters(run.font, &character, &space, 1) { space = 0 }
                 let isToken = run.color.components.map { $0.count == 4 && $0[0] == 0 && $0[1] == 0 && $0[2] == 1 } ?? false
                 let font = (CTFontCopyPostScriptName(run.font) as String).hashValue & 0xFFFF
+                // A whole pair may select different glyphs or path pieces at its new height. Its
+                // token scripts still appear once in order, but their vertical attachment can move.
+                if inCore { continue }
                 for (glyph, position) in zip(run.glyphs, run.positions) where space == 0 || glyph != space {
-                    marks.append(Mark(kind: font << 16 | Int(glyph), isToken: isToken, y: origin.y + position.y))
+                    marks.append(Mark(kind: font << 16 | Int(glyph), isToken: isToken,
+                                      y: inFence ? 0 : origin.y + position.y))
                 }
-            case .rect: marks.append(Mark(kind: -1, isToken: false, y: origin.y))
-            case .path, .dashes: marks.append(Mark(kind: -2, isToken: false, y: origin.y))
-            case .image: marks.append(Mark(kind: -3, isToken: false, y: origin.y))
-            case .box(let inner, let point): Self.marks(inner, at: CGPoint(x: origin.x + point.x, y: origin.y + point.y), into: &marks)
+            case .rect: marks.append(Mark(kind: -1, isToken: false, y: inFence ? 0 : origin.y))
+            case .path, .dashes: if !inCore { marks.append(Mark(kind: -2, isToken: false, y: inFence ? 0 : origin.y)) }
+            case .image: marks.append(Mark(kind: -3, isToken: false, y: inFence ? 0 : origin.y))
+            case .box(let inner, let point):
+                Self.marks(inner, at: CGPoint(x: origin.x + point.x, y: origin.y + point.y), into: &marks,
+                           preservingFences: preservingFences, inFence: inFence, inCore: inCore)
             }
         }
     }
 
-    static func marks(_ boxes: [MathBox]) -> [Mark] {
+    static func marks(_ boxes: [MathBox], preservingFences: Bool = false) -> [Mark] {
         var result: [Mark] = []
-        for box in boxes { marks(box, into: &result) }
+        for box in boxes { marks(box, into: &result, preservingFences: preservingFences) }
         return result
     }
 
@@ -495,13 +505,14 @@ final class LineBreakingFuzzTests: MathTestCase {
         } else {
             found.append("deterministic: throws the second time")
         }
-        // The rows are the unbroken row's own boxes, moved along and nothing else: every mark at its height.
+        // The rows keep the unbroken row's drawing order and token scripts. Only wholly contained
+        // fence pairs may change shape and move their scripts to the newly sized base.
         let wrapping = LayoutEngine(fontName: style.fontName)
         wrapping.lineWidth = limit; wrapping.wrapWidth = limit
         if let box = try? wrapping.layoutRoot(root, style: style) {
             let paragraph = Paragraph(box, fontSize: LayoutEngine.fontSize(style))
             let rows = paragraph.rows(limit: limit, first: firstLimit, auto: (.left, 0))
-            let before = marks([box]), after = marks(rows.map(\.box))
+            let before = marks([box], preservingFences: true), after = marks(rows.map(\.box), preservingFences: true)
             if !isSubsequence(before, of: after) { found.append("units: \(after.count) marks in rows of \(before.count)") }
             if !facts.adds, before.count != after.count { found.append("units: \(after.count) marks in rows, \(before.count) unbroken") }
             if rows.contains(where: { !$0.x.isFinite || $0.x < 0 }) { found.append("units: a row at \(rows.map(\.x))") }

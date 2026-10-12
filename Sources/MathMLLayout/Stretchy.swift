@@ -12,8 +12,18 @@ extension LayoutEngine {
 
     /// Long arrows, which a font may give no construction of their own, and the short arrow each
     /// is a longer form of. Stretched, the two are one arrow, so the long one takes the short
-    /// one's assembly. ⟵ ⟶ ⟷ are not among them: they are drawn.
-    private static let shortArrows: [Unicode.Scalar: Unicode.Scalar] = ["⟸": "⇐", "⟹": "⇒", "⟺": "⇔", "⟻": "↤", "⟼": "↦"]
+    /// one's assembly when the long glyph has no construction.
+    private static let shortArrows: [Unicode.Scalar: Unicode.Scalar] = [
+        "⟵": "←", "⟶": "→", "⟷": "↔", "⟸": "⇐", "⟹": "⇒", "⟺": "⇔", "⟻": "↤", "⟼": "↦",
+    ]
+
+    /// Vertical arrows as horizontal shapes turned a quarter turn counterclockwise. The upper
+    /// shaft becomes the left shaft, and a downward barb becomes a rightward one.
+    private static let horizontalEquivalents: [Unicode.Scalar: Unicode.Scalar] = [
+        "↑": "→", "↓": "←", "↕": "↔", "⇑": "⇒", "⇓": "⇐", "⇕": "⇔",
+        "↥": "↦", "↧": "↤", "⇅": "⇄", "⇈": "⇉", "⇊": "⇇",
+        "↾": "⇁", "↿": "⇀", "⇂": "↽", "⇃": "↼",
+    ]
 
     /// A large operator in display style: the first variant at least `DisplayOperatorMinHeight`
     /// tall (and √2 times the text size, as MathML Core asks), else the largest.
@@ -57,7 +67,9 @@ extension LayoutEngine {
         if let glyph, let box = stretchedGlyph(glyph, vertical: true, size: target, context) {
             return centered(box, on: center)
         }
-        guard let scalar, let box = drawnDelimiter(scalar, height: target, context) else { return nil }
+        guard let scalar,
+              let box = drawnVerticalArrow(scalar, height: target, natural: natural, context)
+                ?? drawnDelimiter(scalar, height: target, context) else { return nil }
         return centered(box, on: center)
     }
 
@@ -166,6 +178,11 @@ extension LayoutEngine {
         max(value(\.fractionRuleThickness, context) * 1.2, 0.5)
     }
 
+    /// Arrow shafts have the font's rule weight, with the same small-size visibility floor.
+    private func arrowStrokeWidth(_ context: LayoutContext) -> CGFloat {
+        max(value(\.fractionRuleThickness, context), 0.5)
+    }
+
     /// A fence, bar, angle bracket or radical sign drawn `height` tall, its ink from the
     /// baseline up; nil for other characters.
     func drawnDelimiter(_ scalar: Unicode.Scalar, height: CGFloat, _ context: LayoutContext) -> MathBox? {
@@ -225,6 +242,32 @@ extension LayoutEngine {
         }
         var box = MathBox(width: width + 2 * pad, ascent: height, descent: 0)
         box.items = [.path(path, lineWidth: stroke, color: context.color, fill: false)]
+        return box
+    }
+
+    /// A vertical arrow whose stroked ink is exactly `height` tall. Keep its natural advance
+    /// and ink's horizontal centre: a harpoon's shaft lies to one side of that centre.
+    private func drawnVerticalArrow(_ scalar: Unicode.Scalar, height: CGFloat, natural: MathBox,
+                                    _ context: LayoutContext) -> MathBox? {
+        guard let equivalent = Self.horizontalEquivalents[scalar], let shape = Self.arrowShapes[equivalent] else { return nil }
+        let nominalStroke = arrowStrokeWidth(context)
+        // At sub-point sizes the visibility floor can be taller than the whole arrow. Leave
+        // room for its shaft, then fit that shape and its stroke inside the requested height.
+        let stroke = min(nominalStroke, height / 2)
+        let width = stroke < nominalStroke ? 2 * nominalStroke + 2 * context.fontSize : height + nominalStroke
+        let horizontal = drawnArrow(shape, width: width, middle: 0, context)
+        guard case .path(let path, _, let color, let fill) = horizontal.items.first else { return nil }
+        let bounds = path.boundingBoxOfPath
+        guard bounds.width > 0 else { return nil }
+        let scale = (height - stroke) / bounds.width
+        let middle = natural.inkBounds?.midX ?? natural.width / 2
+        // Fit the actual span, including any head that projects past a short shaft. A normal
+        // arrow's span already fits and its proportions are unchanged by the quarter turn.
+        var turn = CGAffineTransform(a: 0, b: scale, c: -1, d: 0,
+                                     tx: middle + bounds.midY, ty: stroke / 2 - bounds.minX * scale)
+        guard let rotated = path.copy(using: &turn) else { return nil }
+        var box = MathBox(width: natural.width, ascent: height, descent: 0)
+        box.items = [.path(rotated, lineWidth: stroke, color: color, fill: fill)]
         return box
     }
 
@@ -317,7 +360,7 @@ extension LayoutEngine {
     /// single arrow sets the proportions: a head's arms run back a quarter em and out 0.15 em,
     /// and those of a double or triple arrow at the same slope, as far past its outer lines.
     private func drawnArrow(_ shape: ArrowShape, width: CGFloat, middle: CGFloat, _ context: LayoutContext) -> MathBox {
-        let em = context.fontSize, stroke = strokeWidth(context)
+        let em = context.fontSize, stroke = arrowStrokeWidth(context)
         // Between the lines of a double arrow, and the radius of a hook or a loop.
         let pitch = em * 0.2, curl = em * 0.13
         let outerLine = CGFloat(shape.lines - 1) * pitch / 2

@@ -59,7 +59,8 @@ func drawBroken(_ formula: MathMLNode, style: MathStyle, in context: CGContext) 
   before a sign, after an opening fence, before a closing fence, or between a function and its
   argument. Separators break after; other operators start the next row and keep their spacing.
 - **How deep.** Inside nested `mrow`, `mstyle` and `mfenced`, and inside the base of a script. A
-  bracket pair split across rows keeps one size. Long `mtext` wraps at its spaces. A table wider
+  bracket pair split across rows keeps one size; a pair wholly on one row shrinks to that row's
+  content after the breaks are chosen. Long `mtext` wraps at its spaces. A table wider
   than the line narrows its columns and wraps its cells; fraction parts, radicands and
   `menclose` contents wrap the same way.
 - **Attributes** (MathML 3 §3.1.7): `linebreak`, `linebreakstyle`, `linebreakmultchar`,
@@ -167,8 +168,7 @@ declarations in any encoding, so no entity expands and nothing external loads; i
 
 - **Line breaking.** No breaks inside `mpadded`, `mphantom`, `merror`, `munder`/`mover`/
   `munderover`, a script, or a row with a `mathbackground`; none between adjacent identifiers or
-  inside a number. A stretchy operator keeps the size it has in the unbroken row, so brackets
-  whose tall content moved to another row stay tall. `indenttarget` must name a child of a row
+  inside a number. `indenttarget` must name a child of a row
   being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
   a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
   drawn on a `mathbackground` of its own does not wrap.

@@ -5,9 +5,9 @@ import Foundation
 // Line breaking (MathML 3, 3.1.7). A formula is first laid out unbroken, so every operator has its
 // form, spacing and stretched size. Each row keeps its children apart on its box (`BreakableRow`),
 // `Paragraph` flattens rows nested in rows into one sequence of units that never part, and the
-// rows of the result are built from those same boxes: breaking moves them, and lays nothing out
-// again. That is why a bracket pair split across rows keeps one size, and a `+` that starts a
-// row keeps the spacing of a binary operator.
+// rows of the result are built from those boxes. A bracket pair split across rows keeps one size;
+// one that stays on a row can shrink to that row after the breaks have been chosen. Operator
+// spacing and the chosen breaks stay fixed.
 
 // MARK: Attributes
 
@@ -780,6 +780,8 @@ struct Paragraph {
     private var inserts: [(head: MathBox?, tail: MathBox?)] = []
     /// The first unit of each element with an `id`.
     private var ids: [String: Int] = [:]
+    /// Matching fence units, including pairs written flat among other children.
+    private var pairs: [(open: Int, close: Int)] = []
     private var hasForced = false
     /// The attributes the formula starts with, those of the row its first unit is in: they place
     /// its first row.
@@ -817,6 +819,12 @@ struct Paragraph {
             em = fontSize; display = false
         }
         if units.isEmpty { units = [Unit(box: box, x: 0, ink: box.inkBounds)] }
+        var opened: [Int] = []
+        for index in units.indices {
+            guard let op = units[index].box.op, op.has(.fence), let point = op.breakPoint else { continue }
+            if point.closes, let start = opened.popLast() { pairs.append((start, index)) }
+            if point.opens { opened.append(index) }
+        }
         stops = [Stop(at: 0, point: lead)] + stops + [Stop(at: units.count, point: lead)]
         let lefts = units.map { unit in unit.ink.map { unit.x + $0.minX } ?? .infinity }
         let rights = units.map { unit in unit.ink.map { unit.x + $0.maxX } ?? -.infinity }
@@ -1058,12 +1066,30 @@ struct Paragraph {
     var widest: CGFloat { (0..<stops.count - 1).reduce(0) { max($0, extent($1, $1 + 1).width) } }
 
     /// The row between two stops: its units where the unbroken row had them, less what came before.
-    private func row(_ i: Int, _ j: Int) -> MathBox {
-        if i == 0, j == stops.count - 1 { return unbroken }
+    private func row(_ i: Int, _ j: Int, fences: Set<Int> = []) -> (box: MathBox, left: CGFloat, shifts: [Int: CGFloat]) {
+        if i == 0, j == stops.count - 1 { return (unbroken, entire.left, [:]) }
         let shift = stops[i].headAdvance - starts[i]
         var box = MathBox(width: stops[i].headAdvance + ends[j] - starts[i] + stops[j].tailAdvance)
         var ink: CGRect?
         var isFirst = true
+        let first = stops[i].at, end = stops[j].at
+        let head = stops[i].insert.flatMap { inserts[$0].head }
+        let tail = stops[j].insert.flatMap { inserts[$0].tail }
+        var ascent = -CGFloat.infinity, descent = -CGFloat.infinity
+        // Like the inferred row's original stretch pass, fences do not set the target size.
+        // In particular a stationary outer fence spanning lines must not keep a whole inner
+        // pair on this line at the height of content that is now on another line.
+        for index in first..<end where units[index].box.fenceLayout == nil {
+            ascent = max(ascent, units[index].box.ascent)
+            descent = max(descent, units[index].box.descent)
+        }
+        for insert in [head, tail].compactMap({ $0 }) {
+            ascent = max(ascent, insert.ascent); descent = max(descent, insert.descent)
+        }
+        if ascent == -.infinity { ascent = 0 }
+        if descent == -.infinity { descent = 0 }
+        var delta: CGFloat = 0
+        var shifts: [Int: CGFloat] = [:]
         func add(_ child: MathBox, _ childInk: CGRect?, at x: CGFloat) {
             box.add(child, at: CGPoint(x: x, y: 0))
             box.ascent = isFirst ? child.ascent : max(box.ascent, child.ascent)
@@ -1072,12 +1098,30 @@ struct Paragraph {
             guard let placed = childInk?.offsetBy(dx: x, dy: 0) else { return }
             ink = ink.map { $0.union(placed) } ?? placed
         }
-        if let head = stops[i].insert.flatMap({ inserts[$0].head }) { add(head, head.inkBounds, at: 0) }
-        for unit in units[stops[i].at..<stops[j].at] { add(unit.box, unit.ink, at: unit.x + shift) }
-        if let tail = stops[j].insert.flatMap({ inserts[$0].tail }) {
-            add(tail, tail.inkBounds, at: ends[j] + shift + stops[j].tailOffset)
+        if let head { add(head, head.inkBounds, at: 0) }
+        for index in first..<end {
+            let unit = units[index]
+            shifts[index] = delta
+            var child = unit.box
+            var childInk = unit.ink
+            if fences.contains(index), let resized = child.fenceLayout?.box(ascent: ascent, descent: descent),
+               resized.width <= child.width, resized.height <= child.height,
+               [resized.width, resized.ascent, resized.descent].allSatisfy({ $0.isFinite && abs($0) <= MathLimits.extent }) {
+                child = resized
+                childInk = resized.inkBounds
+            }
+            add(child, childInk, at: unit.x + shift + delta)
+            delta += child.width - unit.box.width
         }
-        return Self.covering(box, ink: ink).box
+        if let tail { add(tail, tail.inkBounds, at: ends[j] + shift + delta + stops[j].tailOffset) }
+        box.width += delta
+        let covered = Self.covering(box, ink: ink)
+        // Negative spacing or unusual variants may widen the ink despite smaller advances. The
+        // chosen rows must still fit the widths used to choose them; keep the original in that case.
+        if !fences.isEmpty, covered.box.width > extent(i, j).width + Self.slop {
+            return row(i, j)
+        }
+        return (covered.box, covered.left, shifts)
     }
 
     /// Breaks the row into rows no wider than `limit`, the first no wider than `first`, and
@@ -1093,12 +1137,11 @@ struct Paragraph {
         let last = stops.count - 1
         var best = [CGFloat](repeating: .infinity, count: stops.count)
         var previous = [Int](repeating: 0, count: stops.count)
-        // Of the row that ends at each stop on the best way there: its left edge, the alignment still
-        // to finish, and its ink's overhang.
+        // Of the row that ends at each stop on the best way there: its left edge and ink overhang.
         var origins = [CGFloat](repeating: 0, count: stops.count)
-        var aligns = [IndentAlign](repeating: .left, count: stops.count)
         var lefts = origins
         var targets = [CGFloat?](repeating: nil, count: stops.count)
+        var unitShifts: [Int: CGFloat] = [:]
 
         /// Where the element an `indenttarget` names has its left edge, when it is on a row above
         /// the one that starts at stop `i`. The rows above are those of the best way to `i`, which
@@ -1117,6 +1160,7 @@ struct Paragraph {
             }
             let start = previous[end]
             let edge = origins[end] + lefts[end] + stops[start].headAdvance + units[unit].x - starts[start]
+                + (unitShifts[unit] ?? 0)
             targets[i] = edge
             return edge
         }
@@ -1161,7 +1205,7 @@ struct Paragraph {
         func reach(_ j: Int, from i: Int) -> Bool {
             let room = i == 0 ? first : limit
             let size = extent(i, j)
-            var (x, indent, align) = place(i, j, size, room: room)
+            var (x, indent, _) = place(i, j, size, room: room)
             if indent + size.width > room + Self.slop {
                 // Only a stretch that cannot break may be too wide. It gives up its indentation first:
                 // a renderer may when the line is too narrow for it (MathML 3, 3.2.5.2.3).
@@ -1181,7 +1225,7 @@ struct Paragraph {
                 }
             }
             if cost < best[j] {
-                best[j] = cost; previous[j] = i; origins[j] = x; aligns[j] = align; lefts[j] = size.left
+                best[j] = cost; previous[j] = i; origins[j] = x; lefts[j] = size.left
             }
             return true
         }
@@ -1190,7 +1234,7 @@ struct Paragraph {
         let whole = place(0, last, entire, room: first)
         if !hasForced, whole.indent + entire.width <= first + Self.slop {
             // Everything fits and nothing is forced: no search.
-            origins[last] = whole.x; aligns[last] = whole.align
+            origins[last] = whole.x
         } else {
             // The next forced break after each stop: no row runs past it.
             var forced = [Int](repeating: last, count: stops.count)
@@ -1226,11 +1270,31 @@ struct Paragraph {
         var ending = [last]
         while let end = ending.last, end != 0, ending.count <= stops.count { ending.append(previous[end]) }
         ending.reverse()
+        // Once the breaks are settled, visit each pair once. A pair crossing a selected boundary
+        // keeps both original fences, including its embellishments.
+        var fences = Set<Int>()
+        var output = [Int](repeating: 0, count: units.count)
+        for (index, boundary) in zip(ending, ending.dropFirst()).enumerated() {
+            for unit in stops[boundary.0].at..<stops[boundary.1].at { output[unit] = index }
+        }
+        for pair in pairs where output[pair.open] == output[pair.close] {
+            if units[pair.open].box.fenceLayout != nil { fences.insert(pair.open) }
+            if units[pair.close].box.fenceLayout != nil { fences.insert(pair.close) }
+        }
+        targets = [CGFloat?](repeating: nil, count: stops.count)
         var rows: [Row] = []
         var pending: [IndentAlign] = []
         for (i, j) in zip(ending, ending.dropFirst()) {
-            rows.append(Row(box: row(i, j), x: origins[j], leading: stops[j].point.style.leading))
-            pending.append(aligns[j])
+            let built = row(i, j, fences: fences)
+            for (unit, delta) in built.shifts { unitShifts[unit] = delta }
+            var placement = place(i, j, (built.box.width, built.left), room: i == 0 ? first : limit)
+            let room = i == 0 ? first : limit
+            if placement.indent + built.box.width > room + Self.slop {
+                placement.x = max(0, min(placement.x, room - built.box.width))
+            }
+            origins[j] = placement.x; lefts[j] = built.left
+            rows.append(Row(box: built.box, x: placement.x, leading: stops[j].point.style.leading))
+            pending.append(placement.align)
         }
         // Centred and right-aligned rows with no line to align within: within the widest row.
         if pending.contains(where: { $0 != .left }) {
