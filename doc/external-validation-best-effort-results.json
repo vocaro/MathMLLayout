@@ -4818,6 +4818,22 @@
     "debug": "Six selected XCTest methods passed without skips; strict standards and required font oracle enabled.",
     "tooling": "Twelve tests passed, including native and Chromium integrations and pinned-input rejection.",
     "reimport": "Corpus and supplemental WPT manifests reproduced byte-for-byte.",
-    "release": "Incomplete: compilation ran out of disk space. No release-test result claimed."
+    "release": "Passed: release build and six selected XCTest methods completed with zero failures and zero skips. All 100 corpus cases, eight supplemental standards cases and original 81 numeric assertions passed. Successful retry supersedes the initial disk-space failure; this was a focused run, not the full release suite.",
+    "releaseRun": {
+      "date": "2026-10-12",
+      "revision": "d80c4b02f83ea92f9c2a7a29055ca3d7b4255304",
+      "command": "swift test -c release -Xswiftc -enable-testing --filter 'ExternalValidationTests|ExternalCorpusTests|IndependentFontTests'",
+      "environment": {
+        "MATHML_STRICT_EXTERNAL": "1",
+        "MATHML_REQUIRE_FONT_ORACLE": "1",
+        "MATHML_CORPUS_MANIFEST": "Path to the pinned 100-equation OpenStax corpus manifest"
+      },
+      "tests": 6,
+      "failures": 0,
+      "skips": 0,
+      "corpusInvariantPasses": 100,
+      "supplementalStandardsPasses": 8,
+      "originalNumericAssertionPasses": 81
+    }
   }
 }

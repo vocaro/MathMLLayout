@@ -181,11 +181,20 @@ import commands and measurement/review data; local outputs retain the original l
 and attribution. No ar5iv license agreement or dataset access was needed.
 
 Validation: the six selected XCTest methods (standards, corpus and required independent
-font oracle) pass in debug, without skips. All twelve tooling tests, including native/Chromium
-integrations, pass. Corpus and supplemental WPT reimports reproduce their manifests
-byte-for-byte. Release verification could not finish: the build ran out of disk space
-during compilation; no release-test result is claimed for this follow-up. Production
-files under `Sources/` are unchanged.
+font oracle) pass in debug and release, without skips. All twelve tooling tests, including
+native/Chromium integrations, pass. Corpus and supplemental WPT reimports reproduce
+their manifests byte-for-byte. Production files under `Sources/` are unchanged.
+
+The initial release build ran out of disk space during compilation. After space recovered,
+the retry on October 12, 2026, at merged revision
+`d80c4b02f83ea92f9c2a7a29055ca3d7b4255304` built successfully and ran **six tests with
+zero failures and zero skips**, using `swift test -c release -Xswiftc -enable-testing`
+with filter `ExternalValidationTests|ExternalCorpusTests|IndependentFontTests`,
+`MATHML_STRICT_EXTERNAL=1`, `MATHML_REQUIRE_FONT_ORACLE=1` and the pinned corpus manifest
+in `MATHML_CORPUS_MANIFEST`. All 100 corpus cases passed invariants and 2x ink containment;
+all eight supplemental standards cases and the original 81 numeric assertions passed.
+This successful focused release run supersedes the disk-space limitation; it covers the
+selected validation tests, not the full release suite.
 
 Larger corpora, further MathML 3 cases, MathJax/Firefox/WebKit runs, speech/human review,
 regular supported-runner CI and adjudication of the noted differences remain follow-up work.
