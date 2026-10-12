@@ -3,7 +3,7 @@ import Foundation
 @testable import MathMLLayout
 import XCTest
 
-/// Untrusted input (README, "Bounds"): whatever the markup, layout either succeeds within its
+/// Untrusted input (doc/limits.md, "Bounds"): whatever the markup, layout either succeeds within its
 /// bounds or throws a `MathLayoutError`. It never crashes, hangs or draws without limit.
 final class RobustnessTests: XCTestCase {
     private enum Outcome: Equatable { case laidOut, threw(MathLayoutError) }
@@ -224,7 +224,7 @@ final class RobustnessTests: XCTestCase {
         XCTAssertEqual(survive(rows, size: 1, "nested rows"), .threw(.limitExceeded))
     }
 
-    /// README: "A formula … larger than 20,000 nodes … throws `MathLayoutError.limitExceeded`."
+    /// doc/limits.md: "A formula … larger than 20,000 nodes … throws `MathLayoutError.limitExceeded`."
     /// Table rows are nodes too.
     func testTableRowsCountTowardTheNodeBound() {
         let rows = MathMLNode(name: "mtable", attributes: ["rowspacing": "0"], children: Array(repeating: MathMLNode(name: "mtr"), count: 5 * MathLimits.nodes))
