@@ -368,9 +368,13 @@ final class LayoutEngine {
         for _ in 0..<MathLimits.depth {
             switch node.name {
             case "mo": return node
-            case "msub", "msup", "msubsup", "munder", "mover", "munderover", "mmultiscripts", "mfrac", "semantics", "maction":
+            case "msub", "msup", "msubsup", "munder", "mover", "munderover", "mmultiscripts", "mfrac":
                 guard let first = node.children.first else { return nil }
                 node = first
+            case "semantics", "maction":
+                // The child that is drawn, which need not be the first (`shownChild`).
+                guard let shown = Self.shownChild(node) else { return nil }
+                node = shown
             case "mrow", "mstyle", "mphantom", "mpadded":
                 // Its one child in flow, when it has exactly one.
                 guard let only = onlyInFlow(node.children) else { return nil }
@@ -447,9 +451,10 @@ final class LayoutEngine {
                 guard let says = known else { break walk }
                 if says, shows { pending[level].says = true }
             case "maction", "semantics":
-                // Only what is shown, which here is the first child.
-                guard !node.children.isEmpty else { break walk }
-                pending.append((node.children.prefix(1), nil, true, false))
+                // Only what is shown (`shownChild`). Which child that is depends on the element and
+                // not on its list of children alone, so nothing is kept for the list.
+                guard let shown = Self.shownChild(node) else { break walk }
+                pending.append(([shown][...], nil, true, false))
             default: break walk
             }
         }

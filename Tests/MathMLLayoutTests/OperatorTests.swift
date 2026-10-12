@@ -479,6 +479,42 @@ final class OperatorTests: XCTestCase {
         for node in [a, plus, element("mfrac", space, space), element("msqrt", space)] { XCTAssertFalse(engine.isSpaceLike(node), node.name) }
     }
 
+    /// An `maction` stands for the child `selection` names and a `semantics` for its first child
+    /// that is not an annotation: the child that is drawn. What looks ahead of layout takes the
+    /// same child, or an operator that is drawn would not be spaced or stretched as one.
+    func testAnActionAndSemanticsAreWhatTheChildThatIsDrawnIs() throws {
+        let engine = LayoutEngine(fontName: nil)
+        let plus = mo("+"), space = MathMLNode(name: "mspace"), note = MathMLNode(name: "annotation", text: "+")
+        func action(_ selection: String?, _ children: MathMLNode...) -> MathMLNode {
+            MathMLNode(name: "maction", attributes: selection.map { ["selection": $0] } ?? [:], children: children)
+        }
+        func semantics(_ children: MathMLNode...) -> MathMLNode { MathMLNode(name: "semantics", children: children) }
+        XCTAssertEqual(engine.embellishedCore(action("2", a, plus)), plus)
+        XCTAssertNil(engine.embellishedCore(action("2", plus, a)))
+        XCTAssertEqual(engine.embellishedCore(action("9", plus, a)), plus, "a selection that names no child is the first")
+        XCTAssertEqual(engine.embellishedCore(semantics(note, plus, a)), plus)
+        XCTAssertNil(engine.embellishedCore(semantics(note)))
+        XCTAssertEqual(engine.embellishedCore(action("2", a, semantics(note, MathMLNode(name: "msup", children: [plus, b])))), plus, "nested")
+        XCTAssertTrue(engine.isSpaceLike(action("2", a, space))); XCTAssertFalse(engine.isSpaceLike(action("2", space, a)))
+        XCTAssertTrue(engine.isSpaceLike(semantics(note, space, a))); XCTAssertFalse(engine.isSpaceLike(semantics(note)))
+        XCTAssertFalse(engine.isSpaceLike(action(nil)))
+        // One list of children under two actions that show different ones: neither answer is the list's.
+        let shared = [space, a]
+        for _ in 1...2 {
+            XCTAssertTrue(engine.isSpaceLike(MathMLNode(name: "maction", children: shared)))
+            XCTAssertFalse(engine.isSpaceLike(MathMLNode(name: "maction", attributes: ["selection": "2"], children: shared)))
+        }
+        // Laid out, the operator that is drawn is spaced and stretched as it is when written plainly.
+        let tall = "<mfrac><mfrac><mi>a</mi><mi>b</mi></mfrac><mi>c</mi></mfrac>"
+        let plain = try innerBox("<mo>(</mo>\(tall)<mo>)</mo>", display: true)
+        for wrapped in ["<maction selection='2'><mi>a</mi><mo>(</mo></maction>", "<semantics><annotation>(</annotation><mo>(</mo></semantics>"] {
+            let box = try innerBox("\(wrapped)\(tall)<mo>)</mo>", display: true)
+            XCTAssertEqual(box.width, plain.width, accuracy: 0.01, wrapped); XCTAssertEqual(box.ascent, plain.ascent, accuracy: 0.01, wrapped)
+            XCTAssertEqual(box.descent, plain.descent, accuracy: 0.01, wrapped)
+        }
+        try assertSpacing([a, action("2", b, mo("=")), b], 10, "an operator an maction shows keeps its spacing")
+    }
+
     /// What a list of children is found to be is kept by the list, so that no row reads it again.
     /// It is what the list is, not what any element that has it is, and it is the list's alone.
     func testWhatIsKeptOfAListOfChildrenIsTheListsOwn() {
