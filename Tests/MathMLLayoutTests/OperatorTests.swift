@@ -478,4 +478,38 @@ final class OperatorTests: XCTestCase {
         XCTAssertTrue(engine.isSpaceLike(element("maction", space, a)), "an maction is as space-like as its first child")
         for node in [a, plus, element("mfrac", space, space), element("msqrt", space)] { XCTAssertFalse(engine.isSpaceLike(node), node.name) }
     }
+
+    /// What a list of children is found to be is kept by the list, so that no row reads it again.
+    /// It is what the list is, not what any element that has it is, and it is the list's alone.
+    func testWhatIsKeptOfAListOfChildrenIsTheListsOwn() {
+        let engine = LayoutEngine(fontName: nil)
+        let plus = mo("+"), space = MathMLNode(name: "mspace"), text = MathMLNode(name: "mtext", text: "t")
+        // One list under several elements, asked twice: the second answers are the kept ones.
+        let shared = [space, text]
+        for pass in 1...2 {
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mrow", children: shared)), true, "pass \(pass)")
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mphantom", children: shared)), false, "pass \(pass): what a phantom hides says nothing")
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "maction", children: shared)), false, "pass \(pass): its first child alone")
+            XCTAssertNil(engine.spaceLike(MathMLNode(name: "mfrac", children: shared)), "pass \(pass)")
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mrow", children: [MathMLNode(name: "mphantom", children: shared), space])), false, "pass \(pass)")
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mrow", children: [MathMLNode(name: "mphantom", children: shared), MathMLNode(name: "mstyle", children: shared)])), true,
+                           "pass \(pass)")
+            XCTAssertNil(engine.embellishedCore(MathMLNode(name: "mrow", children: shared)), "pass \(pass)")
+            XCTAssertEqual(engine.embellishedCore(MathMLNode(name: "mrow", children: [MathMLNode(name: "mpadded", children: shared), plus, MathMLNode(name: "mrow", children: shared)])),
+                           plus, "pass \(pass)")
+        }
+        // Lists that come and go, each likely to be given the storage of the one before: every one
+        // is what it is itself.
+        for index in 0..<600 {
+            let children = [[space, plus], [space, text], [space, space], [a, plus]][index % 4]
+            let row = MathMLNode(name: "mrow", children: children.map { MathMLNode(name: $0.name, text: $0.text) })
+            XCTAssertEqual(engine.spaceLike(row), [nil, true, false, nil][index % 4], "\(index)")
+            XCTAssertEqual(engine.embellishedCore(row), index % 4 == 0 ? plus : nil, "\(index)")
+        }
+        // The look-ahead says what a subtree is however deep it is. Layout is what refuses one too deep.
+        let deep = (0..<200).reduce(text) { inner, _ in MathMLNode(name: "mrow", children: [space, inner]) }
+        XCTAssertEqual(engine.spaceLike(deep), true)
+        XCTAssertNil(engine.spaceLike((0..<200).reduce(a) { inner, _ in MathMLNode(name: "mrow", children: [space, inner]) }))
+        XCTAssertThrowsError(try innerBox(math(deep))) { XCTAssertEqual($0 as? MathLayoutError, .limitExceeded) }
+    }
 }
