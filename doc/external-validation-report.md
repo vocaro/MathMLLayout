@@ -1,8 +1,13 @@
 # Initial external validation report
 
+**Current result after the #54 fix:** all 81 pinned assertions pass their unchanged upstream
+expectations, including all eight under/over limit checks. Strict mode passes as well.
+The [machine-readable comparison](external-validation-results.json) reflects the fixed code.
+The measurements and review notes below preserve the historical pre-fix baseline.
+
 Measured on **October 12, 2026**, against production code at
 `180da1f564c3c4262fd8fd6ef7b833d1ad069a06`, on arm64 macOS 27 with Xcode 27.1 / Swift 6.4.
-Production files under `Sources/` are unchanged. This report covers the implemented subset of
+Production files under `Sources/` were unchanged at that baseline. This report covers the implemented subset of
 [#52](https://github.com/vocaro/MathMLLayout/issues/52), not the whole first milestone.
 
 ## Standards measurements
@@ -36,8 +41,9 @@ manifest also records policies for browser integration, table spans, MathKernInf
 intentional typography differences. The remaining WPT population was not enumerated; there
 is no whole-suite conformance rate. No unsupported or excluded case is counted as a pass.
 
-The [machine-readable comparison](external-validation-results.json) contains per-case
-measurements, classifications, reference results, environment, exclusions, and issue links.
+The current [machine-readable comparison](external-validation-results.json) contains per-case
+measurements, classifications, reference results, environment, exclusions, and issue links;
+it supersedes this baseline's eight bug classifications after the #54 fix.
 The generated `external-validation-output/index.html` gallery shows source markup, aligned
 renderings, overlays and difference maps; regenerate it with the
 [documented commands](external-validation.md#batch-rendering-and-reference-gallery).
@@ -98,3 +104,18 @@ Reimport/conversion still reproduce the manifest byte-for-byte. Regenerated nati
 reports and the gallery retain **73 passes and eight unchanged #54 discrepancies**, with all
 81 Chromium assertions passing and no native clipping. Strict mode still reports exactly
 the eight #54 failures. Production code and the #54 defect remain unchanged.
+
+## #54 fix verification
+
+Inline large operators now retain the font's baseline, while display-style centering is
+preserved. Two regression methods use the WPT square summation glyph to check bare and
+embellished operators, scripts, fixed limits, display-style overrides, and `largeop="false"`.
+Both methods and all eight limit assertions failed against the pre-fix code. The eight cases
+now run as ordinary passing assertions; their upstream expectations and font data did not change.
+
+- Full macOS debug and release suites, with strict standards checks and the required font
+  oracle: **423 tests each, zero failures, one optional corpus test skipped**.
+- iOS 27 / iPhone 17 Pro simulator: **68 operator, script, standards and font tests pass**, no skips.
+- Regenerated native/Chromium comparison: **81 of 81 assertions pass**, no native clipping.
+- All ten tooling regressions pass; fixture reimport/conversion reproduce the updated
+  manifest byte-for-byte.

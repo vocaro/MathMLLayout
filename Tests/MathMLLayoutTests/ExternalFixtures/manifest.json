@@ -1728,9 +1728,8 @@
       "secondMetric": "bottom",
       "expected": 30.0,
       "tolerance": 1,
-      "classification": "bug",
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
-      "observed": 35
+      "classification": "pass",
+      "issue": null
     },
     {
       "id": "underover-parameters-1-under00012-ref0001",
@@ -1756,9 +1755,8 @@
       "secondMetric": "bottom",
       "expected": 30.0,
       "tolerance": 1,
-      "classification": "bug",
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
-      "observed": 35
+      "classification": "pass",
+      "issue": null
     },
     {
       "id": "underover-parameters-1-under00021-ref0002",
@@ -1784,9 +1782,8 @@
       "secondMetric": "bottom",
       "expected": 110.0,
       "tolerance": 1,
-      "classification": "bug",
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
-      "observed": 115
+      "classification": "pass",
+      "issue": null
     },
     {
       "id": "underover-parameters-1-under00022-ref0002",
@@ -1812,9 +1809,8 @@
       "secondMetric": "bottom",
       "expected": 110.0,
       "tolerance": 1,
-      "classification": "bug",
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
-      "observed": 115
+      "classification": "pass",
+      "issue": null
     },
     {
       "id": "underover-parameters-1-ref0003-over00031",
@@ -1840,9 +1836,8 @@
       "secondMetric": "bottom",
       "expected": 50.0,
       "tolerance": 1,
-      "classification": "bug",
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
-      "observed": 45
+      "classification": "pass",
+      "issue": null
     },
     {
       "id": "underover-parameters-1-ref0003-over00032",
@@ -1868,9 +1863,8 @@
       "secondMetric": "bottom",
       "expected": 50.0,
       "tolerance": 1,
-      "classification": "bug",
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
-      "observed": 45
+      "classification": "pass",
+      "issue": null
     },
     {
       "id": "underover-parameters-1-ref0004-over00041",
@@ -1896,9 +1890,8 @@
       "secondMetric": "bottom",
       "expected": 70.0,
       "tolerance": 1,
-      "classification": "bug",
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
-      "observed": 65
+      "classification": "pass",
+      "issue": null
     },
     {
       "id": "underover-parameters-1-ref0004-over00042",
@@ -1924,9 +1917,8 @@
       "secondMetric": "bottom",
       "expected": 70.0,
       "tolerance": 1,
-      "classification": "bug",
-      "issue": "https://github.com/vocaro/MathMLLayout/issues/54",
-      "observed": 65
+      "classification": "pass",
+      "issue": null
     },
     {
       "id": "root-parameters-1-ref001-index001",
