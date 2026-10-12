@@ -902,14 +902,17 @@ final class ElementaryMathTests: MathTestCase {
         equal(try stack("top").box.ascent, 0); equal(try stack("top").box.descent, tall)
         equal(try stack("bottom").box.ascent, tall); equal(try stack("bottom").box.descent, 0)
         // With a row number, that row of digits: its baseline, top, bottom or middle. Lines are not rows.
-        for (align, row) in [("baseline 1", 0), ("baseline 2", 1), ("baseline 3", 2), ("baseline 9", 2), ("baseline -1", 2),
-                             ("baseline -3", 0), ("baseline -9", 0), ("axis 2", 1), ("BASELINE 2", 1)] {
+        for (align, row) in [("baseline 1", 0), ("baseline 2", 1), ("baseline 3", 2), ("baseline -1", 2),
+                             ("baseline -3", 0), ("axis 2", 1), ("BASELINE 2", 1)] {
             equal(try stack(align).row(row)[0].origin.y, 0, align)
             equal(try stack(align).box.height, tall, align)
         }
-        equal(try stack("baseline 0").box.ascent, tall / 2)
-        equal(try stack("baseline -9223372036854775808").row(0)[0].origin.y, 0)
-        equal(try stack("baseline 99999999999999999999").box.ascent, tall / 2)
+        // A number that names no row is ignored, as mtable ignores one: the stack is aligned whole.
+        for align in ["baseline 0", "baseline 4", "baseline 9", "baseline -4", "baseline -9", "axis 9", "center -9",
+                      "baseline -9223372036854775808", "baseline 99999999999999999999"] {
+            equal(try stack(align).box.ascent, try stack(String(align.split(separator: " ")[0])).box.ascent, align)
+        }
+        equal(try stack("top 9").box.ascent, 0); equal(try stack("bottom -9").box.ascent, tall)
         let pitch = plain.row(0)[0].origin.y - plain.row(1)[0].origin.y
         equal(try stack("top 2").box.ascent, pitch); equal(try stack("bottom 1").box.ascent, pitch)
         equal(try stack("center 1").box.ascent, pitch / 2)

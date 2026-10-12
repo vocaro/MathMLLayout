@@ -681,8 +681,10 @@ extension LayoutEngine {
     /// The finished box: `content`, whose origin is its top-left corner, with the baseline that
     /// `align` asks for (3.6.1.2). The values are `mtable`'s: `top`, `bottom`, `center` or
     /// `baseline` (the default; both put the middle on the baseline) and `axis`, each for the
-    /// whole stack or for the row whose number follows. A row's axis is as far above its
-    /// baseline as the surrounding one's, so `axis` with a row is `baseline` with it.
+    /// whole stack or for the row whose number follows, counted from the bottom when it is
+    /// negative. A row's axis is as far above its baseline as the surrounding one's, so `axis`
+    /// with a row is `baseline` with it. A number that names no row is ignored, as `mtable`
+    /// ignores one (MathML 3, 3.5.1.2).
     ///
     /// The specification leaves what overflows a column out of the stack's size (3.6.1.1). A
     /// host clips to the formula's box, so this box grows to cover it.
@@ -691,8 +693,8 @@ extension LayoutEngine {
         let parts = (node.attributes["align"] ?? "").split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
         let alignment = parts.first ?? "baseline"
         let ascent: CGFloat
-        if parts.count > 1, let number = Int(parts[1]), number != 0, !rows.isEmpty {
-            let row = rows[number > 0 ? min(number, rows.count) - 1 : max(rows.count + number, 0)]
+        if parts.count > 1, let number = Int(parts[1]), number != 0, (-rows.count...rows.count).contains(number) {
+            let row = rows[number > 0 ? number - 1 : rows.count + number]
             ascent = switch alignment {
             case "top": row.top
             case "bottom": row.bottom
