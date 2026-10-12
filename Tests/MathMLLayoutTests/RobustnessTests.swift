@@ -262,27 +262,27 @@ final class RobustnessTests: XCTestCase {
     }
 
     func testTheLargestFormulasFinish() throws {
-        // The worst cases the bounds allow, as a guard against layout that hangs. In an
-        // unoptimized build each takes a fraction of a second, where a row of stretchy fences once
-        // took eight, and nested rows of space-like children six.
-        let many = MathLimits.nodes - 2
-        let cases: [(String, MathMLNode)] = [
-            ("identifiers", MathMLNode(name: "math", children: Array(repeating: mi("x"), count: many))),
-            ("fences", MathMLNode(name: "math", children: Array(repeating: mo("("), count: many - 1) + [mi("x")])),
-            ("fences and identifiers", MathMLNode(name: "math", children: (0..<many / 2).flatMap { _ in [mo("("), mi("x")] })),
-            ("operators", MathMLNode(name: "math", children: (0..<many / 2).flatMap { _ in [mi("a"), mo("+")] })),
-            ("spaces around an operator", MathMLNode(name: "math", children: Array(repeating: MathMLNode(name: "mspace"), count: many - 1) + [mo("=")])),
-            ("one long text", math(MathMLNode(name: "mtext", text: String(repeating: "word ", count: MathLimits.textLength / 5)))),
-            ("table", math(MathMLNode(name: "mtable", attributes: ["rowspacing": "0", "frame": "solid", "rowlines": "solid", "columnlines": "solid"],
-                                      children: (0..<90).map { _ in MathMLNode(name: "mtr", children: (0..<70).map { _ in MathMLNode(name: "mtd", children: [mn("1")]) }) }))),
-            ("nested scripts", math(nested(60) { MathMLNode(name: "msup", children: [mi("x"), $0]) })),
-            ("nested fences", math(nested(60) { MathMLNode(name: "mrow", children: [mo("("), $0, mo(")")]) })),
-            ("nested rows of spaces", math(nested(60) { MathMLNode(name: "mrow", children: Array(repeating: MathMLNode(name: "mtext"), count: 300) + [$0]) })),
-        ]
-        for (name, root) in cases {
-            let clock = ContinuousClock()
-            let elapsed = clock.measure { survive(root, size: 1, name) }
-            XCTAssertLessThan(elapsed, .seconds(5), "\(name) took \(elapsed)")
+        // Same shapes at one quarter of the node/text budget and at the budget. Linear
+        // growth has room for platform variation; quadratic row scans exceed this ratio.
+        func cases(_ scale: Int) -> [(String, MathMLNode)] {
+            let many = (MathLimits.nodes - 2) / scale, levels = 60 / scale
+            return [
+                ("identifiers", MathMLNode(name: "math", children: Array(repeating: mi("x"), count: many))),
+                ("fences", MathMLNode(name: "math", children: Array(repeating: mo("("), count: many - 1) + [mi("x")])),
+                ("fences and identifiers", MathMLNode(name: "math", children: (0..<many / 2).flatMap { _ in [mo("("), mi("x")] })),
+                ("operators", MathMLNode(name: "math", children: (0..<many / 2).flatMap { _ in [mi("a"), mo("+")] })),
+                ("spaces around an operator", MathMLNode(name: "math", children: Array(repeating: MathMLNode(name: "mspace"), count: many - 1) + [mo("=")])),
+                ("one long text", math(MathMLNode(name: "mtext", text: String(repeating: "word ", count: MathLimits.textLength / (5 * scale))))),
+                ("table", math(MathMLNode(name: "mtable", attributes: ["rowspacing": "0", "frame": "solid", "rowlines": "solid", "columnlines": "solid"],
+                                          children: (0..<90 / scale).map { _ in MathMLNode(name: "mtr", children: (0..<70).map { _ in MathMLNode(name: "mtd", children: [mn("1")]) }) }))),
+                ("nested scripts", math(nested(levels) { MathMLNode(name: "msup", children: [mi("x"), $0]) })),
+                ("nested fences", math(nested(levels) { MathMLNode(name: "mrow", children: [mo("("), $0, mo(")")]) })),
+                ("nested rows of spaces", math(nested(levels) { MathMLNode(name: "mrow", children: Array(repeating: MathMLNode(name: "mtext"), count: 300) + [$0]) })),
+            ]
+        }
+        for ((name, small), (_, large)) in zip(cases(4), cases(1)) {
+            assertCPUScaling(factor: 12, name, baseline: { self.survive(small, size: 1, name) },
+                             larger: { self.survive(large, size: 1, name) })
         }
     }
 
@@ -293,21 +293,18 @@ final class RobustnessTests: XCTestCase {
     /// them unoptimized, and the sixty-two that the bound on depth allows had no end. Read once,
     /// the depth is nothing: layout counts its twenty thousand nodes and refuses the rest.
     func testARowInManyPlacesIsReadOnce() {
-        func seconds(_ levels: Int, _ wrap: (MathMLNode) -> MathMLNode) -> Duration {
+        func exercise(_ levels: Int, _ wrap: (MathMLNode) -> MathMLNode) {
             let shared = (0..<levels).reduce(MathMLNode(name: "mspace")) { inner, _ in MathMLNode(name: "mrow", children: [inner, inner]) }
-            var outcome = Outcome.laidOut
-            let elapsed = ContinuousClock().measure { outcome = survive(wrap(shared), size: 1, "\(levels) levels") }
-            XCTAssertEqual(outcome, .threw(.limitExceeded), "\(levels) levels")
-            return elapsed
+            XCTAssertEqual(survive(wrap(shared), size: 1, "\(levels) levels"), .threw(.limitExceeded), "\(levels) levels")
         }
         let shapes: [(String, (MathMLNode) -> MathMLNode)] = [
             ("spaces", { math($0) }), ("spaces beside an operator", { math(mo("("), $0, $0) }),
             ("phantoms", { math(MathMLNode(name: "mphantom", children: [$0, $0])) }),
         ]
         for (name, wrap) in shapes {
-            // Against rows too few to tell apart: a ratio, whatever the machine.
-            let few = seconds(14, wrap)
-            XCTAssertLessThan(seconds(24, wrap), few * 5 + .milliseconds(250), name)
+            // Both exhaust the same node budget; another ten shared levels must not
+            // multiply the amount of work by the number of implied leaf occurrences.
+            assertCPUScaling(factor: 5, name, baseline: { exercise(14, wrap) }, larger: { exercise(24, wrap) })
         }
     }
 
@@ -331,22 +328,27 @@ final class RobustnessTests: XCTestCase {
         XCTAssertEqual(survive(math(MathMLNode(name: "semantics", children: [mi("x")] + Array(repeating: annotation, count: 5 * MathLimits.nodes))), size: 1,
                                "annotations after the child"), .laidOut)
         // One list under many parents, in the shapes that ask what the semantics is before laying it out.
-        let shared = semantics(10_000, mi("x"))
-        let shapes: [(String, MathMLNode)] = [
-            ("siblings", MathMLNode(name: "math", children: Array(repeating: shared, count: 9_990))),
-            ("beside an operator", MathMLNode(name: "math", children: [mo("(")] + Array(repeating: shared, count: 9_000))),
-            ("in rows", MathMLNode(name: "math", children: Array(repeating: MathMLNode(name: "mrow", children: [shared]), count: 6_000))),
-            ("under roots", MathMLNode(name: "math", children: Array(repeating: MathMLNode(name: "msqrt", children: [shared]), count: 6_000))),
+        let shapes: [(String, (MathMLNode, Int) -> MathMLNode, Int)] = [
+            ("siblings", { shared, count in MathMLNode(name: "math", children: Array(repeating: shared, count: count)) }, 9_990),
+            ("beside an operator", { shared, count in MathMLNode(name: "math", children: [mo("(")] + Array(repeating: shared, count: count)) }, 9_000),
+            ("in rows", { shared, count in MathMLNode(name: "math", children: Array(repeating: MathMLNode(name: "mrow", children: [shared]), count: count)) }, 6_000),
+            ("under roots", { shared, count in MathMLNode(name: "math", children: Array(repeating: MathMLNode(name: "msqrt", children: [shared]), count: count)) }, 6_000),
         ]
-        for (name, root) in shapes {
-            var outcome = Outcome.laidOut
-            let elapsed = ContinuousClock().measure { outcome = survive(root, size: 1, name) }
-            XCTAssertEqual(outcome, .threw(.limitExceeded), name)
-            XCTAssertLessThan(elapsed, .seconds(2), "layout of \(name) took \(elapsed)")
-            var reading = ""
-            let read = ContinuousClock().measure { reading = root.accessibilityDescription }
-            XCTAssertLessThan(read, .seconds(2), "reading \(name) took \(read)")
-            XCTAssertTrue(reading.contains("x"), "\(name): what comes before the bound is read")
+        for (name, shape, count) in shapes {
+            let small = shape(semantics(1_000, mi("x")), count / 10)
+            let large = shape(semantics(10_000, mi("x")), count)
+            // Ten times as many parents and annotations must not produce a hundred
+            // times the work: both formulas already exceed the same node budget.
+            assertCPUScaling(factor: 30, "layout of \(name)", baseline: {
+                XCTAssertEqual(self.survive(small, size: 1, name), .threw(.limitExceeded), name)
+            }, larger: {
+                XCTAssertEqual(self.survive(large, size: 1, name), .threw(.limitExceeded), name)
+            })
+            assertCPUScaling(factor: 30, "reading \(name)", baseline: {
+                XCTAssertTrue(small.accessibilityDescription.contains("x"), name)
+            }, larger: {
+                XCTAssertTrue(large.accessibilityDescription.contains("x"), "\(name): what comes before the bound is read")
+            })
         }
     }
 

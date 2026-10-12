@@ -541,7 +541,6 @@ final class SpeechTests: MathTestCase {
         func words(_ node: MathMLNode, _ language: String = "fr") -> Int {
             node.accessibilityDescription(locale: Locale(identifier: language)).text.split(separator: " ").count
         }
-        let start = ContinuousClock.now
         // Deep: nothing past the depth bound is visited, whichever element asks about its children.
         let deep = (0..<10_000).reduce(x) { inner, _ in MathMLNode(name: "mrow", children: [inner]) }
         XCTAssertEqual(deep.accessibilityDescription, "")
@@ -562,7 +561,15 @@ final class SpeechTests: MathTestCase {
         XCTAssertLessThanOrEqual(words(MathMLNode(name: "mtext", children: glyphs, text: String(repeating: "\u{FFFC}", count: 1_000))), limit)
         // Shared subtrees make a tree larger than its memory: 400 million rows here.
         let shared = MathMLNode(name: "msgroup", children: Array(repeating: MathMLNode(name: "msgroup", children: rows), count: 20_000))
-        XCTAssertLessThanOrEqual(words(MathMLNode(name: "mstack", children: Array(repeating: shared, count: 20_000))), 5 * limit)
-        XCTAssertLessThan(ContinuousClock.now - start, .seconds(20), "returns promptly")
+        let large = MathMLNode(name: "mstack", children: Array(repeating: shared, count: 20_000))
+        let smallerShared = MathMLNode(name: "msgroup", children: Array(repeating: MathMLNode(name: "msgroup", children: rows), count: 1_000))
+        let small = MathMLNode(name: "mstack", children: Array(repeating: smallerShared, count: 1_000))
+        // Both fill the same row budget in their first branch. The 400-fold increase in
+        // implied group occurrences must not multiply the amount of reading work.
+        assertCPUScaling(factor: 5, "shared groups past the row budget", baseline: {
+            XCTAssertLessThanOrEqual(words(small), 5 * limit)
+        }, larger: {
+            XCTAssertLessThanOrEqual(words(large), 5 * limit)
+        })
     }
 }

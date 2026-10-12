@@ -186,6 +186,12 @@ final class BreakableRow {
 // MARK: Layout
 
 extension LayoutEngine {
+    /// Limits on retries of complete layouts. Part retries compare completed ancestors; the
+    /// boundary search only runs when the first measurement fails to reproduce its own width.
+    static let wrappingPartTrials = 12
+    static let wrappingBoundaryRefinements = 40
+    // At most 53 finite fits of 21 passes, plus one natural-layout pass.
+    static let maximumWrappingPasses = 1_114
     /// The line-breaking attributes of `node` join the context its content inherits, on the elements
     /// that may carry them: `mo` and `mspace`, and `mstyle` and `math` for the operators inside
     /// (`LineStyle` has what MathML 3 says of each).
@@ -315,29 +321,17 @@ extension LayoutEngine {
 
     // MARK: Lines
 
-    /// Lays out `root` and breaks it into rows no wider than `maximumWidth`, the first no wider than
-    /// `firstRowMaximumWidth`. Each row's box covers its ink, so a host that clips to a row (an
-    /// attachment image) never cuts an italic overhang or a glyph that leans past the left edge.
-    ///
-    /// `overflow` and `maxwidth` on `math` (MathML 3, 2.2.1) are not read: the width given decides.
-    /// Breaking is what `overflow="linebreak"`, the default, asks for (3.1.7.1). The other values
-    /// "suggest a processing method to the renderer" that is a host's to carry out (scrolling,
-    /// eliding, truncating, scaling), and a host that means to gives no width.
-    static func lines(_ root: MathMLNode, style: MathStyle, maximumWidth: CGFloat,
-                      firstRowMaximumWidth: CGFloat?) throws -> MathLines {
-        // A line wider than any formula may be is no limit: `.greatestFiniteMagnitude` is how a host
-        // says so as often as `.infinity`. Taken as a width, a row centred in it, or indented by a
-        // tenth of it, was placed past the bound on extent and the formula refused, and a share of
-        // 1e308 points overflowed to infinity and from there to rows of no width.
-        func bound(_ width: CGFloat) -> CGFloat { width.isNaN || width > MathLimits.extent ? .infinity : max(width, 0) }
-        let limit = bound(maximumWidth)
-        let first = firstRowMaximumWidth.map { $0.isNaN ? limit : bound($0) } ?? limit
+    /// Fits a formula with shared budgets first, then independent budgets for wrapping neighbours.
+    /// Kept apart from `lines` so the reporter's search does not enlarge the layout frame.
+    private static func fittedParagraph(_ root: MathMLNode, style: MathStyle, limit: CGFloat,
+                                        first: CGFloat, engine: LayoutEngine, layoutPasses: inout Int) throws -> Paragraph {
         let size = fontSize(style)
-        // One engine, so whatever it keeps for the formula is kept across a second pass.
-        let engine = LayoutEngine(fontName: style.fontName)
+        engine.wrapOverrides = [:]
+        engine.mayNarrow = false
         engine.lineWidth = limit; engine.wrapWidth = limit
         /// The formula laid out again, what wraps in it wrapping to `wrap`.
         func pass(_ wrap: CGFloat) throws -> Paragraph {
+            layoutPasses += 1
             engine.restart()
             engine.wrapWidth = wrap
             return Paragraph(try engine.layoutRoot(root, style: style), fontSize: size)
@@ -377,13 +371,11 @@ extension LayoutEngine {
         // line twice as wide both wrapped to that, and overflowed again. A host that scaled the formula
         // to `widestUnbreakable` and laid it out at that width found a row wider still.
         //
-        // So when a row would still overflow, everything wraps as far as it goes. That is the layout
-        // when it fits, and when it overflows all the same but by an eighth less: less for a host to
-        // scale, and the same layout at the width it asks for. Any less than that is not worth every
-        // fraction of the formula in a column of terms.
+        // Try fully wrapping too, and keep any improvement. Height-dependent geometry can make
+        // some neighbours wider, so the independent part retries below also try leaving them whole.
         if limit.isFinite, engine.mayNarrow, kept.wrap > 0, kept.widest > limit + Paragraph.slop {
             let narrowest = try pass(0)
-            if narrowest.widest <= limit + Paragraph.slop || narrowest.widest < kept.widest * 7 / 8 {
+            if narrowest.widest <= limit + Paragraph.slop || narrowest.widest < kept.widest {
                 over = kept
                 paragraph = narrowest
                 kept = (0, narrowest.widest)
@@ -393,7 +385,7 @@ extension LayoutEngine {
         // than the line asked: every term of those fractions on a line of its own. The wrap width is
         // raised again, twice, and whichever layout fits is kept: first to where a stretch that grows
         // evenly between the two would fill the line, and when that overflows, since a stretch grows a
-        // term at a time, to half way. Six passes at most, then, of a bounded layout.
+        // term at a time, to half way. This initial shared-budget search takes at most six passes.
         if var over, limit.isFinite {
             var missed = false
             for _ in 0..<2 where kept.widest < limit * 7 / 8 && over.widest > kept.widest {
@@ -410,9 +402,142 @@ extension LayoutEngine {
                 }
             }
         }
+        // A shared budget cannot choose which neighbour should wrap. In particular, a taller
+        // radical can widen its sign or a surrounding fence, and padding may depend on height.
+        // Try each part independently and compare the completed formula, including that ink.
+        // A strict improvement is kept; the bounded search never oscillates between neighbours.
+        if limit.isFinite, kept.widest > limit + Paragraph.slop, engine.mayNarrow {
+            _ = try pass(kept.wrap)
+            var budgets: [Int: CGFloat] = [:]
+            var trials = 0
+            for _ in 0..<2 {
+                let parts = engine.wrapParts
+                var changed = false
+                for (index, part) in parts.enumerated() where part.natural > part.minimum + Paragraph.slop {
+                    for budget in [CGFloat(0), part.natural] {
+                        guard trials < Self.wrappingPartTrials else { break }
+                        guard budget != (budgets[index] ?? kept.wrap) else { continue }
+                        trials += 1
+                        engine.wrapOverrides = budgets
+                        engine.wrapOverrides[index] = budget
+                        let candidate = try pass(kept.wrap)
+                        if candidate.widest < paragraph.widest - Paragraph.slop {
+                            paragraph = candidate
+                            kept.widest = candidate.widest
+                            budgets[index] = budget
+                            changed = true
+                        }
+                    }
+                }
+                engine.wrapOverrides = budgets
+                _ = try pass(kept.wrap)
+                if !changed || trials >= Self.wrappingPartTrials { break }
+            }
+        }
+        return paragraph
+    }
+
+    /// Lays out `root` and breaks it into rows no wider than `maximumWidth`, the first no wider than
+    /// `firstRowMaximumWidth`. Each row's box covers its ink, so a host that clips to a row (an
+    /// attachment image) never cuts an italic overhang or a glyph that leans past the left edge.
+    ///
+    /// `overflow` and `maxwidth` on `math` (MathML 3, 2.2.1) are not read: the width given decides.
+    /// Breaking is what `overflow="linebreak"`, the default, asks for (3.1.7.1). The other values
+    /// "suggest a processing method to the renderer" that is a host's to carry out (scrolling,
+    /// eliding, truncating, scaling), and a host that means to gives no width.
+    static func lines(_ root: MathMLNode, style: MathStyle, maximumWidth: CGFloat,
+                      firstRowMaximumWidth: CGFloat?) throws -> MathLines {
+        // Check before entering the fitting and element-layout frames. A tiny host thread may
+        // have no room for those frames even before the first element can check its own stack.
+        guard !MathLimits.isStackSpent(MathLimits.stackFloor()) else { throw MathLayoutError.limitExceeded }
+        // A line wider than any formula may be is no limit: `.greatestFiniteMagnitude` is how a host
+        // says so as often as `.infinity`. Taken as a width, a row centred in it, or indented by a
+        // tenth of it, was placed past the bound on extent and the formula refused, and a share of
+        // 1e308 points overflowed to infinity and from there to rows of no width.
+        func bound(_ width: CGFloat) -> CGFloat { width.isNaN || width > MathLimits.extent ? .infinity : max(width, 0) }
+        let limit = bound(maximumWidth)
+        let first = firstRowMaximumWidth.map { $0.isNaN ? limit : bound($0) } ?? limit
+        let size = fontSize(style)
+        // One engine, so whatever it keeps for the formula is kept across a second pass.
+        let engine = LayoutEngine(fontName: style.fontName)
+        var layoutPasses = 0
+        func fitted(_ limit: CGFloat, first: CGFloat) throws -> Paragraph {
+            try fittedParagraph(root, style: style, limit: limit, first: first,
+                                engine: engine, layoutPasses: &layoutPasses)
+        }
+        let paragraph = try fitted(limit, first: first)
+        var needed = paragraph.widest
+        // The width of a stretch in this layout need not reproduce the same layout: wrapping
+        // changes height, ink and negative spacing. Find the feasible boundary by laying out at
+        // the reported width itself, with the normal first-row limit. This search is separate
+        // from the host's first-row budget and is bounded even for hostile input.
+        // Equal widths do not prove equal height: even a part already at its minimum can gain
+        // breaks on a shorter forced row, changing height-dependent padding or fence geometry.
+        // Breaking an otherwise plain paragraph can change validity too: an enormous lineleading
+        // may fit on one unbounded first row but exceed the height bound on several normal rows.
+        if !engine.wrapParts.isEmpty || paragraph.stops.count > 2, needed > 0 {
+            func excess(_ width: CGFloat) throws -> CGFloat {
+                do {
+                    let candidate = try fitted(width, first: width)
+                    // Fitting includes the same geometry and item bounds as the returned public
+                    // layout. A narrow width that makes a wrapping ancestor too tall is not a
+                    // feasible bound, even when every row is narrow enough.
+                    let measured = try engine.measuredLines(candidate, limit: width, first: width, size: size)
+                    return max(0, measured.width - width)
+                } catch MathLayoutError.limitExceeded {
+                    return .infinity
+                }
+            }
+            var low = needed, high = needed
+            var over = try excess(high)
+            if over > Paragraph.slop {
+                // Advance to an actually measured overflow edge; once fitting, keep that layout's
+                // width as the upper bound, and refine down to floating-point comparison slack.
+                for _ in 0..<8 where over > Paragraph.slop && over.isFinite && high < MathLimits.extent {
+                    high = min(MathLimits.extent, high + max(over, Paragraph.slop * 2))
+                    over = try excess(high)
+                }
+                // A fitting input width is a useful upper bound even when height changes make
+                // the measured overflow edge jump beyond it. Recheck with the normal first row,
+                // since the host may have given its first row a different width.
+                if limit.isFinite, needed < limit, limit < high || over > Paragraph.slop {
+                    let inputExcess = try excess(limit)
+                    if inputExcess <= Paragraph.slop { high = limit; over = inputExcess }
+                }
+                if over > Paragraph.slop {
+                    // Forced rows and negative spacing can reach beyond the natural entire row.
+                    // Use all of their measured edges, then verify the proposed bound too.
+                    let natural = try fitted(.infinity, first: .infinity)
+                    let naturalRows = natural.rows(limit: .infinity, first: .infinity, auto: (.left, 0))
+                    high = min(MathLimits.extent, max(high, natural.entire.width, natural.widest,
+                               naturalRows.reduce(0) { max($0, $1.x + $1.box.width) }))
+                    over = try excess(high)
+                }
+                // No unverified measurement escapes as the promised width. The maximum permitted
+                // extent is the last upper bound tried, and is itself laid out and measured.
+                if over > Paragraph.slop, high < MathLimits.extent {
+                    high = MathLimits.extent
+                    over = try excess(high)
+                }
+                guard over <= Paragraph.slop else { throw MathLayoutError.limitExceeded }
+                for _ in 0..<Self.wrappingBoundaryRefinements where high - low > Paragraph.slop {
+                    let middle = (low + high) / 2
+                    if try excess(middle) <= Paragraph.slop { high = middle } else { low = middle }
+                }
+                needed = high
+            }
+        }
+        var lines = try engine.measuredLines(paragraph, limit: limit, first: first, size: size)
+        lines.widestUnbreakable = needed
+        lines.layoutPasses = layoutPasses
+        return lines
+    }
+
+    /// The actual returned rows and their public geometry bounds, shared by width trials.
+    private func measuredLines(_ paragraph: Paragraph, limit: CGFloat, first: CGFloat, size: CGFloat) throws -> MathLines {
         let rows = paragraph.rows(limit: limit, first: first, auto: (.left, paragraph.display ? paragraph.em : 0))
-        var lines = MathLines(rows: engine.stack(rows, em: paragraph.em), widestUnbreakable: paragraph.widest,
-                              axisHeight: engine.constants.axisHeight * size)
+        var lines = MathLines(rows: stack(rows, em: paragraph.em), widestUnbreakable: paragraph.widest,
+                              axisHeight: constants.axisHeight * size)
         var items = 0
         for row in lines.rows {
             lines.width = max(lines.width, row.origin.x + row.box.width)
@@ -475,16 +600,26 @@ extension LayoutEngine {
     /// with the `fixed` width its parent adds it is wider than the line; nil when it stays as it
     /// is. MathML 3 (3.1.7.1) requires no breaks inside these and allows them, forced ones too.
     func wrapped(_ box: MathBox, beside fixed: CGFloat, align: IndentAlign = .center) -> MathBox? {
+        let part = wrapParts.count, budget = nextWrapWidth
+        wrapParts.append((box.width + fixed, box.width + fixed, box.width + fixed))
         let isForced = box.row?.hasForced == true
-        guard isForced || lineWidth.isFinite && box.width + fixed > min(wrapWidth, lineWidth / 2) else {
+        guard isForced || lineWidth.isFinite && box.width + fixed > min(budget, lineWidth / 2) else {
             // Left whole and unmeasured: a row of more than one thing might wrap in a narrower line.
-            if box.row?.isSeveral == true { loose(box.width + fixed) }
+            if box.row?.isSeveral == true {
+                loose(box.width + fixed)
+                wrapParts[part].minimum = min(Paragraph(box).widest, box.width) + fixed
+            }
             return nil
         }
         let paragraph = Paragraph(box)
         let least = min(paragraph.widest, box.width)
-        var result = wrapped(paragraph, width: max(least, wrapWidth - fixed), align: align)
+        var result = wrapped(paragraph, width: max(least, budget - fixed), align: align)
+        // Negative spacing may make a broken row wider than the whole row. Automatic wrapping
+        // must keep the narrower alternative; a forced break still takes precedence.
+        if !isForced, let stacked = result, stacked.width >= box.width { result = nil }
         result?.op = box.op
+        wrapParts[part].width = (result ?? box).width + fixed
+        wrapParts[part].minimum = least + fixed
         if (result ?? box).width > least + Paragraph.slop { loose((result ?? box).width + fixed) }
         note(width: (result ?? box).width + fixed, minimum: least + fixed)
         return result
@@ -498,6 +633,8 @@ extension LayoutEngine {
     /// is left, none below its widest unbreakable unit. A cell with a forced break is stacked
     /// whatever the width. `fixed` is the width of everything but the columns.
     func wrapCells(_ cells: inout [[(box: MathBox, align: String?)]], columnAlign: [String], fixed: CGFloat) {
+        let part = wrapParts.count, budget = nextWrapWidth
+        wrapParts.append((0, 0, 0))
         func align(_ row: Int, _ column: Int) -> IndentAlign {
             let name = cells[row][column].align ?? columnAlign.last.map { _ in columnAlign[min(column, columnAlign.count - 1)] }
             return name == "left" ? .left : name == "right" ? .right : .center
@@ -522,8 +659,9 @@ extension LayoutEngine {
             return natural.reduce(0, +) + fixed
         }
         var width = total()
+        wrapParts[part] = (width, width, width)
         // Smaller tables are left alone, and unmeasured: a row breaks around them.
-        guard lineWidth.isFinite, width > min(wrapWidth, lineWidth / 2) else {
+        guard lineWidth.isFinite, width > min(budget, lineWidth / 2) else {
             if isSeveral { loose(width) }
             return
         }
@@ -534,8 +672,8 @@ extension LayoutEngine {
                 least[column] = max(least[column], min(paragraph.widest, cells[row][column].box.width))
             }
         }
-        if width > wrapWidth + Paragraph.slop {
-            let room = wrapWidth - fixed
+        if width > budget + Paragraph.slop {
+            let room = budget - fixed
             func filled(_ level: CGFloat) -> CGFloat { zip(natural, least).reduce(0) { $0 + min($1.0, max($1.1, level)) } }
             var low: CGFloat = 0, high = natural.max() ?? 0
             if filled(0) < room {
@@ -555,6 +693,8 @@ extension LayoutEngine {
             width = total()
         }
         if width > least.reduce(0, +) + fixed + Paragraph.slop { loose(width) }
+        wrapParts[part].width = width
+        wrapParts[part].minimum = least.reduce(0, +) + fixed
         note(width: width, minimum: least.reduce(0, +) + fixed, isTable: true)
     }
 }
@@ -562,6 +702,8 @@ extension LayoutEngine {
 /// The rows of a broken formula, each covering its ink, with its baseline's left end relative to
 /// the first row's (y up), and what `MathLayout` reports of the whole.
 struct MathLines {
+    /// Complete-layout retries, exposed internally so adversarial tests can verify the work bound.
+    var layoutPasses = 0
     var rows: [(box: MathBox, origin: CGPoint)]
     var width: CGFloat = 0
     var ascent: CGFloat = 0
@@ -1057,14 +1199,22 @@ struct Paragraph {
             }
             // Stops in order: the best way to each is known before rows from it are tried.
             for i in 0..<last where best[i].isFinite {
-                // The farthest stop the row from here can reach, its ink and tail aside: the last before
-                // it has run past the line, wherever a negative space after that brings it back to.
+                // The farthest stop the row from here can reach, its tail aside: the last before
+                // its advance or ink has run past the line. Both extremes persist as the row grows,
+                // wherever a negative space after that brings its end back to. Ignoring ink here
+                // could put every candidate in the window beyond a leftward excursion, skipping
+                // the rows that fit before it and falling back to single stretches.
                 let room = i == 0 ? first : limit
                 var low = i, high = forced[i]
                 while low < high {
                     let middle = (low + high + 1) / 2
                     let end = farthest.map { $0(i + 1..<middle + 1) } ?? ends[middle]
-                    let fits = stops[i].headAdvance + end - starts[i] <= room + Self.slop
+                    let firstUnit = stops[i].at, endUnit = stops[middle].at
+                    let from = leftmost.map { -$0(firstUnit..<endUnit) } ?? inkFrom[firstUnit]
+                    let to = rightmost.map { $0(firstUnit..<endUnit) } ?? inkTo[endUnit]
+                    let left = max(0, starts[i] - from - stops[i].headAdvance, stops[i].headLeft)
+                    let right = max(end, to, starts[i] - stops[i].headAdvance + stops[i].headInk)
+                    let fits = stops[i].headAdvance + right - starts[i] + left <= room + Self.slop
                     if fits { low = middle } else { high = middle - 1 }
                 }
                 var reached = false

@@ -172,8 +172,7 @@ declarations in any encoding, so no entity expands and nothing external loads; i
   being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
   a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
   drawn on a `mathbackground` of its own does not wrap.
-  Where several wrapping units share a row (two radicals side by side), a row can still run a
-  few percent past `widestUnbreakableWidth`. `overflow` and `maxwidth` on `math` are not read:
+  `overflow` and `maxwidth` on `math` are not read:
   the host decides by the `maximumWidth` it passes.
 - **`mglyph`.** MathML 2's `fontfamily` and `index` glyphs have no image and show their `alt`.
   An image has no scale of its own: size a 2x asset with `width` and `height`. An `mo` with an
@@ -214,9 +213,8 @@ MATHML_FUZZ_SEEDS=0-40000 swift test -c release -Xswiftc -enable-testing \
   --filter LineBreakingFuzzTests/testRandomFormulasBreakAsTheyMust
 ```
 
-It fails on a known set of seeds, all for one property and listed in
-[#26](https://github.com/vocaro/MathMLLayout/issues/26). A failure on any other seed, or for
-another property, is new.
+The fuzzer also checks that laying a formula out at its reported `widestUnbreakableWidth`
+succeeds and that every row fits that width, including formulas with wrapping units side by side.
 
 ## Notices
 
