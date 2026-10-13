@@ -203,6 +203,11 @@ Each workaround that [vocaro/EPUBLib#61](https://github.com/vocaro/EPUBLib/pull/
   and tag the utterance with the `language` it returns, in place of `generatedLanguage`.
 - The disclosure of the `mtext` operand spacing defect.
 
+## 0.1.1
+
+- Assigned the copyright to Vocaro Technologies LLC
+  ([#2](https://github.com/vocaro/MathMLLayout/issues/2)). No API or behavior changes.
+
 ## 0.1.0
 
 - First release, moved out of [EPUBLib](https://github.com/vocaro/EPUBLib) (at `35f7fdc`), where it
