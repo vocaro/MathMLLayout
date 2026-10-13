@@ -1,0 +1,6 @@
+Speech Rule Engine. Copyright 2014-2018 Volker Sorge.
+https://github.com/Speech-Rule-Engine/speech-rule-engine/blob/28cac44da8eba13bce646823183e959d6d943e79/
+https://www.apache.org/licenses/LICENSE-2.0
+
+Changes by MathMLLayout: MathML input fragments wrapped in a standalone math element; exact duplicates merged; speech expectations omitted; three incomplete script pairs recorded as expected invalidMarkup rejections.
+This data retains its source license, separately from MathMLLayout's original MIT code.
