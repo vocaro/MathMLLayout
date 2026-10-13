@@ -57,10 +57,36 @@ from the pinned source files:
 SRE's full original NOTICE is included for preservation. MathMLLayout does not use
 SRE's browser or Node dependencies, including wicked good XPath.
 
+## Bundled test corpora
+
+Test resources under `Tests/MathMLLayoutTests/ExternalFixtures/Corpus` contain:
+
+- MathML excerpts from OpenStax *Precalculus 2e*, Jay Abramson and contributing authors,
+  Rice University, pinned to `openstax/osbooks-college-algebra-bundle` revision
+  `4922e46ebc04326979e19392ccc2384cb8b9076c`. That snapshot is licensed CC-BY-4.0.
+  Access for free at https://openstax.org/details/books/precalculus-2e.
+  The complete license, original README and collection license metadata are retained in
+  `openstax-precalculus/`. Changes: MathML extraction, namespace/whitespace normalization,
+  inferred display mode and stratified sampling of 100 equations. Current upstream editions
+  use different terms; those editions are not the source of the bundled excerpts.
+- SRE MathML input excerpts from four Mathspeak regression files at the Apache-2.0 revision
+  listed above. The complete license and unchanged upstream NOTICE are retained in
+  `sre-mathspeak/`, together with a separate adaptation notice. Changes: standalone MathML
+  wrappers, exact-input deduplication, omission of speech expectations and explicit expected
+  rejection metadata for three incomplete script pairs.
+
+Each manifest records source URLs and hashes. The
+[corpus README](../../Tests/MathMLLayoutTests/ExternalFixtures/Corpus/README.md) describes
+reproduction. Retain these resource licenses and attribution when redistributing the test
+corpora. They are included only in the test target; compiled libraries and apps do not
+bundle them by default, so the textbook license adds no acknowledgment requirement to
+those distributions unless they also include the corpus.
+
 ## Redistributing MathMLLayout
 
 For source distributions, retain this file, [LICENSE](../../LICENSE), the three files in
-[doc/licenses](.), and the adaptation notices in the affected Swift files.
+[doc/licenses](.), the corpus licenses/notices described above, and the adaptation notices
+in the affected Swift files.
 Keep those notices when modifying the adapted material, and identify further changes.
 
 For compiled libraries or apps containing the adapted speech material, include readable

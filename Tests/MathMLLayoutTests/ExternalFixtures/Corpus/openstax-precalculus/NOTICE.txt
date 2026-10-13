@@ -1,0 +1,6 @@
+OpenStax, Rice University; Precalculus 2e, Jay Abramson and contributing authors. Access for free at https://openstax.org/details/books/precalculus-2e.
+https://github.com/openstax/osbooks-college-algebra-bundle/blob/4922e46ebc04326979e19392ccc2384cb8b9076c/
+https://creativecommons.org/licenses/by/4.0/
+
+Changes by MathMLLayout: MathML extracted and normalized; display inferred from CNXML equation wrappers; 100 cases selected by the recorded stratified sampler.
+This data retains its source license, separately from MathMLLayout's original MIT code.

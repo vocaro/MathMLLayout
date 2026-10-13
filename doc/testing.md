@@ -43,8 +43,13 @@ The pinned subset added for [#52](https://github.com/vocaro/MathMLLayout/issues/
 in [external-validation.md](external-validation.md). Its 81 WPT-derived numeric assertions and
 independent real-font checks run in the normal test suite without network access or Python.
 Eight supplemental WPT operator/table checks also run there, using the preserved Ahem font.
-Set `MATHML_EXTERNAL_SUPPLEMENT_REPORT` to export their measurements. The reproducible
-100-equation OpenStax corpus remains on demand; see the
+Set `MATHML_EXTERNAL_SUPPLEMENT_REPORT` to export their measurements. The
+corpus invariant test runs offline by default using 100 textbook equations from a pinned
+CC-BY-4.0 Precalculus 2e snapshot and 296 Apache-2.0 SRE regression inputs (293 renderings and
+three explicit invalid-markup rejections). Sources, licenses and regeneration instructions are
+in the [bundled corpus README](../Tests/MathMLLayoutTests/ExternalFixtures/Corpus/README.md).
+`MATHML_CORPUS_MANIFEST` adds a locally supplied corpus; it does not replace the bundled cases.
+The older CC-BY-NC-SA-4.0 Calculus sample remains available on demand; see the
 [sample commands](external-validation.md#modest-openstax-sample) and
 [measured results](external-validation/report.md#best-effort-follow-up-for-52).
 All 81 assertions pass after fixing inline large-operator centering in

@@ -19,9 +19,13 @@ Copyright (c) 2016 MathML Association notices. They are distributed under the
 Only their packaging changes from WOFF to sfnt; original MATH metrics are preserved.
 The supplemental operator tests include the original Ahem.ttf unchanged. Ahem belongs
 to the public domain; its embedded name-table declaration provides CC0 for jurisdictions
-that do not recognize that status. The sampled OpenStax inputs retain CC-BY-NC-SA-4.0
-and attribution in local corpus outputs; those inputs and renderings are not distributed
-with this repository or library. Source pins and measured results are retained here.
+that do not recognize that status. The bundled test corpus contains Precalculus 2e excerpts
+from an exact CC-BY-4.0 OpenStax snapshot and Apache-2.0 SRE MathML regression inputs. Full licenses, source notices and
+attribution are retained in [the test resources](../Tests/MathMLLayoutTests/ExternalFixtures/Corpus/README.md).
+These resources are not part of the library target. The separately sampled Calculus inputs
+retain CC-BY-NC-SA-4.0 and attribution in local corpus outputs; those inputs and renderings
+are not distributed with this repository or library. Their source pins and measured results
+are retained here.
 The independent fontTools oracle contains decoded numeric data from Apple's installed
 STIX Two Math (Copyright 2001–2021 The STIX Fonts Project Authors, SIL OFL 1.1), not a font file.
 Optional tooling uses fontTools (MIT), lxml (BSD), Pillow (HPND), and Playwright (Apache-2.0)
