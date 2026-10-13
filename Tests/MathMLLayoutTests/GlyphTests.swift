@@ -150,10 +150,10 @@ final class GlyphTests: MathTestCase {
         XCTAssertEqual(prefixed.text, "+\(marker)")
         XCTAssertEqual(prefixed.children, [MathMLNode(name: "mglyph", attributes: ["src": "s", "alt": "t"])])
 
-        // Other children keep their attributes too, and leave no mark.
+        // Alignment markers retain their position without changing token text.
         let aligned = try node(#"<mtext>a<malignmark edge="right"/>b</mtext>"#).children[0]
         XCTAssertEqual(aligned.text, "ab")
-        XCTAssertEqual(aligned.children, [MathMLNode(name: "malignmark", attributes: ["edge": "right"])])
+        XCTAssertEqual(aligned.children, [MathMLNode(name: "malignmark", attributes: ["edge": "right"], tokenTextOffset: 1)])
 
         // Only a token's own children count, and only an mglyph writes the marker.
         let nested = try node(#"<mtext>a<maction><mglyph src="s"/>c</maction>b&#xFFFC;</mtext>"#).children[0]

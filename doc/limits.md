@@ -16,7 +16,7 @@ declarations in any encoding, so no entity expands and nothing external loads; i
 - **Line breaking.** No breaks inside `mpadded`, `mphantom`, `merror`, `munder`/`mover`/
   `munderover`, a script, or a row with a `mathbackground`; none between adjacent identifiers or
   inside a number. `indenttarget` must name a child of a row
-  being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
+  being broken, on an earlier row. A table inside
   a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
   drawn on a `mathbackground` of its own does not wrap.
   `overflow` and `maxwidth` on `math` are not read:
@@ -30,6 +30,10 @@ declarations in any encoding, so no entity expands and nothing external loads; i
 - **Speech.** Five languages, without regional variants or grammatical agreement. Token text and
   `alt` are spoken as written. A stack's reading gives its rows, carries and lines in order,
   not their column positions.
+- **Alignment groups.** LTR table columns implement `maligngroup`, explicit `malignmark`, and
+  inherited `groupalign` lists; see [alignment groups](alignment-groups.md). Aligned cells are
+  indivisible during automatic wrapping. Forced line breaks and non-default spans opt a cell
+  out of group alignment. RTL alignment and token marks mixed with `mglyph` are staged.
 - Cell spans in `mtable` are ignored, and rows align on their baselines only.
 - No kerning from the font's MathKernInfo.
 

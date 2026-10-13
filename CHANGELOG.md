@@ -7,6 +7,11 @@ Line breaking, `mglyph`, elementary math and localized readings
 
 ### Added
 
+- LTR table columns align `maligngroup` groups and explicit `malignmark` points, including
+  inherited `groupalign` lists and decimal alignment. RTL, wrapping and span policies are
+  documented in [table alignment groups](doc/alignment-groups.md)
+  ([#76](https://github.com/vocaro/MathMLLayout/issues/76)).
+
 - Long single arrows `⟵`, `⟶` and `⟷` use the font's short-arrow assemblies when their own
   glyph has none. Drawn horizontal shafts use the font's rule thickness, with a half-point minimum
   ([#38](https://github.com/vocaro/MathMLLayout/issues/38)).

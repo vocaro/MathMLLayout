@@ -6,7 +6,8 @@
   `mover`, `munder`, `munderover`.
 - **Fractions and roots:** `mfrac` (including `linethickness` and `bevelled`), `msqrt`, `mroot`.
 - **Fences and enclosures:** `mfenced`, `menclose`.
-- **Tables:** `mtable`, `mtr`, `mtd`, `mlabeledtr`.
+- **Tables:** `mtable`, `mtr`, `mtd`, `mlabeledtr`; LTR `maligngroup`/`malignmark` with
+  `groupalign` and `alignmentscope` ([alignment groups](alignment-groups.md)).
 - **Elementary math** (MathML 3 §3.6): `mstack`, `mlongdiv`, `msgroup`, `msrow`, `mscarries`,
   `mscarry`, `msline`: digit columns with `stackalign`, `charalign`, `charspacing`, `position` and
   `shift`; lines with their length, overhangs and thickness; carries with `location`, `crossout`

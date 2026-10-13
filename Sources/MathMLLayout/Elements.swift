@@ -527,6 +527,10 @@ extension LayoutEngine {
         func pick(_ values: [String], _ index: Int) -> String? { values.isEmpty ? nil : values[min(index, values.count - 1)] }
         var cells: [[(box: MathBox, align: String?)]] = []
         var labels: [MathBox?] = []
+        var groupValues: [[[String]]] = []
+        let tableGroups = AlignmentValues.columns(attributes["groupalign"] ?? context.tableGroupAlign)
+        cellContext.trackAlignment = true
+        cellContext.alignmentBaseline = true
         for rowNode in node.children {
             let rowContext: LayoutContext
             var cellNodes: [MathMLNode]
@@ -543,15 +547,27 @@ extension LayoutEngine {
                 cellNodes = [rowNode]
             }
             let rowAlign = list("columnalign", in: rowNode.attributes)
+            let rowGroups = AlignmentValues.columns(rowNode.attributes["groupalign"])
             var row: [(MathBox, String?)] = []
+            var groups: [[String]] = []
             for (index, cell) in cellNodes.enumerated() {
-                let box = try layout(cell, rowContext, depth: depth + 2)
+                var box = try layout(cell, rowContext, depth: depth + 2)
+                // MathML leaves alignment inside spans unspecified. Keep ordinary cell layout.
+                if ["rowspan", "columnspan"].contains(where: { (Int(cell.attributes[$0] ?? "1") ?? 1) > 1 }) {
+                    box.alignment = []
+                }
+                groups.append(cell.attributes["groupalign"].map { AlignmentValues.list($0) }
+                    ?? AlignmentValues.pick(rowGroups, index)
+                    ?? AlignmentValues.pick(tableGroups, index) ?? ["left"])
                 let align = cell.attributes["columnalign"]?.trimmingCharacters(in: .whitespaces).lowercased()
                     ?? pick(rowAlign, index)
                 row.append((box, align))
             }
             cells.append(row)
-            labels.append(try label.map { try layout($0, rowContext, depth: depth + 2) })
+            groupValues.append(groups)
+            var labelBox = try label.map { try layout($0, rowContext, depth: depth + 2) }
+            labelBox?.alignment = [] // labels do not belong to a table-column alignment scope
+            labels.append(labelBox)
         }
         let columns = cells.map(\.count).max() ?? 0
         let ex = xHeight(context), em = context.fontSize
@@ -571,6 +587,8 @@ extension LayoutEngine {
         let tableAlign = list("columnalign", in: attributes)
         let labelGap = length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em
         let labelWidth = labels.compactMap { $0?.width }.max().map { $0 + labelGap } ?? 0
+        try alignColumns(&cells, values: groupValues, scopes: list("alignmentscope", in: attributes))
+        // Aligned cells are indivisible; cells with forced line breaks use ordinary wrapping.
         // Before the rows are measured: a table too wide for the line wraps its cells, which grow taller.
         wrapCells(&cells, columnAlign: tableAlign, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
         var widths = [CGFloat](repeating: 0, count: columns)

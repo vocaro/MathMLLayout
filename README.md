@@ -94,6 +94,7 @@ are included; see [how to regenerate the images](doc/usage.md#regenerating-the-r
 
 - [Usage](doc/usage.md): parsing, layout and drawing.
 - [Line breaking](doc/line-breaking.md): wrapping formulas and placing rows.
+- [Table alignment groups](doc/alignment-groups.md): internal alignment points and staged interactions.
 - [Images](doc/images.md): supplying images for `mglyph`.
 - [Spoken readings](doc/speech.md): accessibility and language selection.
 - [Speech wording audit](doc/speech-wording-audit.md): source evidence for #31 and remaining human review in [#63](https://github.com/vocaro/MathMLLayout/issues/63).
