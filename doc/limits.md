@@ -35,8 +35,9 @@ declarations in any encoding, so no entity expands and nothing external loads; i
   and its `mathbackground` fills its box. Glyph metrics and ink come directly from that font.
   Supply a 2x asset with `MathImageProvider.resolving` and `MathImage(image, scale: 2)`, or
   size it with markup `width` and `height`; see [Images](images.md). An `mo` with an
-  `mglyph` keeps the size its author gave it: it is not stretched, enlarged or centred on the
-  axis.
+  `mglyph` preserves author sizing and baseline by default. Explicit `stretchy="true"` or
+  `largeop="true"` opts into [whole-token image operator geometry](image-operators.md).
+  Images provide no italic correction or accent attachment metrics.
 - **Elementary math.** Columns run left to right only. `decimalpoint` names one character. A
   number's `mglyph` occupies one column, sized to its image or entire fallback text; its `alt`
   never supplies a decimal separator or several digit columns. Division frames are drawn,

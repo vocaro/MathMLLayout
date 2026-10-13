@@ -42,4 +42,6 @@ See [Images.swift](examples/Images.swift) for the complete Swift example.
   U+FFFC and keep the element, with its attributes, among the token's `children`.
   `MathMLNode.parse(xml:)` does this.
 
+For `mo` geometry opt-ins and attribute precedence, see [Image operators](image-operators.md).
+
 [Documentation index](../README.md#documentation)
