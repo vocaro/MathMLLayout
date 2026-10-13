@@ -151,6 +151,11 @@ optional expanded `MATHML_FUZZ_SEEDS=0-40000` sweep was not part of this release
 
 macOS builds ran sequentially with separate scratch directories, `--jobs 2`, temporary module
 caches and `--disable-sandbox`. Optimized tests used `-Xswiftc -enable-testing -debug-info-format none`.
+Omitting debug symbols avoided the environment's `dsymutil` output restriction; it does not
+disable optimization or test assertions. The first iOS attempt failed before any tests launched
+with `Invalid connectionUUID specified`. A fresh, dedicated simulator was booted to completion
+with `simctl bootstatus <device-id> -b`, then the unchanged test build passed the full suite.
+That temporary simulator was shut down and deleted after verification.
 The iOS run disabled parallel testing. Validation tools used fontTools 4.63.0, lxml 6.1.1,
 Pillow 12.3.0, Playwright 1.62.1 and pinned Chromium; corpus regeneration used lxml 6.0.2.
 
