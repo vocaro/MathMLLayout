@@ -239,6 +239,19 @@ extension LayoutEngine {
         result.reserveCapacity(children.count)
         var visible: [Int: MathBox] = [:]
         var markPositions: [ObjectIdentifier: CGFloat] = [:]
+        var targets: [Int: [AlignmentTarget]] = [:]
+        var markTargets: [Int: AlignmentTarget] = [:]
+        if context.trackAlignment {
+            for (index, child) in children.enumerated() {
+                guard let mark = Self.alignmentMark(child) else { continue }
+                let right = mark.attributes["edge"]?.lowercased() == "right"
+                let neighbour = index + ((right != context.alignmentRTL) ? -1 : 1)
+                guard boxes.indices.contains(neighbour) else { continue }
+                let target = AlignmentTarget(work: textWork)
+                targets[neighbour, default: []].append(target)
+                markTargets[index] = target
+            }
+        }
         for event in box.alignment {
             if case .mark = event.kind, let identity = event.identity {
                 markPositions[ObjectIdentifier(identity)] = event.x
@@ -247,20 +260,18 @@ extension LayoutEngine {
         for (index, child) in children.enumerated() {
             var item = BreakableRow.Child(box: boxes[index], x: offsets[index], point: boxes[index].op?.breakPoint,
                                           isUnary: unary.contains(index), id: child.attributes["id"])
+            if let targets = targets[index] { item.box.alignmentTargets += targets }
             if let mark = Self.alignmentMark(child) {
                 // Row assembly resolves a direct mark to its neighbour's effective edge.
                 // Retain that coordinate, rather than the empty marker box's own origin.
                 let x = context.alignmentRTL ? box.width - offsets[index] - item.box.width : offsets[index]
                 let right = mark.attributes["edge"]?.lowercased() == "right"
-                let neighbour = index + ((right != context.alignmentRTL) ? -1 : 1)
                 for event in item.box.alignment.indices {
                     if let identity = item.box.alignment[event].identity,
                        let position = markPositions[ObjectIdentifier(identity)] {
                         item.box.alignment[event].x = position - x
-                        if boxes.indices.contains(neighbour) {
-                            item.box.alignment[event].fenceTarget = boxes[neighbour].fenceLayout
-                            item.box.alignment[event].fenceEdgeRight = right
-                        }
+                        item.box.alignment[event].target = markTargets[index]
+                        item.box.alignment[event].targetEdgeRight = right
                     }
                 }
             }
@@ -1052,7 +1063,7 @@ struct Paragraph {
         if let row = box.row, row.itemCount == box.items.count {
             em = row.fontSize; display = row.display
             var breaks: [Break] = []
-            flatten(row, at: 0, depth: 0, isUnary: false, isAttached: false, level: 0, isPhantom: box.isPhantom, &breaks)
+            flatten(row, at: 0, depth: 0, isUnary: false, isAttached: false, level: 0, isPhantom: box.isPhantom, targets: box.alignmentTargets, &breaks)
             if !units.isEmpty { addStops(breaks) }
         } else {
             em = fontSize; display = false
@@ -1060,6 +1071,7 @@ struct Paragraph {
         if units.isEmpty { units = [Unit(box: box, x: 0, ink: progressionInk(box))] }
         textWork = units.first { $0.box.logicalTextSlice != nil }?.box.logicalTextSlice?.source.work
             ?? (rtl ? units.first { $0.textGroup?.textWork != nil }?.textGroup?.textWork : nil)
+            ?? units.first { !$0.box.alignmentTargets.isEmpty }?.box.alignmentTargets.first?.work
         logicalTextCounts = [0]
         logicalTextCounts.reserveCapacity(units.count + 1)
         for unit in units {
@@ -1225,17 +1237,18 @@ struct Paragraph {
         let isAttached: Bool
         let level: Int
         let isPhantom: Bool
+        let targets: [AlignmentTarget]
         var anchorID: String?
         var index = 0
         var fences = 0
     }
 
     private mutating func flatten(_ row: BreakableRow, at x: CGFloat, depth: Int, isUnary: Bool, isAttached: Bool,
-                                  level: Int, isPhantom: Bool, _ breaks: inout [Break]) {
+                                  level: Int, isPhantom: Bool, targets: [AlignmentTarget], _ breaks: inout [Break]) {
         // Keep only the active ancestry on the heap, including inherited visibility and
         // attachment state. Both flattening and opaque anchor lookup avoid recursive frames.
         var pending = [FlattenFrame(row: row, x: x, depth: depth, isUnary: isUnary, isAttached: isAttached,
-                                    level: level, isPhantom: isPhantom)]
+                                    level: level, isPhantom: isPhantom, targets: targets)]
         while let last = pending.indices.last {
             guard pending[last].index < pending[last].row.children.count else {
                 let frame = pending.removeLast()
@@ -1268,11 +1281,17 @@ struct Paragraph {
                 let deeper = inner.isOperator || row.children.count == 1 || isHeld || Self.isPair(inner) ? 0 : 1
                 pending.append(FlattenFrame(row: inner, x: childX, depth: frame.depth + fences + deeper,
                                             isUnary: frame.isUnary || child.isUnary, isAttached: attached,
-                                            level: frame.level + 1, isPhantom: frame.isPhantom || child.box.isPhantom, anchorID: child.id))
+                                            level: frame.level + 1, isPhantom: frame.isPhantom || child.box.isPhantom,
+                                            targets: frame.targets + child.box.alignmentTargets, anchorID: child.id))
             } else {
                 var unitBox = child.box
+                // A break-only spacer has no content edge in its enclosing element.
+                if child.point == nil || unitBox.width != 0 || unitBox.height != 0 || !unitBox.alignment.isEmpty {
+                    unitBox.alignmentTargets += frame.targets
+                }
                 unitBox.isPhantom = unitBox.isPhantom || frame.isPhantom
                 var visible = row.visible[index]
+                visible?.alignmentTargets = unitBox.alignmentTargets
                 if unitBox.isPhantom { visible?.isPhantom = true }
                 if let inner = child.box.row { anchors(inner, unit: firstUnit, x: childX, level: frame.level + 1) }
                 if let point = child.point {
@@ -1450,7 +1469,6 @@ struct Paragraph {
         if descent == -.infinity { descent = 0 }
         var delta: CGFloat = 0
         var shifts: [Int: CGFloat] = [:]
-        var fenceEdges: [ObjectIdentifier: (left: CGFloat, right: CGFloat)] = [:]
         func add(_ child: MathBox, _ childInk: CGRect?, at x: CGFloat) {
             if rtl { placements.append((child, x)) }
             else { box.add(child, at: CGPoint(x: x, y: 0)) }
@@ -1484,6 +1502,7 @@ struct Paragraph {
                 let range = slice.range.lowerBound..<(last.box.logicalTextSlice!.range.upperBound)
                 var shaped = slice.source.box(range)
                 shaped.isPhantom = unit.box.isPhantom
+                shaped.alignmentTargets = unit.box.alignmentTargets
                 let after = delta + shaped.width - (last.x + last.box.width - unit.x)
                 for word in index..<next { shifts[word] = rtl ? after : delta }
                 add(shaped, progressionInk(shaped), at: unit.x + shift + delta)
@@ -1506,6 +1525,7 @@ struct Paragraph {
                         for space in spaces {
                             var gap = space.box
                             gap.isPhantom = gap.isPhantom || part.isPhantom
+                            gap.alignmentTargets = part.alignmentTargets
                             text.add(gap, at: CGPoint(x: wordX + space.x, y: 0))
                         }
                     }
@@ -1526,6 +1546,7 @@ struct Paragraph {
                resized.width <= child.width, resized.height <= child.height,
                [resized.width, resized.ascent, resized.descent].allSatisfy({ $0.isFinite && abs($0) <= MathLimits.extent }) {
                 child = resized
+                child.alignmentTargets = unit.box.alignmentTargets
                 child.isPhantom = unit.box.isPhantom
                 let originals = unit.box.alignment.filter { $0.identity != nil }
                 let indices = child.alignment.indices.filter { child.alignment[$0].identity != nil }
@@ -1534,18 +1555,12 @@ struct Paragraph {
                     child.alignment[index].order = original.order
                 }
                 childInk = progressionInk(resized)
-                if let target = unit.box.fenceLayout {
-                    let edges = child.alignmentEdges
-                    let position = unit.x + shift + delta
-                    fenceEdges[ObjectIdentifier(target)] = rtl
-                        ? (position + child.width - edges.right, position + child.width - edges.left)
-                        : (position + edges.left, position + edges.right)
-                }
             }
             if index > first, let spaces = child.leadingTextSpace {
                 for space in spaces {
                     var hiddenSpace = space.box
                     hiddenSpace.isPhantom = hiddenSpace.isPhantom || child.isPhantom
+                    hiddenSpace.alignmentTargets = child.alignmentTargets
                     add(hiddenSpace, progressionInk(hiddenSpace), at: unit.x + shift + delta + space.x)
                 }
             }
@@ -1560,12 +1575,6 @@ struct Paragraph {
             box.add(child, at: CGPoint(x: rtl ? box.width - x - child.width : x, y: 0))
         }
         for index in box.alignment.indices {
-            if let target = box.alignment[index].fenceTarget,
-               let edges = fenceEdges[ObjectIdentifier(target)] {
-                let right = box.alignment[index].fenceEdgeRight
-                box.alignment[index].x = rtl ? box.width - (right ? edges.left : edges.right)
-                    : (right ? edges.right : edges.left)
-            }
             if let identity = box.alignment[index].identity,
                let order = alignmentPriorities[ObjectIdentifier(identity)] {
                 box.alignment[index].order = order

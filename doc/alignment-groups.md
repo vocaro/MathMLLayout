@@ -51,8 +51,10 @@ baselines need not match those of another cell. Text marks follow their word thr
 a mark in a trimmed separator belongs to the preceding word for `edge="right"`, or the
 following word otherwise. Paragraph-edge marks remain on the first or last word.
 When a separator remains on the line, its mark retains the original caret instead of snapping
-to a word edge. Rebuilt row marks retain their resolved neighbouring-element coordinates;
-marks beside resized fences use the final drawn edge. Break-only spacers carry no content
+to a word edge. Row marks use the final bounds of their neighbouring element, including the
+union of its rendered fragments across cell lines. This applies to nested rows, reshaped or
+segmented text, and resized fences. Targets resolve after stacking the cell's lines and before
+nested table scopes consume or export their markers. Break-only spacers carry no content
 extent into their new line's group. Nested backgrounds use the translated fragment extents
 and reserved sections when groups overlap horizontally on different lines.
 
@@ -106,6 +108,9 @@ or layout retry is introduced. Grouped tables add one fully broken cell measurem
 the existing cell-rebuild and text-work budgets. Span scope checks use prefix counts, so a
 wide span does not rescan its columns for each marker. Fragment reconstruction retains stable
 marker identities to restore source priority after deferred layout and cached-cell restamping.
+Neighbour targets follow the active heap cursor through nested rows; generated fragment edges
+charge the shared 2,000,000-unit text/assembly budget. Target references retain the pass counter,
+without retaining the layout engine, and resolved marks do not export their targets to another scope.
 Token offset mapping scans bounded source and resolved text; only the first mark is measured,
 using the existing per-line shape for wrapped text and one shaping line per original textual part.
 

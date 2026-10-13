@@ -106,6 +106,15 @@ struct MathBox {
         }
     }
 
+    var alignmentTargets: [AlignmentTarget] {
+        get { metadata?.values.alignmentTargets ?? [] }
+        set {
+            if newValue.isEmpty, metadata?.values.alignmentTargets.isEmpty != false { return }
+            makeMetadataUnique()
+            metadata!.values.alignmentTargets = newValue
+        }
+    }
+
     // Row and text metadata can be large values. Keep it off recursive layout frames,
     // allocating only for boxes that use it; copied boxes retain independent mutation.
     private struct MetadataValues {
@@ -118,6 +127,7 @@ struct MathBox {
         var textSegments: [TextSegment]? = nil
         var leadingTextSpace: [TextSegment]? = nil
         var alignment: [AlignmentEvent] = []
+        var alignmentTargets: [AlignmentTarget] = []
     }
 
     private final class Metadata {
@@ -156,6 +166,13 @@ struct MathBox {
                 return event
             })
         }
+        if !box.alignmentTargets.isEmpty {
+            let edges = box.alignmentEdges
+            for target in box.alignmentTargets where target.work.consume(1) {
+                alignment.append(AlignmentEvent(kind: .targetExtent(target, edges.right - edges.left),
+                                                x: point.x + edges.left, path: [index]))
+            }
+        }
         guard !box.items.isEmpty else { return }
         if point == .zero, !box.isPhantom, box.alignment.isEmpty, box.fenceLayout == nil, box.items.count == 1, case .box = box.items[0] {
             items.append(box.items[0]); return
@@ -163,6 +180,7 @@ struct MathBox {
         // What is drawn keeps no row structure: that is for whoever may still break the row.
         var box = box
         box.row = nil
+        box.alignmentTargets = []
         box.textSegments = nil
         box.leadingTextSpace = nil
         box.textSlice = nil

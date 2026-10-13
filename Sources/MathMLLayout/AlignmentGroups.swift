@@ -5,6 +5,13 @@ import Foundation
 /// Shared across event copies so fragment assembly can recover the parent's source priority.
 final class AlignmentIdentity {}
 
+/// A marker's neighbouring element, shared by its rendered fragments. Fragment edge
+/// events use the pass's existing assembly budget, including cached/reshaped fragments.
+final class AlignmentTarget {
+    let work: TextShapingWork
+    init(work: TextShapingWork) { self.work = work }
+}
+
 /// Source-ordered events survive ordinary layout, including nested rows. Drawing-item paths
 /// distinguish groups even when their x positions coincide (empty groups or negative space).
 struct AlignmentEvent {
@@ -13,6 +20,7 @@ struct AlignmentEvent {
         case mark
         case number
         case extent(CGFloat)
+        case targetExtent(AlignmentTarget, CGFloat)
     }
     var kind: Kind
     var x: CGFloat
@@ -20,8 +28,8 @@ struct AlignmentEvent {
     var path: [Int] = []
     var tokenEdgeRight = false
     var identity: AlignmentIdentity?
-    var fenceTarget: FenceLayout?
-    var fenceEdgeRight = false
+    var target: AlignmentTarget?
+    var targetEdgeRight = false
 
     init(kind: Kind, x: CGFloat, order: Int = 0, path: [Int] = [], tokenEdgeRight: Bool = false) {
         self.kind = kind; self.x = x; self.order = order; self.path = path; self.tokenEdgeRight = tokenEdgeRight
@@ -54,6 +62,24 @@ struct TableAlignmentScopes {
 }
 
 extension MathBox {
+    /// Resolve after fragments have been placed, including across stacked lines. Consumed
+    /// target references must not escape a nested table into a different alignment scope.
+    mutating func resolveAlignmentTargets() {
+        var bounds: [ObjectIdentifier: (left: CGFloat, right: CGFloat)] = [:]
+        for event in alignment {
+            guard case .targetExtent(let target, let width) = event.kind else { continue }
+            let id = ObjectIdentifier(target), old = bounds[id]
+            bounds[id] = (min(old?.left ?? event.x, event.x), max(old?.right ?? event.x + width, event.x + width))
+        }
+        for index in alignment.indices {
+            if let target = alignment[index].target {
+                if let edges = bounds[ObjectIdentifier(target)] {
+                    alignment[index].x = alignment[index].targetEdgeRight ? edges.right : edges.left
+                }
+                alignment[index].target = nil
+            }
+        }
+    }
     var alignmentEdges: (left: CGFloat, right: CGFloat) {
         let edges = alignment.compactMap { event -> (CGFloat, CGFloat)? in
             if case .extent(let width) = event.kind { return (event.x, event.x + width) }
@@ -115,6 +141,7 @@ extension MathBox {
             case .number: if number == nil || event.order < number!.order { number = (event.x, event.order) }
             case .extent(let width):
                 edges = (min(edges?.left ?? event.x, event.x), max(edges?.right ?? event.x + width, event.x + width))
+            case .targetExtent: break
             }
         }
         close()
@@ -431,6 +458,7 @@ extension LayoutEngine {
         var columns: [Interval: [(row: Int, index: Int, groups: [MathBox.AlignmentGroup])]] = [:]
         for row in cells.rows.indices {
             for column in cells.rows[row].indices {
+                cells.rows[row][column].box.resolveAlignmentTargets()
                 let cell = cells.rows[row][column]
                 switch scopes.scope(cell) {
                 case .local:

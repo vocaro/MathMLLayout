@@ -172,6 +172,30 @@ final class WorkerDepthTests: MathTestCase {
         XCTAssertEqual(onWorker { Self.snapshot(root) }, main)
     }
 
+    func testWrappedNeighbourTargetsAt64LevelsMatchOnAnExact512KBWorker() {
+        let targetLeaf = MathMLNode(name: "mrow", children: [
+            MathMLNode(name: "mspace", attributes: ["width": "1em", "height": "1em", "mathbackground": "red"]),
+            MathMLNode(name: "mspace", attributes: ["linebreak": "newline", "indentalign": "left", "indentshift": "0px"]),
+            MathMLNode(name: "mspace", attributes: ["width": "2em", "height": "1em", "mathbackground": "blue"]),
+        ])
+        let target = nested(58, leaf: targetLeaf) { MathMLNode(name: "mrow", children: [$0]) }
+        func row(_ children: [MathMLNode]) -> MathMLNode {
+            MathMLNode(name: "mtr", children: [MathMLNode(name: "mtd", children: children)])
+        }
+        let root = MathMLNode(name: "math", attributes: ["dir": "rtl"], children: [
+            MathMLNode(name: "mtable", children: [
+                row([MathMLNode(name: "maligngroup"), MathMLNode(name: "malignmark", attributes: ["edge": "right"]), target]),
+                row([MathMLNode(name: "maligngroup"),
+                     MathMLNode(name: "mspace", attributes: ["width": "3em", "height": "1em", "mathbackground": "lime"]),
+                     MathMLNode(name: "malignmark", attributes: ["edge": "left"])]),
+            ])
+        ])
+        let reference = onWorker(stack: 8 * 1024 * 1024) { Self.snapshot(root) }
+        guard case .success = reference else { return XCTFail("64-level wrapped neighbour target must lay out") }
+        XCTAssertEqual(onWorker { Self.snapshot(root) }, reference)
+        XCTAssertEqual(onWorker { Self.snapshot(root) }, reference)
+    }
+
     func testMeasureWorkerDepth() throws {
         guard ProcessInfo.processInfo.environment["MATHML_MEASURE_WORKER_DEPTH"] == "1" else {
             throw XCTSkip("Set MATHML_MEASURE_WORKER_DEPTH=1 to report maximum covered depths")
