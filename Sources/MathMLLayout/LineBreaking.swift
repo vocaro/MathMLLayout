@@ -289,6 +289,11 @@ extension LayoutEngine {
         var children: [BreakableRow.Child] = []
         var word = MathBox(), start: CGFloat?, spaced = false
         var spaces: [TextSegment] = []
+        // Plain text's authored paragraph-edge spaces belong to its edge words, just as
+        // in LogicalTextSource. Only separators at soft breaks may be trimmed.
+        let preservesEdges = box.items.allSatisfy { if case .glyphs = $0 { return true }; return false }
+        let firstWord = segments.firstIndex { !$0.isSpace } ?? segments.startIndex
+        let lastWord = segments.lastIndex { !$0.isSpace } ?? (segments.endIndex - 1)
         func close(at end: CGFloat) {
             guard let x = start else { return }
             word.width = end - x
@@ -298,8 +303,9 @@ extension LayoutEngine {
             children.append(BreakableRow.Child(box: word, x: x, point: spaced && !children.isEmpty ? point : nil))
             word = MathBox(); start = nil; spaced = false
         }
-        for segment in segments {
-            if segment.isSpace {
+        for (index, segment) in segments.enumerated() {
+            let authoredEdge = preservesEdges && (index < firstWord || index > lastWord)
+            if segment.isSpace && !authoredEdge {
                 close(at: segment.x)
                 spaced = true
                 if segment.box.spacingInkBounds != nil { spaces.append(segment) }

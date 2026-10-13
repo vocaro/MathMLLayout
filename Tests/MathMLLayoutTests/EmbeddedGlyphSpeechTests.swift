@@ -63,6 +63,17 @@ final class EmbeddedGlyphSpeechTests: MathTestCase {
         XCTAssertTrue(try read(body.replacingOccurrences(of: "stackalign='left'", with: "stackalign='left' longdivstyle='stackedrightright'")).contains("result: one result glyph"))
     }
 
+    func testInvisibleOperatorTextStaysSilentBesideGlyphAlt() throws {
+        for language in MathReading.supportedLocales {
+            for control in ["\u{2061}", "\u{2062}", "\u{2063}", "\u{2064}"] {
+                XCTAssertEqual(try read("<mo>\(control)<mglyph alt='glyph description'/></mo>", language: language), "glyph description")
+                XCTAssertEqual(try read("<mo>\(control)<mglyph/></mo>", language: language), "")
+                // Literal author alt is retained even when it is itself a control character.
+                XCTAssertEqual(try read("<mo><mglyph alt='\(control)'/></mo>", language: language), control)
+            }
+        }
+    }
+
     func testAltRemainsLiteralInEveryVocabularyAndTokenKind() throws {
         for language in MathReading.supportedLocales {
             for name in ["mi", "mo", "mn", "mtext", "ms"] {

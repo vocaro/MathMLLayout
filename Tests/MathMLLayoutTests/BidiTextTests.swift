@@ -148,6 +148,30 @@ final class BidiTextTests: MathTestCase {
         XCTAssertEqual(split.map { $0.box.width }, [25, 25])
     }
 
+    func testASCIIParagraphEdgeSpacesSurviveFormulaAndWordBreaks() throws {
+        let style = MathStyle(fontSize: 20, color: black, fontName: fontName)
+        let root = MathMLNode(name: "math", children: [
+            MathMLNode(name: "mi", text: "A"),
+            MathMLNode(name: "mspace", attributes: ["linebreak": "newline"]),
+            MathMLNode(name: "mtext", text: " AB CD "),
+            MathMLNode(name: "mspace", attributes: ["linebreak": "newline"]),
+            MathMLNode(name: "mi", text: "B"),
+        ])
+        let engine = LayoutEngine(fontName: fontName)
+        let box = try engine.layoutRoot(root, style: style)
+        let output = Paragraph(box).rows(limit: .infinity, first: .infinity, auto: (.left, 0))
+        XCTAssertEqual(output.count, 3)
+        XCTAssertEqual(output[1].box.width, 55, accuracy: 0.001)
+        XCTAssertEqual(visualGlyphs(output[1].box).filter { $0 != "space" }, names("ABCD"))
+        XCTAssertEqual(engine.textWork.lineRequests, 3, "Edge spaces must preserve the one-line ASCII fast path")
+        let publicLayout = try MathLayout(root, style: style)
+        XCTAssertEqual(publicLayout.rows[1].width, 55, accuracy: 0.001)
+        let split = try rows(" AB CD ", width: 25)
+        XCTAssertEqual(split.map { $0.box.width }, [25, 25])
+        XCTAssertEqual(visualGlyphs(split[0].box), names(" AB"))
+        XCTAssertEqual(visualGlyphs(split[1].box), names("CD "))
+    }
+
     func testStackNumericParenthesesStayLTRUnderInheritedRTLTextDirection() throws {
         let root = MathMLNode(name: "math", attributes: ["dir": "rtl"], children: [
             MathMLNode(name: "mstack", children: [MathMLNode(name: "mn", text: "(12)")]),

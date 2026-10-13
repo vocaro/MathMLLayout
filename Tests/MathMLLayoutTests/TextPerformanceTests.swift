@@ -49,6 +49,21 @@ final class TextPerformanceTests: MathTestCase {
         }
     }
 
+    func testSpaceKerningDoesNotChangeSoftLineWidths() throws {
+        let style = MathStyle(fontSize: 20, color: black)
+        for text in ["V A", "f A", "AV T", "off T"] {
+            let fast = MathMLNode(name: "math", children: [MathMLNode(name: "mtext", text: text)])
+            let contextual = MathMLNode(name: "math", attributes: ["dir": "rtl"], children: fast.children)
+            let split = try MathLayout(fast, style: style, maximumWidth: 0)
+            let exact = try MathLayout(contextual, style: style, maximumWidth: 0)
+            XCTAssertEqual(split.rows.count, exact.rows.count, text)
+            for (row, expected) in zip(split.rows, exact.rows) {
+                XCTAssertEqual(row.width, expected.width, accuracy: 0.001, text)
+            }
+            XCTAssertEqual(split.widestUnbreakableWidth, exact.widestUnbreakableWidth, accuracy: 0.001, text)
+        }
+    }
+
     func testFastPathEligibilityExcludesBidiAndContextualText() {
         XCTAssertTrue(LayoutEngine.hasSimpleLTRWordBoundaries("office 123 AV", direction: .natural))
         XCTAssertTrue(LayoutEngine.hasSimpleLTRWordBoundaries("office 123 AV", direction: .leftToRight))

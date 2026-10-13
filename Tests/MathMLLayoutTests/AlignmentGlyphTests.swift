@@ -60,6 +60,17 @@ final class AlignmentGlyphTests: XCTestCase {
         }
     }
 
+    func testImageBoundaryMarksUseDrawnEdgesBesideNaturalRTLText() throws {
+        for (body, after) in [
+            ("אב<malignmark/><mglyph src='g'/>גד", false),
+            ("אב<mglyph src='g'/><malignmark/>גד", true),
+        ] {
+            let box = try engine().layout(element("<mtext>\(body)</mtext>"), context, depth: 0)
+            let rect = try XCTUnwrap(imageRects(box).first)
+            XCTAssertEqual(try mark(box).x, after ? rect.maxX : rect.minX, accuracy: 0.001)
+        }
+    }
+
     func testInlineImageMarkAlignsTableCellsAndRetainsBounds() throws {
         let xml = "<mtable frame='solid'><mtr><mtd><maligngroup/><mtext>1<mglyph src='g' width='1em'/><malignmark/>3</mtext></mtd></mtr>"
             + "<mtr><mtd><maligngroup/><mtext>123<mglyph src='g' width='2em'/><malignmark/>4</mtext></mtd></mtr></mtable>"

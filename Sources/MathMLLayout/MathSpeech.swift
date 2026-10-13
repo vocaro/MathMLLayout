@@ -118,13 +118,18 @@ private struct Speaker {
         return parts
     }
 
-    private mutating func tokenReading(_ node: MathMLNode, depth: Int, symbols: Bool = false) -> String {
+    private static let invisibleOperators: Set<String> = ["\u{2061}", "\u{2062}", "\u{2063}", "\u{2064}"]
+
+    private mutating func tokenReading(_ node: MathMLNode, depth: Int, symbols: Bool = false,
+                                      suppressInvisible: Bool = false) -> String {
         guard LayoutEngine.hasGlyph(node) || node.text.unicodeScalars.contains(LayoutEngine.glyphMarker) else {
             let value = said(LayoutEngine.normalized(node.text))
+            if suppressInvisible, Self.invisibleOperators.contains(value) { return "" }
             return symbols ? symbol(value) : value
         }
         return LayoutEngine.normalized(tokenParts(node, depth: depth).map { part in
             let text = LayoutEngine.normalized(part.text)
+            if !part.isGlyph, suppressInvisible, Self.invisibleOperators.contains(text) { return "" }
             return symbols && !part.isGlyph ? symbol(text) : text
         }.joined(separator: " "))
     }
@@ -282,8 +287,7 @@ private struct Speaker {
 
     @inline(never)
     private mutating func readOperator(_ node: MathMLNode, depth: Int) -> String {
-        let value = tokenReading(node, depth: depth, symbols: true)
-        return ["\u{2061}", "\u{2062}", "\u{2063}", "\u{2064}"].contains(value) && !LayoutEngine.hasGlyph(node) ? "" : value
+        return tokenReading(node, depth: depth, symbols: true, suppressInvisible: true)
     }
 
     @inline(never)

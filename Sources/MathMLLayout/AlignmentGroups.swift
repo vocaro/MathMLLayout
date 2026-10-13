@@ -275,12 +275,15 @@ extension LayoutEngine {
             let line: CTLine
         }
         var parts: [Part] = [], index = 0, x: CGFloat = 0, image = 0
+        var imageEdges: [Int: CGFloat] = [:]
         let pieces = images.isEmpty ? [text] : text.unicodeScalars
             .split(separator: Self.glyphMarker, omittingEmptySubsequences: false).map(String.init)
         for (number, piece) in pieces.enumerated() {
             if number > 0 {
+                imageEdges[index] = x
                 x += images[image].width
                 image += 1; index += 1
+                imageEdges[index] = x
             }
             let line = CTLineCreateWithAttributedString(attributedText(piece, context))
             let end = index + piece.utf16.count
@@ -290,6 +293,9 @@ extension LayoutEngine {
         }
         func offset(_ count: Int) -> CGFloat {
             let count = min(max(0, count), text.utf16.count)
+            // At an attachment boundary, a neighbouring RTL run's logical caret may
+            // lie at its opposite visual edge. The rendered attachment edge is exact.
+            if let edge = imageEdges[count] { return edge }
             // Single-glyph operators may have been enlarged or assembled after shaping.
             if node.name == "mo", images.isEmpty, text.unicodeScalars.count == 1,
                count >= text.utf16.count { return box.width }
