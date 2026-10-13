@@ -351,7 +351,7 @@ final class LayoutEngine {
             box = try padded(node, context, embellishment, depth: depth)
         case "mphantom":
             box = try row(children, context, embellishment, depth: depth)
-            box.items = []
+            box.isPhantom = true
         case "menclose":
             box = try enclose(node, context, depth: depth)
         case "mtable":
@@ -380,6 +380,16 @@ final class LayoutEngine {
             throw MathLayoutError.unsupported(node.name)
         }
         if let background = node.attributes["mathbackground"].flatMap(MathColor.parse) {
+            // A background encloses one stack, including gaps between its lines. It is never
+            // discarded by flattening, nor painted on unrelated neighbours.
+            box = wrapped(box, beside: 0, align: .left) ?? box
+            if box.isPhantom {
+                let hidden = box
+                box.isPhantom = false
+                box.items = []
+                box.add(hidden, at: .zero)
+            }
+            box.row = nil
             box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), background), at: 0)
         }
         if box.op?.has(.fence) == true, case .vertical = embellishment.stretch,
@@ -498,7 +508,7 @@ final class LayoutEngine {
     /// takes its form from its place in the row, but beside an operator it is an operand, as
     /// TeX's `\text` is an ordinary atom: the `×` of
     /// "<mtext>principal</mtext><mo>×</mo><mtext>rate</mtext>" multiplies, it is not a sign.
-    /// What an `mphantom` hides says nothing.
+    /// Phantom text retains the same operand spacing as visible text (MathML 3, 3.3.7.1).
     ///
     /// One walk of the subtree answers both, from a list of what is still to visit at each level:
     /// a row's children left to right, so the first that is not space-like ends the walk as early
@@ -535,7 +545,7 @@ final class LayoutEngine {
             case "mglyph": pending[level].says = true
             case "mspace", "maligngroup", "malignmark": break
             case "mrow", "mstyle", "mphantom", "mpadded":
-                let children = node.children, shows = node.name != "mphantom"
+                let children = node.children, shows = true
                 guard let known = spaceLikeLists.answer(for: children) else {
                     pending.append((children[...], children, shows, false))
                     continue

@@ -160,8 +160,8 @@ final class BreakableRow {
     let children: [Child]
     /// By child index, the visible form of an invisible times whose `linebreakmultchar` asks for one.
     let visible: [Int: MathBox]
-    /// How many items the row's box drew when it was built. A box changed since (an `mphantom`
-    /// emptied it, a `mathbackground` went under it) no longer matches its children, and is one unit.
+    /// How many items the row's box drew when it was built. A geometry or drawing change that
+    /// does not preserve the children makes it one unit. Phantoms retain their hidden children.
     let itemCount: Int
     /// An embellished operator: breaking at it is no deeper than breaking at a bare `mo`.
     let isOperator: Bool
@@ -807,18 +807,18 @@ struct Paragraph {
     let display: Bool
 
     init(_ box: MathBox, fontSize: CGFloat = 0) {
-        let covered = Self.covering(box, ink: box.inkBounds)
+        let covered = Self.covering(box, ink: box.spacingInkBounds)
         unbroken = covered.box
         entire = (covered.box.width, covered.left)
         if let row = box.row, row.itemCount == box.items.count {
             em = row.fontSize; display = row.display
             var breaks: [Break] = []
-            flatten(row, at: 0, depth: 0, isUnary: false, isAttached: false, level: 0, &breaks)
+            flatten(row, at: 0, depth: 0, isUnary: false, isAttached: false, level: 0, isPhantom: box.isPhantom, &breaks)
             if !units.isEmpty { addStops(breaks) }
         } else {
             em = fontSize; display = false
         }
-        if units.isEmpty { units = [Unit(box: box, x: 0, ink: box.inkBounds)] }
+        if units.isEmpty { units = [Unit(box: box, x: 0, ink: box.spacingInkBounds)] }
         var opened: [Int] = []
         for index in units.indices {
             guard let op = units[index].box.op, op.has(.fence), let point = op.breakPoint else { continue }
@@ -904,7 +904,7 @@ struct Paragraph {
     /// fences written flat was one, and a line broke anywhere outside such a bracket, leaving a
     /// row all but empty, sooner than inside it.
     private mutating func flatten(_ row: BreakableRow, at x: CGFloat, depth: Int, isUnary: Bool, isAttached: Bool,
-                                  level: Int, _ breaks: inout [Break]) {
+                                  level: Int, isPhantom: Bool, _ breaks: inout [Break]) {
         var fences = 0
         for (index, child) in row.children.enumerated() {
             // What holds a row to its neighbour holds the row's first unit.
@@ -921,13 +921,17 @@ struct Paragraph {
                     && Self.fence(row.children[index + 1])?.closes == true
                 let deeper = inner.isOperator || row.children.count == 1 || isHeld || Self.isPair(inner) ? 0 : 1
                 flatten(inner, at: x + child.x, depth: depth + fences + deeper, isUnary: isUnary || child.isUnary,
-                        isAttached: isAttached, level: level + 1, &breaks)
+                        isAttached: isAttached, level: level + 1, isPhantom: isPhantom || child.box.isPhantom, &breaks)
             } else {
+                var unitBox = child.box
+                unitBox.isPhantom = unitBox.isPhantom || isPhantom
+                var visible = row.visible[index]
+                if unitBox.isPhantom { visible?.isPhantom = true }
                 if let point = child.point {
-                    breaks.append((units.count, point, depth + fences, isUnary || child.isUnary, row.visible[index]))
+                    breaks.append((units.count, point, depth + fences, isUnary || child.isUnary, visible))
                 }
                 if units.isEmpty { lead = BreakPoint(kind: .none, linebreak: .auto, style: row.style) }
-                units.append(Unit(box: child.box, x: x + child.x, ink: child.box.inkBounds, isAttached: isAttached))
+                units.append(Unit(box: unitBox, x: x + child.x, ink: unitBox.spacingInkBounds, isAttached: isAttached))
             }
             if fence?.opens == true { fences += 1 }
         }
@@ -963,11 +967,11 @@ struct Paragraph {
             let tail = point.position == .before ? nil : visible
             if let head {
                 stop.headAdvance = visible.map { $0.width + ($0.op?.rspace ?? 0) } ?? units[at].x - units[index].x
-                let ink = head.inkBounds
+                let ink = head.spacingInkBounds
                 stop.headLeft = max(0, -(ink?.minX ?? 0)); stop.headInk = ink?.maxX ?? -.infinity
             }
             if let tail {
-                let ink = tail.inkBounds
+                let ink = tail.spacingInkBounds
                 stop.tailOffset = tail.op?.lspace ?? 0
                 stop.tailAdvance = stop.tailOffset + tail.width
                 stop.tailRight = max(0, (ink?.maxX ?? 0) - tail.width); stop.tailInk = ink?.minX ?? .infinity
@@ -1001,7 +1005,7 @@ struct Paragraph {
             } else {
                 head = first?.head ?? head
             }
-            let ink = head?.inkBounds
+            let ink = head?.spacingInkBounds
             shared.headLeft = max(0, -(ink?.minX ?? 0)); shared.headInk = ink?.maxX ?? -.infinity
             shared.insert = last.insert
             if let insert = last.insert {
@@ -1098,7 +1102,7 @@ struct Paragraph {
             guard let placed = childInk?.offsetBy(dx: x, dy: 0) else { return }
             ink = ink.map { $0.union(placed) } ?? placed
         }
-        if let head { add(head, head.inkBounds, at: 0) }
+        if let head { add(head, head.spacingInkBounds, at: 0) }
         for index in first..<end {
             let unit = units[index]
             shifts[index] = delta
@@ -1108,12 +1112,13 @@ struct Paragraph {
                resized.width <= child.width, resized.height <= child.height,
                [resized.width, resized.ascent, resized.descent].allSatisfy({ $0.isFinite && abs($0) <= MathLimits.extent }) {
                 child = resized
-                childInk = resized.inkBounds
+                child.isPhantom = unit.box.isPhantom
+                childInk = resized.spacingInkBounds
             }
             add(child, childInk, at: unit.x + shift + delta)
             delta += child.width - unit.box.width
         }
-        if let tail { add(tail, tail.inkBounds, at: ends[j] + shift + delta + stops[j].tailOffset) }
+        if let tail { add(tail, tail.spacingInkBounds, at: ends[j] + shift + delta + stops[j].tailOffset) }
         box.width += delta
         let covered = Self.covering(box, ink: ink)
         // Negative spacing or unusual variants may widen the ink despite smaller advances. The

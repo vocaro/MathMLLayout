@@ -565,10 +565,10 @@ final class OperatorTests: XCTestCase {
         let shared = [space, text]
         for pass in 1...2 {
             XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mrow", children: shared)), true, "pass \(pass)")
-            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mphantom", children: shared)), false, "pass \(pass): what a phantom hides says nothing")
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mphantom", children: shared)), true, "pass \(pass): phantom text keeps operand spacing")
             XCTAssertEqual(engine.spaceLike(MathMLNode(name: "maction", children: shared)), false, "pass \(pass): its first child alone")
             XCTAssertNil(engine.spaceLike(MathMLNode(name: "mfrac", children: shared)), "pass \(pass)")
-            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mrow", children: [MathMLNode(name: "mphantom", children: shared), space])), false, "pass \(pass)")
+            XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mrow", children: [MathMLNode(name: "mphantom", children: shared), space])), true, "pass \(pass)")
             XCTAssertEqual(engine.spaceLike(MathMLNode(name: "mrow", children: [MathMLNode(name: "mphantom", children: shared), MathMLNode(name: "mstyle", children: shared)])), true,
                            "pass \(pass)")
             XCTAssertNil(engine.embellishedCore(MathMLNode(name: "mrow", children: shared)), "pass \(pass)")

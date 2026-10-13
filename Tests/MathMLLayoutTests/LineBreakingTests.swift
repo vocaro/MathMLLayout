@@ -993,9 +993,9 @@ final class LineBreakingTests: MathTestCase {
     func testWhatIsNotARowIsOneUnit() throws {
         let inner = sum(Array(names.prefix(4)))
         let natural = try width(inner)
-        // A phantom, a row with a background, padding, a limit: a line breaks around them, not inside.
+        // Nondefault padding and under/over annotations keep their geometry atomic.
         for body in [
-            "<mphantom>\(inner)</mphantom>", "<mrow mathbackground=\"yellow\">\(inner)</mrow>", "<mpadded>\(inner)</mpadded>",
+            "<mpadded width=\"+1em\">\(inner)</mpadded>",
             "<munder><mrow>\(inner)</mrow><mo>⏟</mo></munder>", "<mover><mrow>\(inner)</mrow><mo>¯</mo></mover>",
         ] {
             let layout = try broken(mi("x") + mo("=") + body + mo("+") + mi("y"), width: 0)
@@ -1004,11 +1004,166 @@ final class LineBreakingTests: MathTestCase {
             XCTAssertGreaterThanOrEqual(layout.widestUnbreakableWidth, natural, body)
         }
         let phantom = try broken("<mphantom>\(inner)</mphantom>", width: 0)
-        XCTAssertEqual(phantom.rows.count, 1)
-        XCTAssertEqual(phantom.width, natural, accuracy: 0.01)
+        XCTAssertEqual(phantom.rows.count, 4)
+        XCTAssertLessThan(phantom.width, natural)
         XCTAssertNil(ink(phantom), "and a phantom still draws nothing")
         // The same row bare breaks at every operator.
         XCTAssertEqual(try broken(mi("x") + mo("=") + "<mrow>\(inner)</mrow>" + mo("+") + mi("y"), width: 0).rows.count, 6)
+    }
+
+    // MARK: Wrapper semantics
+
+    func testDefaultPaddingMatchesAnInferredRowAcrossBreaks() throws {
+        let contents = sum(Array(names.prefix(4)))
+        for limit in [CGFloat.infinity, 0, 110, 200] {
+            let before = mi("f") + mo("=")
+            let after = mo("+") + mi("j")
+            let expected = try broken(before + "<mrow>\(contents)</mrow>" + after, width: limit)
+            let padded = try broken(before + "<mpadded>\(contents)</mpadded>" + after, width: limit)
+            assertWidths(padded, expected.rows.map(\.width))
+            XCTAssertEqual(padded.rows.map(\.origin), expected.rows.map(\.origin))
+            XCTAssertEqual(ink(padded), ink(expected))
+        }
+        let forced = mi("f") + mo("+", "linebreak=\"newline\"") + mi("j")
+        let expected = try broken("<mrow>\(forced)</mrow>")
+        assertWidths(try broken("<mpadded>\(forced)</mpadded>"), expected.rows.map(\.width))
+    }
+
+    func testPhantomKeepsVisibleGeometryWithoutDrawingAnyFragments() throws {
+        // Include overhangs, a background, duplicates and visible substitutions at forced breaks.
+        let cases = [
+            sum(["j", "f", "alpha", "beta"]),
+            mi("f") + red("+", "linebreak=\"newline\" linebreakstyle=\"duplicate\"") + mi("j"),
+            mi("f") + mo("\u{2062}", "linebreak=\"newline\" linebreakmultchar=\"×\"") + mi("j"),
+            "<mpadded><mrow mathbackground=\"blue\">" + sum(["a", "b", "c"]) + "</mrow></mpadded>",
+            "<mfenced>" + sum(["a", "b", "c", "d"]) + "</mfenced>",
+            "<merror>" + sum(["a", "b", "c"]) + "</merror>",
+        ]
+        for contents in cases {
+            for limit in [CGFloat.infinity, 0, 70] {
+                let expected = try broken("<mrow>\(contents)</mrow>", width: limit)
+                let hidden = try broken("<mphantom>\(contents)</mphantom>", width: limit)
+                assertWidths(hidden, expected.rows.map(\.width), contents)
+                XCTAssertEqual(hidden.rows.map(\.origin), expected.rows.map(\.origin), contents)
+                XCTAssertEqual(hidden.rows.map(\.ascent), expected.rows.map(\.ascent), contents)
+                XCTAssertEqual(hidden.rows.map(\.descent), expected.rows.map(\.descent), contents)
+                XCTAssertEqual(hidden.widestUnbreakableWidth, expected.widestUnbreakableWidth, accuracy: 0.01)
+                for row in hidden.rows { XCTAssertNil(ink(row), contents) }
+            }
+        }
+    }
+
+    func testPhantomTextRetainsOperandSpacing() throws {
+        let text = "<mtext>left right</mtext>"
+        for limit in [CGFloat.infinity, 0, 50] {
+            let expected = try broken(mi("a") + mo("+") + "<mrow>\(text)</mrow>", width: limit)
+            let hidden = try broken(mi("a") + mo("+") + "<mphantom>\(text)</mphantom>", width: limit)
+            assertWidths(hidden, expected.rows.map(\.width))
+            XCTAssertEqual(hidden.rows.map(\.origin), expected.rows.map(\.origin))
+        }
+    }
+
+    func testPhantomDoesNotHideItsVisibleNeighbours() throws {
+        let contents = mi("a") + red("+", "linebreak=\"newline\"") + mi("b")
+        let hidden = try broken(blue("=") + "<mpadded><mphantom>\(contents)</mphantom></mpadded>" + blue("+"))
+        XCTAssertEqual(hidden.rows.count, 2)
+        XCTAssertEqual(rows(hidden, drawing: .red), [])
+        XCTAssertEqual(rows(hidden, drawing: .blue), [0, 1])
+        let decorated = try broken(mi("a") + "<mphantom mathbackground=\"blue\"><mo mathcolor=\"red\">+</mo></mphantom>" + mi("b"))
+        XCTAssertEqual(decorated.width, try width(mi("a") + mo("+") + mi("b")), accuracy: 0.01)
+        XCTAssertNotNil(ink(decorated.rows[0], .blue))
+        XCTAssertNil(ink(decorated.rows[0], .red))
+    }
+
+    func testNaturalErrorAndBackgroundGeometry() throws {
+        let contents = sum(["a", "b", "c"])
+        let plain = try broken("<mrow>\(contents)</mrow>")
+        let background = try broken("<mrow mathbackground=\"blue\">\(contents)</mrow>")
+        XCTAssertEqual(background.width, plain.width, accuracy: 0.01)
+        XCTAssertEqual(background.ascent, plain.ascent, accuracy: 0.01)
+        XCTAssertEqual(background.descent, plain.descent, accuracy: 0.01)
+        let error = try broken("<merror>\(contents)</merror>")
+        let pad = em * 0.1
+        XCTAssertEqual(error.width, plain.width + 2 * pad, accuracy: 0.01)
+        XCTAssertEqual(error.ascent, plain.ascent + pad, accuracy: 0.01)
+        XCTAssertEqual(error.descent, plain.descent + pad, accuracy: 0.01)
+        XCTAssertNotNil(ink(error.rows[0], .red))
+        XCTAssertNotNil(ink(background.rows[0], .blue))
+    }
+
+    func testErrorAndBackgroundWrapInsideOneIntactDecoration() throws {
+        let contents = sum(Array(names.prefix(4)))
+        let forcedContents = mi("f") + mo("+", "linebreak=\"newline\"") + mi("j")
+        for wrapper in ["merror", "mrow mathbackground=\"blue\""] {
+            let closing = wrapper == "merror" ? "merror" : "mrow"
+            let natural = try broken("<\(wrapper)>\(contents)</\(closing)>")
+            let narrow = try broken("<\(wrapper)>\(contents)</\(closing)>", width: 130)
+            XCTAssertEqual(narrow.rows.count, 1, "the decorated stack is one host row")
+            XCTAssertLessThanOrEqual(narrow.width, 130.001)
+            XCTAssertGreaterThan(narrow.ascent + narrow.descent, natural.ascent + natural.descent)
+            let bounds = try XCTUnwrap(ink(narrow.rows[0]))
+            XCTAssertGreaterThanOrEqual(bounds.minX, -0.5)
+            XCTAssertLessThanOrEqual(bounds.maxX, narrow.width + 0.5)
+            XCTAssertGreaterThanOrEqual(bounds.minY, -narrow.descent - 0.5)
+            XCTAssertLessThanOrEqual(bounds.maxY, narrow.ascent + 0.5)
+            let forced = try broken("<\(wrapper)>\(forcedContents)</\(closing)>")
+            let inline = try broken(forcedContents)
+            XCTAssertEqual(forced.rows.count, 1)
+            XCTAssertGreaterThanOrEqual(forced.ascent + forced.descent, inline.ascent + inline.descent)
+            XCTAssertNotNil(ink(forced.rows[0], wrapper == "merror" ? .red : .blue))
+        }
+        let nested = try broken("<mrow mathbackground=\"blue\"><merror><mpadded>\(forcedContents)</mpadded></merror></mrow>")
+        XCTAssertEqual(nested.rows.count, 1)
+        XCTAssertNotNil(ink(nested.rows[0], .red))
+        XCTAssertNotNil(ink(nested.rows[0], .blue))
+    }
+
+    func testNestedWrapperRetriesStayWithinBudgetAndReproduceReportedWidth() throws {
+        let contents = sum(Array(names.prefix(4)))
+        let body = "<mrow mathbackground=\"blue\"><merror><mpadded><mphantom>\(contents)</mphantom></mpadded></merror></mrow>"
+        let root = try node(body)
+        let style = MathStyle(fontSize: em, color: black)
+        let narrow = try LayoutEngine.lines(root, style: style, maximumWidth: 40, firstRowMaximumWidth: nil)
+        XCTAssertLessThanOrEqual(narrow.layoutPasses, LayoutEngine.maximumWrappingPasses)
+        let exact = try LayoutEngine.lines(root, style: style, maximumWidth: narrow.widestUnbreakable, firstRowMaximumWidth: nil)
+        XCTAssertLessThanOrEqual(exact.layoutPasses, LayoutEngine.maximumWrappingPasses)
+        for row in exact.rows {
+            XCTAssertLessThanOrEqual(row.origin.x + row.box.width, narrow.widestUnbreakable + 0.001)
+        }
+    }
+
+    func testWrapperBudgetsStillRejectExcessiveGeometry() throws {
+        let forced = mo("+", "linebreak=\"newline\"")
+        // Absolute lengths are capped at 1000em: three gaps exceed the 50,000-point limit.
+        let content = "<mstyle lineleading=\"50000pt\">" + ["a", "b", "c", "d"].map(mi).joined(separator: forced) + "</mstyle>"
+        for wrapper in ["mpadded", "mphantom", "merror", "mrow mathbackground=\"blue\""] {
+            let closing = wrapper.hasPrefix("mrow") ? "mrow" : wrapper
+            XCTAssertThrowsError(try broken("<\(wrapper)>\(content)</\(closing)>")) {
+                XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+            }
+        }
+        var deep = "<mi>a</mi>"
+        for _ in 0..<MathLimits.depth { deep = "<mphantom><mpadded>\(deep)</mpadded></mphantom>" }
+        XCTAssertThrowsError(try broken(deep, width: 40)) {
+            XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+        }
+    }
+
+    func testExplicitPaddingAndUnderOverRemainAtomicAtForcedBreaks() throws {
+        let contents = mi("a") + mo("+", "linebreak=\"newline\"") + mi("b")
+        for wrapper in ["width=\"+0em\"", "lspace=\"1em\"", "height=\"200%\"", "voffset=\"-0.5em\""] {
+            XCTAssertEqual(try broken("<mpadded \(wrapper)>\(contents)</mpadded>", width: 0).rows.count, 1)
+        }
+        for body in [
+            "<munder><mrow>\(contents)</mrow><mo>⏟</mo></munder>",
+            "<mover><mrow>\(contents)</mrow><mo>¯</mo></mover>",
+            "<munderover><mrow>\(contents)</mrow><mi>lower</mi><mi>upper</mi></munderover>",
+        ] {
+            let natural = try broken(body)
+            let narrow = try broken(body, width: 0)
+            XCTAssertEqual(narrow.rows.count, 1)
+            XCTAssertEqual(ink(narrow), ink(natural))
+        }
     }
 
     // MARK: Inline formulas and hosts

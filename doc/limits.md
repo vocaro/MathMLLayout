@@ -13,10 +13,18 @@ declarations in any encoding, so no entity expands and nothing external loads; i
 
 ## Limitations
 
-- **Line breaking.** No breaks inside `mpadded`, `mphantom`, `merror`, `munder`/`mover`/
-  `munderover`, a script, or a row with a `mathbackground`; none between adjacent identifiers or
-  inside a number. `indenttarget` must name a child of a row
-  being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
+- **Line breaking.** Default `mpadded` and `mphantom` flow across host rows with the same
+  spacing as an `mrow`; phantom fragments remain invisible. An `mpadded` with any explicit
+  `width`, `height`, `depth`, `lspace` or `voffset` stays atomic (including explicit no-op values).
+  `merror` wraps its content into one stack inside one red frame. A background-bearing row
+  similarly becomes one stack inside one background rectangle, including interline gaps; it
+  remains one host row, so an inline first-row budget does not fragment that background.
+  Both stacks honor supported forced breaks. These policies preserve nested decorations and
+  never extend a background over neighbouring elements.
+  `munder`/`mover`/`munderover` remain atomic so accents, braces and limits stay attached to
+  their whole base; movable limits rendered as side scripts follow the existing side-script
+  policy. No breaks inside script annotations, between adjacent identifiers or inside a number.
+  `indenttarget` must name a child of a row being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
   a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
   drawn on a `mathbackground` of its own does not wrap.
   `overflow` and `maxwidth` on `math` are not read:
@@ -32,5 +40,9 @@ declarations in any encoding, so no entity expands and nothing external loads; i
   not their column positions.
 - Cell spans in `mtable` are ignored, and rows align on their baselines only.
 - No kerning from the font's MathKernInfo.
+
+The default padding and phantom spacing follows [MathML 3, sections 3.3.6.3 and
+3.3.7.1](https://www.w3.org/TR/MathML3/chapter3.html#presm.mpadded). MathML 3 leaves
+non-default padding at line breaks unspecified; this implementation keeps it atomic.
 
 [Documentation index](../README.md#documentation)
