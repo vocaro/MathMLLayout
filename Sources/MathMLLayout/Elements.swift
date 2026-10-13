@@ -521,8 +521,8 @@ extension LayoutEngine {
         // `displaystyle` where the surroundings' was.
         var cellContext = context
         cellContext.display = attributes.flag("displaystyle") ?? false
-        func list(_ name: String, in attributes: [String: String]) -> [String] {
-            (attributes[name] ?? "").split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
+        func list(_ name: String, in attributes: [String: String], fallback: String? = nil) -> [String] {
+            (attributes[name] ?? fallback ?? "").split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
         }
         func pick(_ values: [String], _ index: Int) -> String? { values.isEmpty ? nil : values[min(index, values.count - 1)] }
         func vertical(_ value: String?) -> String? {
@@ -539,7 +539,7 @@ extension LayoutEngine {
         var verticalAlignments: [[VerticalAlignment]] = []
         var labelAlignments: [VerticalAlignment] = []
         var rowAxes: [CGFloat] = []
-        let tableRowAlign = list("rowalign", in: attributes)
+        let tableRowAlign = list("rowalign", in: attributes, fallback: context.tableRowAlign)
         for (rowIndex, rowNode) in node.children.enumerated() {
             let rowContext: LayoutContext
             var cellNodes: [MathMLNode]

@@ -9,6 +9,8 @@
 - **Tables:** `mtable`, `mtr`, `mtd`, `mlabeledtr`, with `rowalign` (`top`, `bottom`,
   `center`, `baseline`, `axis`) and `columnalign`. A table's `rowalign` list applies by row,
   repeating its last value; a row's single value overrides it and a cell's overrides the row.
+  An enclosing `mstyle` can set the table's default `rowalign` list; an explicit table value
+  overrides that default. Nested style changes apply within their own scope.
   Labels inherit their row's vertical alignment and accept their own cell override. Alignment
   uses each cell's final size after wrapping; `axis` accounts for the cell's font size.
   Unspecified vertical alignment remains `baseline`

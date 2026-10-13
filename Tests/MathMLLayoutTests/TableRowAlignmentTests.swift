@@ -68,6 +68,46 @@ final class TableRowAlignmentTests: XCTestCase {
         XCTAssertEqual(rects, rectangles(excess))
     }
 
+    func testMstyleSuppliesTableRowAlignmentDefaultsAndLists() throws {
+        let row = "<mtr>\(cell(30, 10))\(cell(10, 5))</mtr>"
+        for alignment in ["top", "bottom", "center", "baseline", "axis", "top bottom"] {
+            let styled = try table("<mstyle rowalign=\"\(alignment)\"><mtable>\(row)\(row)\(row)</mtable></mstyle>")
+            let explicit = try table("<mtable rowalign=\"\(alignment)\">\(row)\(row)\(row)</mtable>")
+            XCTAssertEqual(rectangles(styled), rectangles(explicit), alignment)
+            XCTAssertEqual(styled.height, explicit.height, accuracy: tolerance)
+        }
+    }
+
+    func testExplicitTableRowAndCellAlignmentOverrideMstyleDefaults() throws {
+        let rows = "<mtr>\(cell(30, 10))\(cell(10, 5))</mtr>"
+            + "<mtr rowalign=\"top\">\(cell(30, 10))\(cell(10, 5, "rowalign=\"center\""))</mtr>"
+        let explicit = "<mtable rowalign=\"bottom\">\(rows)</mtable>"
+        let styled = try table("<mstyle rowalign=\"top\">\(explicit)</mstyle>")
+        XCTAssertEqual(rectangles(styled), rectangles(try table(explicit)))
+        // An mstyle inside a cell supplies nested table defaults, rather than changing its
+        // enclosing cell's alignment in the explicit bottom-aligned table.
+        let outer = "<mtable rowalign=\"bottom\"><mtr>\(cell(30, 10))"
+            + "<mtd><mstyle rowalign=\"top\"><mspace width=\"10px\" height=\"10px\" depth=\"5px\" mathbackground=\"red\"/></mstyle></mtd></mtr></mtable>"
+        let rects = rectangles(try table(outer))
+        XCTAssertEqual(rects[0].minY, rects[1].minY, accuracy: tolerance)
+    }
+
+    func testNestedMstyleDefaultsRestoreLexicallyAndTableOverridesDoNotLeak() throws {
+        let row = "<mtr>\(cell(30, 10))\(cell(10, 5))</mtr>"
+        func grid(_ attributes: String = "") -> String { "<mtable \(attributes)>\(row)</mtable>" }
+        // The nested style sets bottom only for its table. An explicit center table must
+        // not replace the outer top default for the following sibling either.
+        let scoped = "<mstyle rowalign=\"top\">\(grid())<mstyle rowalign=\"bottom\">\(grid())</mstyle>"
+            + grid("rowalign=\"center\"") + "<mstyle>\(grid())</mstyle></mstyle>" + grid()
+        let expected = grid("rowalign=\"top\"") + grid("rowalign=\"bottom\"")
+            + grid("rowalign=\"center\"") + grid("rowalign=\"top\"") + grid("rowalign=\"baseline\"")
+        XCTAssertEqual(rectangles(try innerBox(scoped)), rectangles(try innerBox(expected)))
+        // Explicit alignment on the enclosing table is not a default for a nested table.
+        let nested = "<mstyle rowalign=\"top\"><mtable rowalign=\"bottom\"><mtr><mtd>\(grid())</mtd></mtr></mtable></mstyle>"
+        let rects = rectangles(try table(nested))
+        XCTAssertEqual(rects[0].maxY, rects[1].maxY, accuracy: tolerance)
+    }
+
     func testRowAndCellOverridesIncludeMixedBaselineAndEdgeAlignment() throws {
         let box = try table("<mtable align=\"baseline 1\" rowalign=\"bottom\"><mtr rowalign=\"top\">"
             + cell(30, 10) + cell(10, 5) + cell(10, 5, "rowalign=\"bottom\"")
