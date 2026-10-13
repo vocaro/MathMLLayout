@@ -1,7 +1,7 @@
 # Bounds and limitations
 
 For the latest measured results and platform details, see
-[unreleased layout enhancement verification](testing.md#unreleased-layout-enhancement-verification).
+[0.3.1 release verification](testing.md#031-release-verification).
 
 ## Bounds
 

@@ -115,30 +115,44 @@ xcodebuild test-without-building -xctestrun /path/to/edited.xctestrun \
   -parallel-testing-enabled NO
 ```
 
-## Unreleased layout enhancement verification
+## 0.3.1 release verification
 
-The combined changes for #111–#115 were verified on 2026-10-13 with Apple Swift 6.4
-(`swiftlang-6.4.0.34.1`), Xcode 27.1 (`27A9269`) and arm64 macOS 27.0 (`26A428`).
+The implementation released as [0.3.1](https://github.com/vocaro/MathMLLayout/releases/tag/0.3.1)
+was verified on 2026-10-13 with Apple Swift 6.4 (`swiftlang-6.4.0.34.1`), Xcode 27.1
+(`27A9269`), arm64 macOS 27.0 (`26A428`) and an iOS 27.0 iPhone 17 Pro simulator.
+The tested source is `01d0e616f2accc3047a91da1d539bd830bfe7d0d`; the release preparation
+changes only the changelog and release-verification documentation.
 
 | Check | Result |
 | --- | --- |
-| Full debug suite, worker-depth measurement enabled | 804 passed; zero failures or skips |
-| Full optimized suite, worker-depth measurement enabled | 804 passed; zero failures or skips |
-| Additional optimized line-breaking fuzz sweep, seeds 0–399 | Zero failures |
-| Source/test checksums before and after the final suites | Unchanged |
+| Full macOS debug suite | 804 passed; zero failures or skips |
+| Full macOS optimized suite | 804 passed; zero failures or skips |
+| Full iOS simulator suite | 804 passed; zero failures or skips |
+| Python validation-tool tests, including native renderer and Chromium integration | 12 passed; zero failures or skips |
+| Deterministic corpus regeneration against cached pinned sources | Both datasets matched the checked-in files |
+| Source, fixture and tool checksums before and after the suites | All 193 unchanged |
 | `git diff --check` | Passed |
 
-Both suites include the pinned independent-font oracle, the 393 valid bundled corpus inputs,
-the three expected corpus rejections, per-row drawing and ink bounds, and the fixed worker-stack
-assertions. All eleven optional depth sweeps reached 64 levels on the exactly 512 KB worker.
-The new cases cover logical image attachments, wrapper reconstruction, final indentation anchors,
-table sizing/stretching, image metrics, MATH corrections and shared rebuild limits.
+All three complete Swift suites enabled `MATHML_MEASURE_WORKER_DEPTH=1`,
+`MATHML_REQUIRE_FONT_ORACLE=1` and `MATHML_STRICT_EXTERNAL=1`. The iOS flags were set in
+the generated `.xctestrun` before running the complete suite on a fresh, dedicated simulator.
+Every suite includes the independent-font oracle, 81 pinned standards assertions, eight
+supplemental checks, and all 396 corpus cases: 393 renderings and three expected rejections.
+Both macOS runs also exported standards, supplemental and corpus JSON reports with every
+assertion and invariant passing. Corpus success establishes robustness and ink containment,
+not visual conformance.
 
-These runs used separate scratch directories, `--jobs 2`, writable temporary module caches and
-`--disable-sandbox`. Optimized tests also used `-Xswiftc -enable-testing -debug-info-format none`:
-the environment denied `dsymutil` output when debug symbols were requested. The measurement
-flag was `MATHML_MEASURE_WORKER_DEPTH=1`; the additional sweep used `MATHML_FUZZ_SEEDS=0-399`.
-This verification covers macOS; the iOS results below describe the earlier 0.3.0 source.
+All eleven optional worker-depth sweeps reached 64 element levels on the exactly 512 KB worker
+in macOS debug, macOS optimized and iOS. The fixed worker tests also passed geometry, drawing,
+ink, pixels and readings comparisons against the reference worker. These measurements do not
+establish universal 64-level coverage; the [worker-stack restrictions](limits.md#worker-stack-coverage)
+remain in force. The regular seeded line-breaking fuzz tests ran in every full suite; the
+optional expanded `MATHML_FUZZ_SEEDS=0-40000` sweep was not part of this release verification.
+
+macOS builds ran sequentially with separate scratch directories, `--jobs 2`, temporary module
+caches and `--disable-sandbox`. Optimized tests used `-Xswiftc -enable-testing -debug-info-format none`.
+The iOS run disabled parallel testing. Validation tools used fontTools 4.63.0, lxml 6.1.1,
+Pillow 12.3.0, Playwright 1.62.1 and pinned Chromium; corpus regeneration used lxml 6.0.2.
 
 ## 0.3.0 release verification
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.3.1 — 2026-10-13
+
+Wrapping, indentation, table layout, image metrics and OpenType MATH corrections.
+
 - Mixed RTL image/text and decorated fallbacks wrap in logical order. Explicit padding,
   errors and backgrounds rebuild per fragment; eligible under/over bases keep their annotations
   ([#111](https://github.com/vocaro/MathMLLayout/issues/111)).
@@ -16,6 +20,10 @@
 - Supported MATH variation corrections follow the selected font instance. Device corrections
   opt in through a fixed layout-time output scale
   ([#115](https://github.com/vocaro/MathMLLayout/issues/115)).
+
+- Documentation distinguishes supported behavior from remaining restrictions and records
+  macOS and iOS release verification. See [bounds and limitations](doc/limits.md) and
+  [testing](doc/testing.md#031-release-verification).
 
 ## 0.3.0 — 2026-10-13
 
