@@ -45,8 +45,8 @@ rendering and all five base-language readings are compared with the reference an
 | Single-cell `mtable` → `mtr` → `mtd` | 21 tables (63 element levels) |
 | Script-nested `msub`, base-nested `munderover` | 48, plus 15 outer `mrow` |
 
-On 2026-10-12, the optional pure-chain sweep on source `1c4184d` (debug) and `58e0d0c`
-(release) reached 64 element levels for all eleven fixtures: 63 wrappers, or 21 three-element table
+On 2026-10-13, the optional pure-chain sweep on reviewed source `7e3ea17` reached 64 element
+levels for all eleven fixtures in both debug and release: 63 wrappers, or 21 three-element table
 wrappers. This includes pure subscript and under-over chains. The sweep checks successful
 `MathLayout` construction only; it does not perform the fixed matrix's rendering/readings
 comparisons above. Measurements used arm64 macOS 27.0 (build 26A428), Xcode 27.1 (build 27A9269),
