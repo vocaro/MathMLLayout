@@ -22,12 +22,17 @@ final class MathFont: @unchecked Sendable {
     private let lock = NSLock()
     private var sized: [CGFloat: CTFont] = [:]
 
-    private init(base: CTFont) {
+    private convenience init(base: CTFont) {
+        let units = CGFloat(CTFontGetUnitsPerEm(base))
+        let data = CTFontCopyTable(base, CTFontTableTag(kCTFontTableMATH), [])
+        self.init(base: base, table: data.flatMap { MathTable(data: [UInt8]($0 as Data), unitsPerEm: units) })
+    }
+
+    /// An uncached font with independently supplied MATH data.
+    init(base: CTFont, table: MathTable?) {
         self.base = base
         unitsPerEm = CGFloat(CTFontGetUnitsPerEm(base))
-        if let data = CTFontCopyTable(base, CTFontTableTag(kCTFontTableMATH), []) {
-            table = MathTable(data: [UInt8](data as Data), unitsPerEm: unitsPerEm)
-        } else { table = nil }
+        self.table = table
     }
 
     private static let cacheLock = NSLock()

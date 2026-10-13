@@ -31,6 +31,8 @@ declarations in any encoding, so no entity expands and nothing external loads; i
   `alt` are spoken as written. A stack's reading gives its rows, carries and lines in order,
   not their column positions.
 - Cell spans in `mtable` are ignored, and rows align on their baselines only.
-- No kerning from the font's MathKernInfo.
+- MathKernInfo script kerning applies to pairs of single, unpositioned glyphs of the math font.
+  Compound expressions, font fallback runs and glyph assemblies use zero corner kerning.
+  Device and variation corrections in MATH value records are ignored.
 
 [Documentation index](../README.md#documentation)

@@ -188,7 +188,8 @@ extension LayoutEngine {
 
     /// Places sub- and superscript pairs after (and before) a base. Shifts follow MathML Core
     /// 3.4.3, which is TeX's rule 18 in OpenType terms. A base's width includes its italic
-    /// correction, so subscripts tuck under by that much and superscripts do not.
+    /// correction, so subscripts tuck under by that much and superscripts do not. Single-glyph
+    /// pairs additionally use the font's height-dependent OpenType MATH corner kerning.
     func attachScripts(_ base: MathBox, post: [(MathBox?, MathBox?)], pre: [(MathBox?, MathBox?)],
                        _ context: LayoutContext) -> MathBox {
         let pairs = post + pre
@@ -238,18 +239,25 @@ extension LayoutEngine {
                 ascent = max(ascent, superShift + sup.ascent); descent = max(descent, sup.descent - superShift)
             }
         }
-        for (sub, sup) in pre {
-            let width = max(sub?.width ?? 0, sup?.width ?? 0)
-            place(sub, sup, subX: x + width - (sub?.width ?? 0), supX: x + width - (sup?.width ?? 0))
+        for (index, (sub, sup)) in pre.enumerated() {
+            let adjacent = index == pre.count - 1
+            let subKern = adjacent ? sub.map { scriptKern(base, $0, shift: -subShift, upper: false, before: true) } ?? 0 : 0
+            let supKern = adjacent ? sup.map { scriptKern(base, $0, shift: superShift, upper: true, before: true) } ?? 0 : 0
+            let width = max(0, (sub?.width ?? 0) + subKern, (sup?.width ?? 0) + supKern)
+            place(sub, sup, subX: x + width - (sub?.width ?? 0) - subKern,
+                  supX: x + width - (sup?.width ?? 0) - supKern)
             x += width + space
         }
         box.add(base, at: CGPoint(x: x, y: 0))
         if breaks { parts.append(BreakableRow.Child(box: base, x: x, isAttached: !parts.isEmpty)) }
         x += base.width
         for (index, (sub, sup)) in post.enumerated() {
-            let subX = x - (index == 0 ? base.italicCorrection : 0)
-            place(sub, sup, subX: subX, supX: x)
-            x = max(x, subX + (sub?.width ?? 0), x + (sup?.width ?? 0)) + space
+            let subKern = index == 0 ? sub.map { scriptKern(base, $0, shift: -subShift, upper: false, before: false) } ?? 0 : 0
+            let supKern = index == 0 ? sup.map { scriptKern(base, $0, shift: superShift, upper: true, before: false) } ?? 0 : 0
+            let subX = x - (index == 0 ? base.italicCorrection : 0) + subKern
+            let supX = x + supKern
+            place(sub, sup, subX: subX, supX: supX)
+            x = max(x, subX + (sub?.width ?? 0), supX + (sup?.width ?? 0)) + space
         }
         box.width = x
         box.ascent = ascent
@@ -257,6 +265,28 @@ extension LayoutEngine {
         box.op = base.op
         if breaks { box.row = BreakableRow(children: parts, itemCount: box.items.count, context) }
         return box
+    }
+
+    /// Opposite corners are sampled at the script's touching ink edge and the base's ink edge.
+    /// Only an unmodified, single glyph of this math font supplies a corner. Compound boxes
+    /// and positioned/assembled glyphs retain the existing zero-kern placement.
+    func scriptKern(_ base: MathBox, _ script: MathBox, shift: CGFloat, upper: Bool, before: Bool) -> CGFloat {
+        guard let table = font.table,
+              let baseGlyph = singleGlyph(base), let scriptGlyph = singleGlyph(script),
+              case .glyphs(let baseRun) = base.items[0], case .glyphs(let scriptRun) = script.items[0],
+              baseRun.positions == [.zero], scriptRun.positions == [.zero],
+              !baseRun.ink.isNull, !scriptRun.ink.isNull else { return 0 }
+        let baseSize = CTFontGetSize(baseRun.font), scriptSize = CTFontGetSize(scriptRun.font)
+        guard baseSize > 0, scriptSize > 0 else { return 0 }
+        let baseCorner: MathKernCorner = upper ? (before ? .topLeft : .topRight) : (before ? .bottomLeft : .bottomRight)
+        let scriptCorner: MathKernCorner = upper ? (before ? .bottomRight : .bottomLeft) : (before ? .topRight : .topLeft)
+        let scriptEdge = upper ? scriptRun.ink.minY : scriptRun.ink.maxY
+        let baseEdge = upper ? baseRun.ink.maxY : baseRun.ink.minY
+        func sum(at height: CGFloat) -> CGFloat {
+            font.points(table.kern(baseGlyph, corner: baseCorner, height: height * font.unitsPerEm / baseSize), size: baseSize)
+                + font.points(table.kern(scriptGlyph, corner: scriptCorner, height: (height - shift) * font.unitsPerEm / scriptSize), size: scriptSize)
+        }
+        return min(sum(at: shift + scriptEdge), sum(at: baseEdge))
     }
 
     // MARK: Under and over
