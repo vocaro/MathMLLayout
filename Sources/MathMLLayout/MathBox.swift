@@ -20,6 +20,10 @@ struct MathBox {
     var fenceLayout: FenceLayout?
     /// Hidden drawing still retains its geometry and row structure for line breaking.
     var isPhantom = false
+    /// Logical text and atomic image pieces, retained only while a token can wrap.
+    var textSegments: [TextSegment]?
+    /// Decorated whitespace before a word, drawn only when it follows another word on a row.
+    var leadingTextSpace: [TextSegment]?
     var items: [MathItem] = []
 
     var height: CGFloat { ascent + descent }
@@ -38,6 +42,8 @@ struct MathBox {
         // What is drawn keeps no row structure: that is for whoever may still break the row.
         var box = box
         box.row = nil
+        box.textSegments = nil
+        box.leadingTextSpace = nil
         items.append(.box(box, at: point))
     }
 
@@ -146,4 +152,11 @@ enum MathItem {
     /// shape with none of its own: its token's, as for the text beside it.
     case image(CGImage, CGRect, CGColor)
     case box(MathBox, at: CGPoint)
+}
+
+/// One shaped piece in source order. Only an ordinary normalized space permits a break.
+struct TextSegment {
+    var box: MathBox
+    var x: CGFloat
+    var isSpace: Bool
 }

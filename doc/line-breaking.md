@@ -11,7 +11,9 @@ See [LineBreaking.swift](examples/LineBreaking.swift) for the complete Swift exa
   argument. Separators break after; other operators start the next row and keep their spacing.
 - **How deep.** Inside nested `mrow`, `mstyle` and `mfenced`, and inside the base of a script. A
   bracket pair split across rows keeps one size; a pair wholly on one row shrinks to that row's
-  content after the breaks are chosen. Long `mtext` wraps at its spaces. A table wider
+  content after the breaks are chosen. Long `mtext` wraps at ordinary spaces, including around
+  inline images and within decorated `alt` fallbacks. Images remain whole; no-break spaces
+  keep their neighbors together, and each fallback word keeps its local background. A table wider
   than the line narrows its columns and wraps its cells; fraction parts, radicands and
   `menclose` contents wrap the same way. Default `mpadded` and `mphantom` also flow across
   rows; phantoms keep the visible content's spacing while drawing nothing. `merror` contents

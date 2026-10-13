@@ -25,8 +25,9 @@ declarations in any encoding, so no entity expands and nothing external loads; i
   their whole base; movable limits rendered as side scripts follow the existing side-script
   policy. No breaks inside script annotations, between adjacent identifiers or inside a number.
   `indenttarget` must name a child of a row being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
-  a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
-  drawn on a `mathbackground` of its own does not wrap.
+  a table cell does not narrow, and `mtext` with a right-to-left run does not wrap.
+  Text with inline images or decorated `alt` fallbacks breaks at ordinary spaces; images and
+  segments joined by no-break spaces stay whole.
   `overflow` and `maxwidth` on `math` are not read:
   the host decides by the `maximumWidth` it passes.
 - **`mglyph`.** MathML 2's `fontfamily` and `index` glyphs have no image and show their `alt`.

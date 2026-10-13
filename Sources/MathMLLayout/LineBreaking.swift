@@ -249,69 +249,38 @@ extension LayoutEngine {
         return BreakPoint(kind: .none, linebreak: style.linebreak, style: style)
     }
 
-    /// An `mtext`'s box as a row of its words, so that a line can break at its spaces; nil when it
-    /// has fewer than two words or is not plain left-to-right text. The words are the box's own
-    /// glyphs, cut at the space glyphs, so together they measure what the text does. A no-break
-    /// space is no space glyph and keeps its words together.
+    /// An `mtext`'s logical text/image pieces grouped at eligible spaces. An image is atomic,
+    /// and a decorated fallback retains its shaped glyphs and local background on every word.
     private func words(_ box: MathBox, _ context: LayoutContext) -> BreakableRow? {
-        guard context.lines.linebreak != .nobreak else { return nil }
-        var runs: [(run: GlyphRun, space: CGGlyph)] = []
-        var hasSpace = false
-        for item in box.items {
-            guard case .glyphs(let run) = item else { return nil }
-            var character: UniChar = 0x20
-            var space: CGGlyph = 0
-            if !CTFontGetGlyphsForCharacters(run.font, &character, &space, 1) { space = 0 }
-            hasSpace = hasSpace || space != 0 && run.glyphs.contains(space)
-            runs.append((run, space))
-        }
-        guard hasSpace else { return nil }
+        guard context.lines.linebreak != .nobreak, let segments = box.textSegments,
+              // A token's own background still makes it an indivisible box.
+              !box.items.contains(where: { if case .rect = $0 { return true }; return false }) else { return nil }
         let point = BreakPoint(kind: .space, linebreak: .auto, style: context.lines)
         var children: [BreakableRow.Child] = []
-        var word = MathBox(), ink: CGRect?
-        var start: CGFloat?, edge = -CGFloat.infinity
-        var spaced = false
+        var word = MathBox(), start: CGFloat?, spaced = false
+        var spaces: [TextSegment] = []
         func close(at end: CGFloat) {
             guard let x = start else { return }
             word.width = end - x
+            let ink = word.inkBounds
             word.ascent = ink?.maxY ?? 0
             word.descent = ink.map { -$0.minY } ?? 0
             children.append(BreakableRow.Child(box: word, x: x, point: spaced && !children.isEmpty ? point : nil))
-            word = MathBox(); ink = nil; start = nil; spaced = false
+            word = MathBox(); start = nil; spaced = false
         }
-        for (run, space) in runs {
-            var index = 0
-            while index < run.glyphs.count {
-                // Glyphs that do not advance left to right are not words in a row: leave the text whole.
-                guard run.positions[index].x >= edge - 0.01 else { return nil }
-                edge = run.positions[index].x
-                if space != 0, run.glyphs[index] == space {
-                    close(at: edge)
-                    spaced = true
-                    index += 1
-                    continue
+        for segment in segments {
+            if segment.isSpace {
+                close(at: segment.x)
+                spaced = true
+                if segment.box.inkBounds != nil { spaces.append(segment) }
+            } else {
+                let x = start ?? segment.x
+                if start == nil, !spaces.isEmpty {
+                    word.leadingTextSpace = spaces.map { TextSegment(box: $0.box, x: $0.x - x, isSpace: true) }
+                    spaces = []
                 }
-                var end = index + 1
-                while end < run.glyphs.count, space == 0 || run.glyphs[end] != space {
-                    guard run.positions[end].x >= edge - 0.01 else { return nil }
-                    edge = run.positions[end].x
-                    end += 1
-                }
-                let x = start ?? run.positions[index].x
                 start = x
-                let glyphs = Array(run.glyphs[index..<end])
-                let positions = run.positions[index..<end].map { CGPoint(x: $0.x - x, y: $0.y) }
-                var rects = [CGRect](repeating: .zero, count: glyphs.count)
-                CTFontGetBoundingRectsForGlyphs(run.font, .horizontal, glyphs, &rects, glyphs.count)
-                var runInk: CGRect?
-                for (rect, position) in zip(rects, positions) where !rect.isEmpty {
-                    let placed = rect.offsetBy(dx: position.x, dy: position.y)
-                    runInk = runInk.map { $0.union(placed) } ?? placed
-                }
-                if let runInk { ink = ink.map { $0.union(runInk) } ?? runInk }
-                word.items.append(.glyphs(GlyphRun(font: run.font, glyphs: glyphs, positions: positions, color: run.color,
-                                                   ink: runInk ?? .null)))
-                index = end
+                word.add(segment.box, at: CGPoint(x: segment.x - x, y: 0))
             }
         }
         close(at: box.width)
@@ -1114,6 +1083,11 @@ struct Paragraph {
                 child = resized
                 child.isPhantom = unit.box.isPhantom
                 childInk = resized.spacingInkBounds
+            }
+            if index > first, let spaces = child.leadingTextSpace {
+                for space in spaces {
+                    add(space.box, space.box.inkBounds, at: unit.x + shift + delta + space.x)
+                }
             }
             add(child, childInk, at: unit.x + shift + delta)
             delta += child.width - unit.box.width
