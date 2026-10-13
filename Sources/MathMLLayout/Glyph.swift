@@ -142,7 +142,8 @@ extension LayoutEngine {
     /// So this `alt` is a box of its own among the token's text, where any other is part of that
     /// text. It is drawn as that text is, in the token's variant, size and colour.
     private func altBox(_ alt: String, on background: CGColor, _ context: LayoutContext) -> MathBox {
-        var box = textBox(context.variant?.apply(to: alt) ?? alt, context, retainSegments: true)
+        let shown = context.variant?.apply(to: alt) ?? alt
+        var box = textBox(shown, context, retainSegments: true)
         if let segments = box.textSegments {
             box.textSegments = segments.map { segment in
                 var piece = segment
@@ -152,6 +153,10 @@ extension LayoutEngine {
             }
         }
         box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), background), at: 0)
+        let decoration = LogicalTextDecoration(color: background, ascent: box.ascent, descent: box.descent)
+        let source = LogicalTextSource(attributedText(shown, context), color: context.color, work: textWork,
+                                       decoration: decoration)
+        box.textSlice = LogicalTextSlice(source: source, range: 0..<shown.utf16.count)
         return box
     }
 
@@ -164,6 +169,20 @@ extension LayoutEngine {
         let image = imageProvider.resolvedImage(source)
         imageCache.updateValue(image, forKey: source)
         return image
+    }
+
+    /// Explicit renderer direction wins for a complete token. Source direction is used
+    /// only for a single image with no operator text; `alt` never participates.
+    func imageOperatorDirection(_ token: MathMLNode) -> MathImageStretchDirection? {
+        guard Self.hasGlyph(token) else { return nil }
+        if let attribute = token.attributes["imagestretchdirection"],
+           let direction = MathImageStretchDirection(rawValue: attribute.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) {
+            return direction
+        }
+        guard operatorText(token).isEmpty else { return nil }
+        let glyphs = token.children.filter { $0.name == "mglyph" }
+        guard glyphs.count == 1 else { return nil }
+        return image(of: glyphs[0])?.stretchDirection
     }
 
     /// MathML 2, 3.2.9: an index is a glyph ID in the named font, never a Unicode scalar.
@@ -238,12 +257,22 @@ extension LayoutEngine {
             width = width == longer ? MathLimits.extent : width / longer * MathLimits.extent
             height = height == longer ? MathLimits.extent : height / longer * MathLimits.extent
         }
+        let correctionRatio = (resolved.italicCorrection ?? 0) / natural.width
+        if width * (1 + correctionRatio) > MathLimits.extent {
+            let factor = MathLimits.extent / (width * (1 + correctionRatio))
+            width *= factor; height *= factor
+        }
         // A percentage or a multiple of `valign`'s default, 0ex, is zero. Resolved with nothing to be
         // a percentage of it is no length at all, which comes to the same.
         let raise = min(max(length(glyph.attributes["valign"], context) ?? 0, -MathLimits.extent),
                         MathLimits.extent - height)
         let rect = CGRect(x: 0, y: raise, width: width, height: height)
         var box = MathBox(width: width, ascent: height + raise, descent: -raise)
+        // Ratios are formed before multiplication so even enormous finite intrinsic sizes
+        // produce finite, bounded coordinates. These describe physical image coordinates.
+        box.italicCorrection = correctionRatio * width
+        box.width += box.italicCorrection
+        box.topAccentAttachment = resolved.topAccentAttachment.map { $0 / natural.width * width }
         if let background = glyph.attributes["mathbackground"].flatMap(MathColor.parse) {
             box.items.append(.rect(rect, background))
         }
@@ -334,6 +363,12 @@ extension LayoutEngine {
 
     /// Text with an image, or an `alt` on its background, at each marker, side by side on the baseline.
     func textBox(_ text: String, images: [MathBox], _ context: LayoutContext, retainSegments: Bool = false) -> MathBox {
+        if retainSegments && (!Self.hasSimpleLTRWordBoundaries(Self.unmarked(text), direction: context.direction)
+            || images.contains(where: {
+                $0.textSlice.map { !Self.hasSimpleLTRWordBoundaries($0.source.string, direction: context.direction) } ?? false
+            })) {
+            return logicalAttachmentBox(text, images: images, context)
+        }
         var parts: [MathBox] = []
         var remaining = images[...]
         let runs = text.unicodeScalars.split(separator: Self.glyphMarker, omittingEmptySubsequences: false)
@@ -344,6 +379,10 @@ extension LayoutEngine {
         // An image of no size, or no text between two images, has no extents to count.
         parts.removeAll { $0.width == 0 && $0.items.isEmpty }
         var box = MathBox(ascent: parts.map(\.ascent).max() ?? 0, descent: parts.map(\.descent).max() ?? 0)
+        if parts.count == 1 {
+            box.italicCorrection = parts[0].italicCorrection
+            box.topAccentAttachment = parts[0].topAccentAttachment
+        }
         var segments: [TextSegment] = []
         for part in parts {
             if retainSegments {
@@ -356,12 +395,58 @@ extension LayoutEngine {
             box.add(part, at: CGPoint(x: box.width, y: 0))
             box.width += part.width
         }
-        // An unsegmentable textual part (currently RTL) keeps the whole token atomic.
+        // Unrecoverable origins in the retained simple-text fast path remain atomic.
         // Actual images have no text metadata and are still eligible atomic pieces.
         let hasUnsegmentableText = parts.contains { part in
             part.textSegments == nil && part.items.contains { if case .glyphs = $0 { return true }; return false }
         }
         if retainSegments, !hasUnsegmentableText { box.textSegments = segments }
+        return box
+    }
+
+    /// Shape text, objects and local fallback backgrounds as one logical paragraph. Images
+    /// contribute their exact advance and baseline metrics through CoreText run delegates.
+    private func logicalAttachmentBox(_ text: String, images: [MathBox], _ context: LayoutContext) -> MathBox {
+        var expanded = String.UnicodeScalarView(), offsets = [0], image = 0
+        var attachments: [(Int, MathBox)] = []
+        var decorations: [(Range<Int>, LogicalTextDecoration)] = []
+        var count = 0
+        for scalar in text.unicodeScalars {
+            if scalar == Self.glyphMarker, image < images.count {
+                let box = images[image]; image += 1
+                if let fallback = box.textSlice, let decoration = fallback.source.decoration {
+                    expanded.append(contentsOf: fallback.source.string.unicodeScalars)
+                    let end = count + fallback.source.string.utf16.count
+                    decorations.append((count..<end, decoration))
+                    count = end
+                } else {
+                    attachments.append((count, box))
+                    expanded.append(scalar); count += 1
+                }
+                offsets.append(count)
+            } else {
+                expanded.append(scalar)
+                for _ in 0..<scalar.utf16.count { count += 1; offsets.append(count) }
+            }
+        }
+        let string = String(expanded)
+        let attributed = CFAttributedStringCreateMutableCopy(nil, 0, attributedText(string, context))!
+        for (offset, box) in attachments {
+            CFAttributedStringSetAttribute(attributed, CFRange(location: offset, length: 1),
+                                           kCTRunDelegateAttributeName, LogicalTextAttachment.delegate(box))
+        }
+        for (range, decoration) in decorations {
+            CFAttributedStringSetAttribute(attributed, CFRange(location: range.lowerBound, length: range.count),
+                                           LogicalTextDecoration.key as CFString, decoration)
+        }
+        let source = LogicalTextSource(attributed, color: context.color, work: textWork,
+                                       trackAlignment: context.trackAlignment, hasAttachments: true, inputOffsets: offsets)
+        var box = source.box(0..<count)
+        if count == 1, attachments.count == 1 {
+            box.italicCorrection = attachments[0].1.italicCorrection
+            box.topAccentAttachment = attachments[0].1.topAccentAttachment
+        }
+        box.textSlice = LogicalTextSlice(source: source, range: 0..<count)
         return box
     }
 }

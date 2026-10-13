@@ -322,8 +322,8 @@ extension LayoutEngine {
         let scriptEdge = upper ? scriptRun.ink.minY : scriptRun.ink.maxY
         let baseEdge = upper ? baseRun.ink.maxY : baseRun.ink.minY
         func sum(at height: CGFloat) -> CGFloat {
-            font.points(table.kern(baseGlyph, corner: baseCorner, height: height * font.unitsPerEm / baseSize), size: baseSize)
-                + font.points(table.kern(scriptGlyph, corner: scriptCorner, height: (height - shift) * font.unitsPerEm / scriptSize), size: scriptSize)
+            font.points(table.kern(baseGlyph, corner: baseCorner, height: height * font.unitsPerEm / baseSize, size: baseSize), size: baseSize)
+                + font.points(table.kern(scriptGlyph, corner: scriptCorner, height: (height - shift) * font.unitsPerEm / scriptSize, size: scriptSize), size: scriptSize)
         }
         return min(sum(at: shift + scriptEdge), sum(at: baseEdge))
     }
@@ -365,10 +365,39 @@ extension LayoutEngine {
             guard let child = nodes[index] else { continue }
             var stretch = Embellishment(form: index == 0 ? embellishment.form : nil)
             stretch.stretch = widest.map { .horizontal(width: $0) } ?? (index == 0 ? embellishment.stretch : nil)
+            if index == 0, case .horizontal(let inherited) = embellishment.stretch {
+                stretch.stretch = .horizontal(width: max(widest ?? 0, inherited))
+            }
             boxes[index] = try layout(child, contexts[index], stretch, depth: depth + 1)
         }
-        return assembleUnderOver(boxes, context, coreFlags: plan.coreFlags, stretchy: stretchy,
-                                 accent: plan.accent, accentUnder: plan.accentUnder)
+        if nodes[0]?.name == "mtext", let base = boxes[0], base.row == nil {
+            boxes[0]?.row = words(base, contexts[0])
+        }
+        var result = assembleUnderOver(boxes, context, coreFlags: plan.coreFlags, stretchy: stretchy,
+                                       accent: plan.accent, accentUnder: plan.accentUnder)
+        // A row base may fragment. Each fragment carries its annotations, with stretchy
+        // annotations resized to that fragment; operator bases retain their atomic limits.
+        if let base = boxes[0], base.row != nil, base.op == nil {
+            let retained = boxes
+            let rebuildEngine = fragmentRebuildEngine()
+            let baseX = (result.width - base.width) / 2
+            retainWrapperFragments(&result, content: base, leading: baseX, context: context,
+                                   contentOffset: { content, rebuilt in (rebuilt.width - content.width) / 2 }) { content in
+                var parts = retained
+                parts[0] = content
+                for index in 1..<3 where stretchy[index] {
+                    guard let child = nodes[index] else { continue }
+                    do {
+                        parts[index] = try rebuildEngine.layout(child, contexts[index], Embellishment(stretch: .horizontal(width: content.width)), depth: depth + 1)
+                    } catch {
+                        return .empty(width: MathLimits.extent + 1)
+                    }
+                }
+                return rebuildEngine.assembleUnderOver(parts, context, coreFlags: plan.coreFlags, stretchy: stretchy,
+                                         accent: plan.accent, accentUnder: plan.accentUnder)
+            }
+        }
+        return result
     }
 
     private final class UnderOverPlan {
@@ -477,6 +506,7 @@ extension LayoutEngine {
         box.descent = descent
         box.op = base.op
         if boxes[1] == nil, !isLimits { box.italicCorrection = base.italicCorrection }
+        box.topAccentAttachment = base.topAccentAttachment.map { baseX - minX + $0 }
         return box
     }
 
@@ -488,12 +518,16 @@ extension LayoutEngine {
     func padded(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment,
                 depth: Int, singleChild: MathBox? = nil) throws -> MathBox {
         let content = try row(node.children, context, embellishment, depth: depth, singleChild: singleChild)
-        // Default padding is an inferred row, including its spacing and break opportunities.
-        // Explicit dimensions/offsets remain atomic: their interaction with fragmentation is
-        // unspecified by MathML 3, 3.3.6.3.
+        // Default padding is an inferred row. Explicit lengths are resolved separately
+        // against each retained fragment's content dimensions.
         if !["width", "height", "depth", "lspace", "voffset"].contains(where: { node.attributes[$0] != nil }) {
             return content
         }
+        return paddedFragment(content, node: node, context: context, retainsFragments: true)
+    }
+
+    private func paddedFragment(_ content: MathBox, node: MathMLNode, context: LayoutContext,
+                                retainsFragments: Bool = false) -> MathBox {
         let dimensions = (width: content.width, height: content.ascent, depth: content.descent)
         func resolve(_ name: String, _ current: CGFloat, reference: CGFloat, nonNegative: Bool = false) -> CGFloat {
             guard let attribute = node.attributes[name], let length = MathLength(attribute),
@@ -508,7 +542,29 @@ extension LayoutEngine {
         box.add(content, at: CGPoint(x: schemaX(resolve("lspace", 0, reference: content.width), content.width, box.width, context),
                                      y: resolve("voffset", 0, reference: content.ascent)))
         box.op = content.op
+        if retainsFragments {
+            let rebuildEngine = fragmentRebuildEngine()
+            retainWrapperFragments(&box, content: content, leading: resolve("lspace", 0, reference: content.width), context: context, contentOffset: { content, _ in
+                guard let attribute = node.attributes["lspace"], let length = MathLength(attribute) else { return 0 }
+                return length.resolve(em: context.fontSize, ex: rebuildEngine.xHeight(context), reference: content.width,
+                                      content: (width: content.width, height: content.ascent, depth: content.descent)) ?? 0
+            }) { fragment in
+                rebuildEngine.paddedFragment(fragment, node: node, context: context)
+            }
+        }
         return box
+    }
+
+    /// Exposes only the content's row to host breaking. Decoration and metric changes are
+    /// rebuilt after selecting the fragment rather than being discarded by flattening.
+    func retainWrapperFragments(_ result: inout MathBox, content: MathBox, leading: CGFloat,
+                                context: LayoutContext, contentOffset: ((MathBox, MathBox) -> CGFloat)? = nil,
+                                rebuild: @escaping (MathBox) -> MathBox) {
+        guard content.row != nil, content.op == nil else { return }
+        let fragment = RowFragment(leading: leading, trailing: result.width - leading - content.width,
+                                   work: textWork, contentOffset: contentOffset ?? { _, _ in leading }, rebuild: rebuild)
+        result.row = BreakableRow(children: [.init(box: content, x: leading)], itemCount: result.items.count,
+                                  width: result.width, fragment: fragment, context)
     }
 
     // MARK: Enclosures
@@ -615,10 +671,17 @@ extension LayoutEngine {
 
     /// `merror`: its content in a red frame.
     func errorBox(_ node: MathMLNode, _ context: LayoutContext, depth: Int, singleChild: MathBox? = nil) throws -> MathBox {
-        var content = try row(node.children, context, depth: depth, singleChild: singleChild)
+        let content = try row(node.children, context, depth: depth, singleChild: singleChild)
         let stroke = max(value(\.overbarRuleThickness, context), 0.5), pad = context.fontSize * 0.1
-        // Keep one frame around the whole stack rather than dropping error decoration.
-        content = wrapped(content, beside: 2 * pad, align: .left) ?? content
+        var result = errorFragment(content, stroke: stroke, pad: pad)
+        let rebuildEngine = fragmentRebuildEngine()
+        retainWrapperFragments(&result, content: content, leading: pad, context: context) { fragment in
+            rebuildEngine.errorFragment(fragment, stroke: stroke, pad: pad)
+        }
+        return result
+    }
+
+    private func errorFragment(_ content: MathBox, stroke: CGFloat, pad: CGFloat) -> MathBox {
         var box = MathBox(width: content.width + 2 * pad, ascent: content.ascent + pad, descent: content.descent + pad)
         box.add(content, at: CGPoint(x: pad, y: 0))
         let frame = CGRect(x: stroke / 2, y: -box.descent + stroke / 2, width: box.width - stroke, height: box.height - stroke)
@@ -763,18 +826,28 @@ extension LayoutEngine {
         let frameX = frame == "none" ? 0 : (pick(framing, 0).flatMap { length($0, context) } ?? 0.4 * em)
         let frameY = frame == "none" ? 0 : (pick(framing, 1).flatMap { length($0, context) } ?? 0.5 * ex)
         let tableAlign = list("columnalign", in: attributes)
-        let labelGap = length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em
-        let labelWidth = labels.compactMap { $0?.box.width }.max().map { $0 + labelGap } ?? 0
+        let labelGap = max(0, length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em)
+        let side = attributes["side"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "right"
+        let overlaps = side == "leftoverlap" || side == "rightoverlap"
+        let labelWidth = overlaps ? 0 : labels.compactMap { $0?.box.width }.max().map { $0 + labelGap } ?? 0
         // Resolve breaks before measuring group side widths. Every fragment of a source
         // group then moves together, including fragments on later cell lines.
+        var widths: [CGFloat] = []
+        let sizing = tableSizing(node, context, columns: columns, labelGutter: labelWidth)
         let minimum = try wrapCells(&cells, sources: sources, columnAlign: tableAlign, gaps: columnGaps,
                                     fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth,
-                                    scopes: list("alignmentscope", in: attributes), rtl: context.alignmentRTL)
-        let widths = cells.widths(gaps: columnGaps) { _, _, cell in cell.box.width }
+                                    scopes: list("alignmentscope", in: attributes), rtl: context.alignmentRTL,
+                                    sizing: sizing, tracks: &widths)
+        try stretchTableCells(&cells, sources: sources, rowGaps: rowGaps, columnGaps: columnGaps,
+                              widths: widths, allocatedWidths: sizing.isActive ? widths : [])
+        try alignColumns(&cells, scopes: list("alignmentscope", in: attributes), rtl: context.alignmentRTL)
+        let stretchedWidths = cells.widths(equal: sizing.equal, gaps: columnGaps) { _, _, cell in cell.box.width }
+        if columns > 0 { widths = zip(widths, stretchedWidths).map { max($0.0, $0.1) } }
+        if sizing.equal { widths = Array(repeating: widths.max() ?? 0, count: widths.count) }
         var ascents = [CGFloat](repeating: 0, count: cells.rows.count), descents = ascents
         for (rowIndex, row) in cells.rows.enumerated() {
             var tallest: CGFloat = 0
-            for cell in row + (labels[rowIndex].map { [$0] } ?? []) {
+            for cell in row + (overlaps ? [] : labels[rowIndex].map { [$0] } ?? []) {
                 if cell.rowSpan == 1 { tallest = max(tallest, cell.box.height) }
                 guard cell.rowAlign == "baseline" || cell.rowAlign == "axis" else { continue }
                 let shift = cell.rowAlign == "axis" ? rowAxes[rowIndex] - cell.axis : 0
@@ -786,7 +859,7 @@ extension LayoutEngine {
             descents[rowIndex] += extra
         }
         for (rowIndex, row) in cells.rows.enumerated() {
-            for cell in row + (labels[rowIndex].map { [$0] } ?? []) where cell.rowSpan > 1 {
+            for cell in row + (overlaps ? [] : labels[rowIndex].map { [$0] } ?? []) where cell.rowSpan > 1 {
                 let end = rowIndex + cell.rowSpan
                 let anchored = cell.rowAlign == "baseline" || cell.rowAlign == "axis"
                 let shift = cell.rowAlign == "axis" ? rowAxes[rowIndex] - cell.axis : 0
@@ -796,6 +869,14 @@ extension LayoutEngine {
                 let required = anchored ? cell.box.descent - shift : cell.box.height
                 let extra = max(0, required - available) / CGFloat(cell.rowSpan)
                 for row in rowIndex..<end { descents[row] += extra }
+            }
+        }
+
+        if attributes.flag("equalrows") == true {
+            let tallest = zip(ascents, descents).map { $0.0 + $0.1 }.max() ?? 0
+            for row in ascents.indices {
+                let extra = max(0, tallest - ascents[row] - descents[row]) / 2
+                ascents[row] += extra; descents[row] += extra
             }
         }
 
@@ -833,7 +914,7 @@ extension LayoutEngine {
             }
         }
         var box = MathBox()
-        let labelsLeft = attributes["side"]?.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("left") == true
+        let labelsLeft = side.hasPrefix("left")
         let gridX = labelsLeft ? labelWidth : 0
         var columnStarts: [CGFloat] = [], columnEnds: [CGFloat] = []
         var x = gridX + frameX
@@ -875,8 +956,13 @@ extension LayoutEngine {
                 box.add(cell.box, at: CGPoint(x: columnStarts[context.alignmentRTL ? cell.column + cell.columnSpan - 1 : cell.column] + offset, y: cellBaseline(cell, row: rowIndex)))
             }
             if let label = labels[rowIndex] {
-                let labelX = labelsLeft ? 0 : gridX + gridWidth + 2 * frameX + labelGap
-                box.add(label.box, at: CGPoint(x: labelX, y: cellBaseline(label, row: rowIndex)))
+                let labelX = overlaps ? (labelsLeft ? gridX : gridX + gridWidth + 2 * frameX - label.box.width)
+                    : (labelsLeft ? 0 : gridX + gridWidth + 2 * frameX + labelGap)
+                let labelY = overlaps ? (label.rowAlign == "top"
+                    ? top - baselines[rowIndex] + ascents[rowIndex] + labelGap + label.box.descent
+                    : top - baselines[rowIndex + label.rowSpan - 1] - descents[rowIndex + label.rowSpan - 1] - labelGap - label.box.ascent)
+                    : cellBaseline(label, row: rowIndex)
+                box.add(label.box, at: CGPoint(x: labelX, y: labelY))
             }
         }
         // Lines, half-way through the gaps. A stroke reaches half its thickness to either side of its
@@ -961,7 +1047,21 @@ extension LayoutEngine {
         box.width = gridWidth + 2 * frameX + labelWidth
         box.ascent = top
         box.descent = height - top
-        box.tableMinimumWidth = minimum
+        if overlaps, let ink = box.inkBounds {
+            box.ascent = max(box.ascent, ink.maxY)
+            box.descent = max(box.descent, -ink.minY)
+            // A label wider than the main grid is still an unbreakable drawing.
+            if ink.minX < 0 {
+                let shift = -ink.minX
+                let drawing = box
+                box.items = [.box(drawing, at: CGPoint(x: shift, y: 0))]
+                box.width += shift
+                box.width = max(box.width, ink.maxX + shift)
+            } else {
+                box.width = max(box.width, ink.maxX)
+            }
+        }
+        box.tableMinimumWidth = overlaps ? max(minimum, labels.compactMap { $0?.box.width }.max() ?? 0) : minimum
         return box
     }
 }

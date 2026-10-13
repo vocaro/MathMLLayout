@@ -6,6 +6,14 @@ struct TableCellSource {
     let depth: Int
 }
 
+/// Shared across every private rebuild engine in one layout pass. It deliberately owns no
+/// measurements or boxes: retained fragment recipes may keep this budget without keeping a
+/// measurement cache that contains those recipes.
+final class TableRebuildBudget {
+    var nodes = 0
+    var tableWork = 0
+}
+
 /// Cached by retained child-array storage, with attributes and inherited context checked too:
 /// manually constructed trees may reuse the same children in differently styled tables.
 final class TableMeasurements {
@@ -20,8 +28,19 @@ final class TableMeasurements {
         let descendantNodes: Int
     }
     private var kept: [UInt: [Measurement]] = [:]
-    var rebuildNodes = 0
-    var rebuildTableWork = 0
+    let rebuildBudget: TableRebuildBudget
+    var rebuildNodes: Int {
+        get { rebuildBudget.nodes }
+        set { rebuildBudget.nodes = newValue }
+    }
+    var rebuildTableWork: Int {
+        get { rebuildBudget.tableWork }
+        set { rebuildBudget.tableWork = newValue }
+    }
+
+    init(rebuildBudget: TableRebuildBudget = TableRebuildBudget()) {
+        self.rebuildBudget = rebuildBudget
+    }
 
     private func key(_ node: MathMLNode) -> UInt {
         node.children.withUnsafeBufferPointer { UInt(bitPattern: $0.baseAddress) }

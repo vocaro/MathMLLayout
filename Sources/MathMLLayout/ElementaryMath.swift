@@ -552,8 +552,8 @@ extension LayoutEngine {
             case .n, .s: left + (width - box.width) / 2
             }
             let y: CGFloat = switch carry.location {
-            case .nw, .ne: constants.superscriptShiftUp * em
-            case .sw, .se: -constants.subscriptShiftDown * em
+            case .nw, .ne: font.constants(size: em).superscriptShiftUp * em
+            case .sw, .se: -font.constants(size: em).subscriptShiftDown * em
             case .w, .e: (ascent - descent) / 2 - (box.ascent - box.descent) / 2
             case .s: -(max(descent, 0) + 0.1 * em + box.ascent)
             case .n: 0
@@ -713,7 +713,7 @@ extension LayoutEngine {
                 if carry.crossout.contains(.horizontal) {
                     strike(CGPoint(x: frame.minX, y: frame.midY), CGPoint(x: frame.maxX, y: frame.midY))
                 }
-                stack.box.items.append(.path(path, lineWidth: constants.overbarRuleThickness * line.em, color: carry.color,
+                stack.box.items.append(.path(path, lineWidth: font.constants(size: line.em).overbarRuleThickness * line.em, color: carry.color,
                                              fill: false))
             }
             if !drawn.isNull { stack.drawn.append(drawn) }

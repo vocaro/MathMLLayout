@@ -220,20 +220,27 @@ final class WorkerWrappingIntegrationTests: MathTestCase {
         XCTAssertNotNil(transparent.row)
         XCTAssertEqual(Paragraph(transparent, fontSize: 12).units.count, 3)
         let explicit = try box(MathMLNode(name: "mpadded", attributes: ["width": "+1px"], children: [words]))
-        XCTAssertNil(explicit.row)
-        XCTAssertEqual(Paragraph(explicit, fontSize: 12).units.count, 1)
+        XCTAssertNotNil(explicit.row?.fragment)
+        XCTAssertEqual(Paragraph(explicit, fontSize: 12).units.count, 3)
     }
 
-    func testPhantomBackgroundKeepsOpaqueAnchorMetadata() throws {
+    func testPhantomBackgroundRetainsFragmentableHiddenChildrenAndAnchors() throws {
         let children = [MathMLNode(name: "mi", attributes: ["id": "left"], text: "x"),
                         MathMLNode(name: "mi", attributes: ["id": "right"], text: "y")]
-        // Two original items and two rebuilt items used to collide, making the background
-        // falsely flattenable. A dedicated opaque row keeps the child anchors and stays atomic.
+        // A background recipe retains hidden children for host-row fragmentation and ID
+        // lookup, while the background itself remains visible.
         let decorated = try box(MathMLNode(name: "mphantom", attributes: ["mathbackground": "red"], children: children))
         let row = try XCTUnwrap(decorated.row)
-        XCTAssertEqual(row.itemCount, -1)
-        XCTAssertEqual(row.children.map(\.id), ["left", "right"])
-        XCTAssertEqual(Paragraph(decorated, fontSize: 12).units.count, 1)
+        XCTAssertEqual(row.itemCount, decorated.items.count)
+        XCTAssertNotNil(row.fragment)
+        let content = try XCTUnwrap(row.children.first?.box.row)
+        XCTAssertEqual(content.children.map(\.id), ["left", "right"])
+        let paragraph = Paragraph(decorated, fontSize: 12)
+        XCTAssertEqual(paragraph.units.count, 2)
+        XCTAssertTrue(paragraph.units.allSatisfy { $0.box.isPhantom })
+        var anchorIDs: [String] = []
+        decorated.indentAnchors?.forEach { id, _ in anchorIDs.append(id) }
+        XCTAssertEqual(anchorIDs, ["left", "right"])
         XCTAssertFalse(decorated.isPhantom)
         XCTAssertNotNil(decorated.inkBounds)
     }

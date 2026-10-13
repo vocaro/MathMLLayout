@@ -1,5 +1,6 @@
 import CoreGraphics
 import CoreText
+import Foundation
 @testable import MathMLLayout
 import XCTest
 
@@ -124,8 +125,10 @@ final class InlineImageWrappingTests: MathTestCase {
             // When several fallback words share a row, the space keeps its background too.
             let pairWidth = try layout("<mtext>office café</mtext>").width
             let partial = try lines(body, width: pairWidth + 0.01, provider: provider)
-            let pair = try XCTUnwrap(partial.rows.first { backgrounds($0.box).count >= 3 })
+            let pair = try XCTUnwrap(partial.rows.first { abs($0.box.width - pairWidth) < 0.02 })
             let fills = backgrounds(pair.box).sorted { $0.minX < $1.minX }
+            XCTAssertFalse(fills.isEmpty)
+            XCTAssertEqual(fills.last!.maxX - fills.first!.minX, pairWidth, accuracy: 0.01)
             for index in 1..<fills.count { XCTAssertEqual(fills[index - 1].maxX, fills[index].minX, accuracy: 0.001) }
             assertContained(partial)
         }
@@ -154,7 +157,7 @@ final class InlineImageWrappingTests: MathTestCase {
         assertContained(result)
     }
 
-    func testRightToLeftFallbackKeepsTheWholeTokenUnbroken() throws {
+    func testRightToLeftFallbackWrapsInLogicalWordOrder() throws {
         let icon = image(), provider = MathImageProvider { _ in icon }
         for background in ["", " mathbackground=\"yellow\""] {
             let body = "<mtext>before words <mglyph src=\"icon\" alt=\"אבג דהו\"\(background)/> after words</mtext>"
@@ -166,7 +169,7 @@ final class InlineImageWrappingTests: MathTestCase {
                     XCTAssertEqual(actual.box.width, expected.box.width, accuracy: 0.001)
                     assertShaping(actual.box, matches: expected.box)
                 }
-            } else { XCTAssertEqual(try lines(body).rows.count, 1) }
+            } else { XCTAssertEqual(try lines(body).rows.count, 6) }
             // When the provider supplies the image, an undisplayed RTL alt does not block wrapping.
             XCTAssertEqual(try lines(body, provider: provider).rows.count, 5)
         }
@@ -182,7 +185,9 @@ final class InlineImageWrappingTests: MathTestCase {
         let body = "<mtext>first&#xA0;<mglyph src=\"icon\"/> last words</mtext>"
         XCTAssertEqual(try lines(body, provider: provider).rows.count, 3)
         XCTAssertEqual(try lines("<mstyle linebreak=\"nobreak\">\(body)</mstyle>", provider: provider).rows.count, 1)
-        XCTAssertEqual(try lines("<mtext mathbackground=\"yellow\">first <mglyph src=\"icon\"/> last</mtext>", provider: provider).rows.count, 1)
+        let decorated = try lines("<mtext mathbackground=\"yellow\">first <mglyph src=\"icon\"/> last</mtext>", provider: provider)
+        XCTAssertEqual(decorated.rows.count, 3)
+        XCTAssertTrue(decorated.rows.allSatisfy { backgrounds($0.box).count == 1 })
         let unbreakable = try lines("<mtext>first<mglyph src=\"icon\"/>last</mtext>", provider: provider)
         XCTAssertEqual(unbreakable.rows.count, 1)
         XCTAssertEqual(unbreakable.widestUnbreakable, unbreakable.rows[0].box.width, accuracy: 0.01)
@@ -245,6 +250,37 @@ final class InlineImageWrappingTests: MathTestCase {
         XCTAssertEqual(actual.rows[1].origin.x, 20, accuracy: 0.001)
         XCTAssertLessThanOrEqual(actual.layoutPasses, LayoutEngine.maximumWrappingPasses)
         assertContained(actual)
+    }
+
+    func testMixedRTLAttachmentsRepeatAndDrawByRowWithinInkBounds() throws {
+        let icon = image(), provider = MathImageProvider { source in source == "icon" ? icon : nil }
+        var root = try node("<mstyle><mrow><mtext dir='rtl'> אב <mglyph src='missing' alt='بت تب' mathbackground='yellow'/> <mglyph src='icon' width='23px' height='13px' valign='-4px'/> גד </mtext></mrow></mstyle><mo linebreak='newline'>+</mo><mi>b</mi>")
+        root.attributes["dir"] = "rtl"
+        root.attributes["maxwidth"] = "20px"
+        let style = MathStyle(fontSize: 20, color: black, imageProvider: provider)
+        let first = try MathLayout(root, style: style, maximumWidth: 150)
+        let repeated = try MathLayout(root, style: style, maximumWidth: 150)
+        XCTAssertGreaterThan(first.rows.count, 4)
+        XCTAssertEqual(first.width, repeated.width)
+        XCTAssertEqual(first.rows.map(\.origin), repeated.rows.map(\.origin))
+        assertBoxCoversInk(first, "mixed RTL attachments")
+        func pixels(_ layout: MathLayout, separate: Bool) -> Data {
+            let bitmap = CGContext(data: nil, width: 400, height: 600, bitsPerComponent: 8, bytesPerRow: 1600,
+                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            let baseline = CGPoint(x: 20, y: 560)
+            if separate {
+                for row in layout.rows {
+                    row.draw(in: bitmap, baselineOrigin: CGPoint(x: baseline.x + row.origin.x, y: baseline.y + row.origin.y))
+                }
+            } else { layout.draw(in: bitmap, baselineOrigin: baseline) }
+            return Data(bytes: bitmap.data!, count: 1600 * 600)
+        }
+        XCTAssertEqual(pixels(first, separate: false), pixels(first, separate: true))
+        XCTAssertEqual(pixels(first, separate: false), pixels(repeated, separate: false))
+        root.attributes.removeValue(forKey: "maxwidth")
+        let retry = try MathLayout(root, style: style, maximumWidth: first.widestUnbreakableWidth)
+        XCTAssertLessThanOrEqual(retry.width, first.widestUnbreakableWidth + 0.001)
     }
 
 }

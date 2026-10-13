@@ -26,3 +26,13 @@ embedded numbers, RLO/PDF, LRI/PDI, NBSP and narrow NBSP, fallback-font ink cont
 formula neighbours, author paragraph-edge spaces, numeric parentheses in an inherited RTL
 stack, and consistency of the reported minimum wrapping width. System fallback
 font shapes are deliberately not used as a glyph-ID oracle.
+
+Mixed-token cases also give inline images known widths and baseline offsets. For the RTL
+line `אב [13-point image] גד`, the two 20-point Hebrew words and two 5-point spaces produce
+a 63-point line; its image occupies x = 25 through 38, between the reversed visual words.
+Adjacent 11-point and 17-point images appear physically in reverse order under RTL while
+keeping their logical source ownership. Tests cover decorated Arabic fallbacks, explicit
+LTR token overrides, RLO across an image line, authored edge spaces and image offsets above
+and below the baseline. Separate integration tests compare repeated layouts and complete
+versus per-row bitmap drawing, verify wrapped token marks, and retry the reported minimum
+after removing a smaller authored cap.

@@ -1,7 +1,7 @@
 # Bounds and limitations
 
 For the latest measured results and platform details, see
-[0.3.0 release verification](testing.md#030-release-verification).
+[unreleased layout enhancement verification](testing.md#unreleased-layout-enhancement-verification).
 
 ## Bounds
 
@@ -17,12 +17,15 @@ Width fitting permits at most 1,114 complete layout passes. Within each pass, ta
 most 20,000 occupied grid slots apiece; initial table construction shares 200,000 occupancy
 probes/label-span row visits. Valid spans above 20,000, excessive occupied area or exhausted
 work throw `MathLayoutError.limitExceeded`; malformed/zero spans use one, and row spans stop
-at the last source row. Cell rebuilds share separate limits of 1,280,000 node visits and
-200,000 table-work visits per pass; cached tables charge their original descendant count and
-measured grid work.
+at the last source row. Cell, wrapper-fragment and retained-fence rebuilds share separate limits
+of 1,280,000 node visits and 200,000 table-work visits per pass; cached tables charge their
+original descendant count and measured grid work. Private recipe engines keep independent
+measurement caches and share only a small counter object, so retaining a recipe does not retain
+its source table cache or create a cache/recipe/engine ownership cycle.
 Logical text range requests and row assembly share 2,000,000 units per pass: requested UTF-16
-range lengths (including cache hits), row units visited, and neighbouring-element fragment
-edges generated for alignment marks, including retained-word candidate assembly in RTL
+range lengths (including cache hits), row units, wrapper reconstruction placements and annotation
+descendants visited, and neighbouring-element fragment edges generated for alignment marks,
+including retained-word candidate assembly in RTL
 paragraphs. This counter does not measure elapsed time or CoreText's internal paragraph
 resolution and shaping cost. Long logical paragraphs can still take substantial time.
 Narrow paragraphs can exhaust the budget before the input limit.
@@ -68,12 +71,15 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
 
 ## Supported behavior
 
-- **Wrapping and widths.** Default `mpadded` and `mphantom` can fragment across host rows;
-  phantom fragments stay invisible. Errors and background-bearing rows wrap internally into
-  one decorated stack. Plain `mtext` wraps at logical U+0020 spaces with full-paragraph bidi
-  context and per-line shaping. Inline images and decorated `alt` break at eligible ordinary
-  spaces, keeping each image and no-break segment whole; undecorated plain `alt` can use logical
-  bidi shaping. Nested tables narrow inside breakable cell rows, retaining unbreakable content
+- **Wrapping and widths.** `mpadded`, `mphantom`, errors and background-bearing rows/tokens
+  can fragment across host rows; phantom fragments stay invisible. Explicit padding lengths
+  resolve against each fragment, and error/background decorations surround each fragment's
+  own content. Eligible under/over bases repeat their attached annotations on each fragment.
+  Plain and mixed-image `mtext` wraps at logical U+0020 spaces with full-paragraph bidi
+  context and per-line shaping. Decorated fallback `alt` participates in that same paragraph,
+  retaining its local background. Each image and no-break segment stays whole; authored edge
+  spaces, direction controls, baseline offsets and token alignment marks survive wrapping.
+  Nested tables narrow inside breakable cell rows, retaining unbreakable content
   and fixed frame/label space. Root `maxwidth` can narrow host line budgets. See
   [Line breaking](line-breaking.md).
 - **Text measurement.** Plain ASCII letters, digits and U+0020 spaces under LTR/natural
@@ -82,8 +88,10 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   and per-line shaping. Formula-only candidate spans use constant-time ink summaries even
   in paragraphs containing logical text. The work budgets above still apply.
 - **Indentation.** `indenttarget` resolves unique descendant IDs on earlier output lines of
-  the same broken paragraph. Unwrapped backgrounds retain descendant anchors. Indexing and
-  final placement are bounded and add no wrapping retries. See [Line breaking](line-breaking.md).
+  the receiving paragraph, including final coordinates exported from independently wrapped
+  rows, decorated wrappers and script arguments. Nested baselines must precede the receiving
+  baseline. Metadata traversal, indexing and final placement are bounded and add no wrapping
+  retries. See [Line breaking](line-breaking.md#indentation-targets).
 - **Direction and elementary math.** Inherited `dir` controls token shaping and structural
   progression in rows, table columns and layout schemata. RTL scripts attach on the left;
   surds/root degrees move right; bevelled fractions and directional enclosures reverse
@@ -92,9 +100,12 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   occupies one logical column, sized to its image or entire fallback. See
   [Directionality](directionality.md) and [Direction and columns](elementary-direction.md).
 - **Tables.** Row and column spans use a bounded sparse grid; overlapping requests advance
-  to a vacant rectangle in source-column order. Labels have independent gutters. Row/cell
+  to a vacant rectangle in source-column order. Ordinary labels have independent gutters;
+  overlap labels use the physical table edges without reserving those gutters. Equal tracks,
+  authored table/column widths and whole-cell operator stretching share the bounded grid pipeline. Row/cell
   vertical alignment uses final cell geometry; a row with only top/bottom/center entries has
-  a midpoint baseline, and labels contribute to row height. LTR and RTL alignment groups and
+  a midpoint baseline, and ordinary labels contribute to row height. Overlap label ink is
+  included in the final bounds. LTR and RTL alignment groups and
   marks survive forced and automatic cell wrapping. Row spans share their column's groups.
   Token marks also align beside inline images, legacy glyphs and fallbacks. Left/right edges
   and label sides remain physical.
@@ -103,11 +114,16 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   markup can override image dimensions. An `mo` containing `mglyph` preserves author sizing
   and baseline by default. Explicit `stretchy="true"`/`largeop="true"` opts into whole-token
   affine stretch/display enlargement; dictionary defaults alone do not alter that geometry.
+  Renderer-specific `imagestretchdirection` or `MathImage.stretchDirection` supports image-only
+  horizontal operators; optional host metrics supply physical italic clearance and top-accent
+  attachment for single-image tokens, scaling with image geometry.
   Legacy font/index glyphs use one installed font's exact PostScript/full/family name and a
   bounded decimal glyph ID. Unsupported inputs use `alt`; `src` presence selects the image
   path even when unresolved. See [Images](images.md) and [Image operators](image-operators.md).
-- **Script kerning.** MathKernInfo applies to pairs of single, unpositioned math-font glyphs,
-  including the physical adjoining corners of RTL scripts. See [Fonts](fonts.md).
+- **Script kerning and MATH adjustments.** MathKernInfo applies to pairs of single,
+  unpositioned math-font glyphs, including the physical adjoining corners of RTL scripts.
+  Supported VariationIndex records use the selected font instance; Device records opt in
+  through a fixed layout-time output scale. See [Fonts](fonts.md).
 - **Speech.** Built-in readings support English, French, German, Spanish and Italian, plus
   a narrow `en-GB` bracket vocabulary. Complete custom languages and regional compositions
   use the per-call [vocabulary extension contract](speech-locales.md). Selection tries the
@@ -124,16 +140,19 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
 
 The following restrictions remain in the current implementation:
 
-- **Wrapping and widths.** Explicit padding dimensions/offsets, including no-op values,
-  remain atomic. Under/over structures and script annotations also remain atomic; no breaks
-  occur between adjacent identifiers or inside numbers. Error and background decorations
-  remain intact around their internally wrapped stack, rather than fragmenting across host
-  rows. Mixed image/decorated RTL tokens or unrecoverable segment origins remain atomic.
+- **Wrapping and widths.** Numeric tokens and script annotations remain atomic; no breaks
+  occur between adjacent identifiers or inside numbers. Under/over operator bases, movable
+  limits and bases without a breakable row remain atomic. Opposite-direction rows resolve
+  their breaks internally and remain atomic to the enclosing paragraph. Unrecoverable
+  simple-text fast-path segment origins remain atomic.
   A smaller authored `maxwidth` must be removed/enlarged when retrying at
   `widestUnbreakableWidth`. `overflow` remains a host concern.
-- **Indentation.** Independently wrapped paragraphs (including internally wrapped background
-  stacks), script arguments outside the flattened base and unselected content have no shared
-  anchor coordinates. Absent, duplicate, same-line and later-line targets fall back to `auto`.
+- **Indentation.** Independently wrapped paragraphs export targets to subsequent host output
+  lines; references from their own lines back out to another receiving frame remain unresolved.
+  Fraction/radical arguments, table cells, elementary stacks and under/over arguments retain
+  separate frames. Other formulae and unselected content provide no coordinates. Phantoms do
+  retain their would-be placed geometry. Absent, duplicate, same-line, later-line and otherwise
+  inadmissible targets fall back to `auto`.
   Unbounded/internal center/right alignment uses a common frame chosen before ID placement;
   an ID continuation can extend the returned width beyond that frame.
 - **Direction and elementary math.** Elementary grids, numeric text and division frames
@@ -141,17 +160,26 @@ The following restrictions remain in the current implementation:
   `mglyph` occupies one column; its `alt` supplies neither a decimal separator nor several
   digit columns. Division frames are drawn, not font glyphs. The remaining per-schema
   restrictions and direction-changing scope policies are in [Directionality](directionality.md).
-- **Tables.** Equal tracks, authored table/column widths and stretching cell operators to
-  neighbouring cells remain unsupported. Overlap label sides reserve the same space as
-  non-overlap forms. A label's `columnspan` adds no main-grid columns. Alignment groups in
+- **Tables.** Equal tracks, authored table/column widths, whole-cell operator stretching and
+  overlap label placement use the bounded grid/measurement pipeline. Fixed column floors and
+  content minima can exceed the available width; percentage/fit sizing is a preference above
+  those minima, and oversubscribed percentages reduce toward them. Invalid/negative widths
+  are automatic, unresolved relative table widths are automatic without a finite host, and
+  ordinary MathML length limits apply. Allocation uses a fixed 48-step search, never retries
+  to solve percentages. Stretch neighbour visits share the existing table-work bound, and
+  stretching shares cell-rebuild/stack limits. A label's `columnspan` adds no main-grid columns. Alignment groups in
   column spans interact only within identical source-column intervals; spans crossing a
   mixture of scoped and unscoped columns consume their internal markers.
-- **Images and legacy glyphs.** Image-only horizontal stretch direction requires operator
-  text within the token. Images supply no font italic-correction or accent-attachment metrics.
+- **Images and legacy glyphs.** Compound text/image and multiple-image tokens have no
+  whole-token italic-correction or accent-attachment metrics. Image metrics are deliberate
+  renderer-specific host metadata, never inferred from pixels, text or `alt`.
   Legacy font lookup uses installed fonts only; unsupported fonts, variants,
   indices or legacy dimension/offset combinations use `alt`.
-- **Script kerning.** Compound expressions, fallback runs and glyph assemblies use zero
-  corner kerning. Device/variation corrections in MATH value records remain ignored.
+- **Script kerning and MATH adjustments.** Compound expressions, fallback runs and glyph
+  assemblies use zero corner kerning. Device corrections default to off. Variation corrections
+  support GDEF 1.3 with normal signed 16-/8-bit delta rows and `fvar`/`avar` 1.0; unsupported
+  normalization/store formats and malformed records retain unadjusted metrics. See [Fonts](fonts.md)
+  for parsing and cache bounds.
 - **Speech.** Readings do not infer arithmetic meaning, translate author wording, infer
   silent/aspirated `h` or unwritten letter pronunciations, or determine author-text language.
   Custom composers are trusted host code and must produce output proportional to bounded

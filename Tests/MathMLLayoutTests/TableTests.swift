@@ -283,11 +283,15 @@ final class TableTests: XCTestCase {
         // The label is on its row's baseline: a parenthesis descends below it.
         XCTAssertLessThan(try XCTUnwrap(right[.red]).minY, try XCTUnwrap(right[.blue]).minY + 0.5 * em)
         XCTAssertGreaterThan(try XCTUnwrap(right[.red]).minY, try XCTUnwrap(right[.blue]).minY - 0.2 * em)
-        for side in ["left", "leftoverlap", "LEFT"] {
+        for side in ["left", "LEFT"] {
             let left = try inks(labeled("side=\"\(side)\""))
             XCTAssertEqual(try XCTUnwrap(left[.blue]).minX, label + 0.8 * em, accuracy: pixel, side)
             XCTAssertLessThan(try XCTUnwrap(left[.red]).maxX, label + 1, side)
         }
+        let overlap = try inks(labeled("side=\"leftoverlap\""))
+        XCTAssertEqual(try XCTUnwrap(overlap[.blue]).minX, 0, accuracy: pixel)
+        XCTAssertEqual(try innerBox(labeled("side=\"leftoverlap\"")).width, 3 * em, accuracy: 0.01)
+        XCTAssertLessThan(try XCTUnwrap(overlap[.red]).maxY, try XCTUnwrap(overlap[.blue]).minY)
         XCTAssertEqual(try innerBox(labeled("minlabelspacing=\"2em\"")).width, 5 * em + label, accuracy: 0.01)
         XCTAssertEqual(try innerBox(labeled("side=\"right\" minlabelspacing=\"0\"")).width, 3 * em + label, accuracy: 0.01)
         // A labeled row with only its label, and one with no children at all.

@@ -56,6 +56,119 @@ final class BidiTextTests: MathTestCase {
         text.unicodeScalars.map { $0 == " " || $0 == "\u{A0}" || $0 == "\u{202F}" ? "space" : String(format: "uni%04X", $0.value) }
     }
 
+    private func attachmentLines(_ body: String, width: CGFloat, direction: String = "rtl") throws -> MathLines {
+        let bitmap = CGContext(data: nil, width: 2, height: 2, bitsPerComponent: 8, bytesPerRow: 8,
+                               space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        bitmap.setFillColor(black); bitmap.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
+        let icon = bitmap.makeImage()!
+        var root = try node(body); root.attributes["dir"] = direction
+        return try LayoutEngine.lines(root, style: MathStyle(fontSize: 20, color: black, fontName: fontName,
+                                      imageProvider: MathImageProvider { _ in icon }),
+                                      maximumWidth: width, firstRowMaximumWidth: nil)
+    }
+
+    private func attachmentRects(_ box: MathBox, at point: CGPoint = .zero) -> [CGRect] {
+        box.items.flatMap { item -> [CGRect] in
+            switch item {
+            case .box(let child, let position):
+                attachmentRects(child, at: CGPoint(x: point.x + position.x, y: point.y + position.y))
+            case .image(_, let rect, _): [rect.offsetBy(dx: point.x, dy: point.y)]
+            default: []
+            }
+        }
+    }
+
+    private func fillRects(_ box: MathBox, x: CGFloat = 0) -> [CGRect] {
+        box.items.flatMap { item -> [CGRect] in
+            switch item {
+            case .box(let child, let position): fillRects(child, x: x + position.x)
+            case .rect(let rect, _): [rect.offsetBy(dx: x, dy: 0)]
+            default: []
+            }
+        }
+    }
+
+    func testRTLImageParagraphUsesLogicalRangesAndIndependentVisualOrder() throws {
+        let body = "<mtext>אב <mglyph src='first' width='13px' height='9px' valign='-3px'/> גד EF</mtext>"
+        let output = try attachmentLines(body, width: 63)
+        XCTAssertEqual(output.rows.count, 2)
+        XCTAssertEqual(output.rows[0].box.width, 63, accuracy: 0.001)
+        XCTAssertEqual(visualGlyphs(output.rows[0].box), names("דג  בא"))
+        XCTAssertEqual(visualGlyphs(output.rows[1].box), names("EF"))
+        XCTAssertEqual(attachmentRects(output.rows[0].box), [CGRect(x: 25, y: -3, width: 13, height: 9)])
+        XCTAssertEqual(output.widestUnbreakable, 20, accuracy: 0.001)
+        let retried = try attachmentLines(body, width: output.widestUnbreakable)
+        XCTAssertTrue(retried.rows.allSatisfy { $0.box.width <= output.widestUnbreakable + 0.001 })
+    }
+
+    func testAdjacentImagesHaveLogicalOwnershipInsideRTLWords() throws {
+        let output = try attachmentLines("<mtext>אב <mglyph src='first' width='11px'/><mglyph src='second' width='17px'/> גד</mtext>", width: 0)
+        XCTAssertEqual(output.rows.count, 3)
+        let rects = attachmentRects(output.rows[1].box).sorted { $0.minX < $1.minX }
+        XCTAssertEqual(rects.map(\.width), [17, 11])
+        XCTAssertEqual(rects.map(\.minX), [0, 17])
+        XCTAssertEqual(visualGlyphs(output.rows[0].box), names("בא"))
+        XCTAssertEqual(visualGlyphs(output.rows[2].box), names("דג"))
+    }
+
+    func testDecoratedArabicFallbackParticipatesInParagraphShaping() throws {
+        let output = try attachmentLines("<mtext>ABCD <mglyph alt='بت تب' mathbackground='yellow'/> ABCD</mtext>", width: 45)
+        XCTAssertEqual(output.rows.count, 3)
+        XCTAssertEqual(visualGlyphs(output.rows[1].box), ["uni0628.fina", "uni062A.init", "space", "uni062A.fina", "uni0628.init"])
+        let fills = fillRects(output.rows[1].box)
+        XCTAssertEqual(fills.count, 1)
+        XCTAssertEqual(fills[0].minX, 0, accuracy: 0.001)
+        XCTAssertEqual(fills[0].width, 45, accuracy: 0.001)
+        let narrow = try attachmentLines("<mtext>ABCD <mglyph alt='بت تب' mathbackground='yellow'/> ABCD</mtext>", width: 20)
+        XCTAssertEqual(narrow.rows.count, 4)
+        XCTAssertEqual(visualGlyphs(narrow.rows[1].box), ["uni062A.fina", "uni0628.init"])
+        XCTAssertEqual(visualGlyphs(narrow.rows[2].box), ["uni0628.fina", "uni062A.init"])
+        XCTAssertEqual(narrow.rows.map { fillRects($0.box).count }, [0, 1, 1, 0])
+    }
+
+    func testMixedAttachmentsPreserveEdgeWhitespaceNoBreakSpacesAndTokenOverride() throws {
+        let body = "<mtext dir='ltr'> אב&#xA0;<mglyph src='icon' width='13px'/> AB </mtext>"
+        let output = try attachmentLines(body, width: 0)
+        XCTAssertEqual(output.rows.count, 2)
+        XCTAssertEqual(output.rows.map { $0.box.width }, [43, 25])
+        XCTAssertEqual(visualGlyphs(output.rows[0].box), names(" בא "))
+        XCTAssertEqual(attachmentRects(output.rows[0].box).first?.minX ?? -1, 30, accuracy: 0.001)
+        XCTAssertEqual(visualGlyphs(output.rows[1].box), names("AB "))
+    }
+
+    func testDirectionalOverrideContinuesAcrossMixedAttachmentLines() throws {
+        let output = try attachmentLines("<mtext>אב &#x202E;AB <mglyph src='icon' width='13px'/> CD&#x202C; גד</mtext>", width: 20)
+        XCTAssertEqual(output.rows.count, 5)
+        XCTAssertEqual(visualGlyphs(output.rows[1].box), names("BA"))
+        XCTAssertEqual(attachmentRects(output.rows[2].box).count, 1)
+        XCTAssertEqual(visualGlyphs(output.rows[3].box), names("DC"))
+        XCTAssertEqual(visualGlyphs(output.rows[4].box), names("דג"))
+    }
+
+    func testLogicalAttachmentDelegatesPreserveExtremeBaselineOffsets() throws {
+        for valign in [-20, 20] {
+            let output = try attachmentLines("<mtext>אב <mglyph src='icon' width='13px' height='8px' valign='\(valign)px'/> גד</mtext>", width: 0)
+            XCTAssertEqual(output.rows.count, 3)
+            XCTAssertEqual(attachmentRects(output.rows[1].box), [CGRect(x: 0, y: valign, width: 13, height: 8)])
+            let row = output.rows[1].box
+            XCTAssertEqual(row.width, 13, accuracy: 0.001)
+            XCTAssertGreaterThanOrEqual(row.ascent, CGFloat(valign + 8))
+            XCTAssertGreaterThanOrEqual(row.descent, CGFloat(-valign))
+            let ink = try XCTUnwrap(row.inkBounds)
+            XCTAssertGreaterThanOrEqual(ink.minY, -row.descent)
+            XCTAssertLessThanOrEqual(ink.maxY, row.ascent)
+        }
+    }
+
+    func testSimpleImageTextRetainsAuthoredEdgeSpaces() throws {
+        let output = try attachmentLines("<mtext> AB <mglyph src='icon' width='13px'/> CD </mtext>", width: 0, direction: "ltr")
+        XCTAssertEqual(output.rows.count, 3)
+        XCTAssertEqual(output.rows.map { $0.box.width }, [25, 13, 25])
+        XCTAssertEqual(visualGlyphs(output.rows[0].box), names(" AB"))
+        XCTAssertEqual(visualGlyphs(output.rows[2].box), names("CD "))
+    }
+
     func testHebrewLinesFollowLogicalWordsAndVisualBidiOrder() throws {
         let output = try rows("אב גד הו", width: 45)
         XCTAssertEqual(output.count, 2)
@@ -188,7 +301,7 @@ final class BidiTextTests: MathTestCase {
             MathMLNode(name: "mi", text: "A"),
         ])
         let output = try MathLayout(root, style: MathStyle(fontSize: 20, color: black, fontName: fontName), maximumWidth: 25)
-        XCTAssertEqual(output.rows.count, 2)
+        XCTAssertEqual(output.rows.count, 3)
         XCTAssertNotNil(Rendering(output).bounds(.green))
         assertBoxCoversInk(output, "decorated RTL text")
     }

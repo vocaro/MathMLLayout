@@ -4,6 +4,9 @@ import Foundation
 /// A source cell's rectangle in the table, excluding the independent label column.
 struct TableCell {
     var box: MathBox
+    /// The final wrapped source geometry, retained when group alignment consumes its events.
+    /// Operator stretching can restore the entire column and realign it after a core changes.
+    var unalignedBox: MathBox? = nil
     var align: String?
     var rowAlign: String?
     var column: Int
@@ -74,7 +77,18 @@ struct TableGrid {
 
     /// Single-column constraints first, then spanning deficits shared equally across the tracks.
     /// Gaps inside a span already contribute to its available width.
-    func widths(gaps: [CGFloat], measure: (Int, Int, TableCell) -> CGFloat) -> [CGFloat] {
+    func widths(equal: Bool = false, gaps: [CGFloat], measure: (Int, Int, TableCell) -> CGFloat) -> [CGFloat] {
+        if equal {
+            var width: CGFloat = 0
+            for (rowIndex, row) in rows.enumerated() {
+                for (index, cell) in row.enumerated() {
+                    let end = cell.column + cell.columnSpan
+                    let spacing = gaps[cell.column..<(end - 1)].reduce(0, +)
+                    width = max(width, (measure(rowIndex, index, cell) - spacing) / CGFloat(cell.columnSpan))
+                }
+            }
+            return Array(repeating: width, count: columns)
+        }
         var widths = [CGFloat](repeating: 0, count: columns)
         for (rowIndex, row) in rows.enumerated() {
             for (index, cell) in row.enumerated() where cell.columnSpan == 1 {

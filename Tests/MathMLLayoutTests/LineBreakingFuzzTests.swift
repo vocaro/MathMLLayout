@@ -327,13 +327,125 @@ final class LineBreakingFuzzTests: MathTestCase {
         var kind: Int
         var isToken: Bool
         var isBidiText = false
+        var annotationID: Int?
+        /// Authored decoration ancestry of the original drawing, independent of copies
+        /// of the wrapper's own frame or background on subsequent host rows.
+        var backgroundIDs: [Int] = []
+        var errorIDs: [Int] = []
         var y: CGFloat
+    }
+
+    /// Test-only backgrounds identify annotation arguments and their owning base fragments.
+    /// A marker never contributes a drawing mark; every original descendant still does.
+    static func provenanceID(_ color: CGColor) -> Int? {
+        guard let parts = color.components, parts.count == 4,
+              abs(parts[0] - 254.0 / 255) < 1e-9, parts[3] == 1 else { return nil }
+        return Int((parts[1] * 255).rounded()) * 256 + Int((parts[2] * 255).rounded())
+    }
+
+    static func provenanceCounts(_ boxes: [MathBox]) -> [Int: Int] {
+        var counts: [Int: Int] = [:]
+        func visit(_ box: MathBox) {
+            for item in box.items {
+                if case .rect(_, let color) = item, let id = provenanceID(color) { counts[id, default: 0] += 1 }
+                if case .box(let child, _) = item { visit(child) }
+            }
+        }
+        for box in boxes { visit(box) }
+        return counts
+    }
+
+    enum DecorationKind { case background, error }
+
+    static func decorationID(_ color: CGColor) -> (kind: DecorationKind, id: Int)? {
+        guard let parts = color.components, parts.count == 4, parts[3] == 1 else { return nil }
+        let kind: DecorationKind
+        if abs(parts[0] - 253.0 / 255) < 1e-9 { kind = .background }
+        else if abs(parts[0] - 252.0 / 255) < 1e-9 { kind = .error }
+        else { return nil }
+        return (kind, Int((parts[1] * 255).rounded()) * 256 + Int((parts[2] * 255).rounded()))
+    }
+
+    static func isErrorFrame(_ color: CGColor) -> Bool {
+        guard let parts = color.components, parts.count == 4 else { return false }
+        return parts == [0.85, 0, 0, 1]
+    }
+
+    struct DecorationCounts {
+        var backgrounds: [Int: Int] = [:]
+        var errors: [Int: Int] = [:]
+        var frames: [Int: Int] = [:]
+    }
+
+    static func decorationCounts(_ boxes: [MathBox]) -> DecorationCounts {
+        var counts = DecorationCounts()
+        func visit(_ box: MathBox, errorID inherited: Int?) {
+            var errorID = inherited
+            for item in box.items {
+                if case .rect(_, let color) = item, let marker = decorationID(color) {
+                    switch marker.kind {
+                    case .background: counts.backgrounds[marker.id, default: 0] += 1
+                    case .error:
+                        counts.errors[marker.id, default: 0] += 1
+                        errorID = marker.id
+                    }
+                }
+            }
+            for item in box.items {
+                switch item {
+                case .path(_, _, let color, _), .dashes(_, _, let color, _):
+                    if let errorID, isErrorFrame(color) { counts.frames[errorID, default: 0] += 1 }
+                case .box(let child, _): visit(child, errorID: errorID)
+                default: break
+                }
+            }
+        }
+        for box in boxes { visit(box, errorID: nil) }
+        return counts
+    }
+
+    /// Marker IDs stay on each original descendant mark, so ordinary conservation also
+    /// checks that a glyph, image, rule or unrelated path retains its decoration scope.
+    /// Only the explicitly identified wrapper-owned primitives may repeat.
+    static func checkDecoration(_ before: [MathBox], _ after: [MathBox],
+                                decorations: [Int: DecorationKind]) -> [String] {
+        let original = decorationCounts(before), output = decorationCounts(after)
+        var failures: [String] = []
+        for (id, kind) in decorations {
+            let initial = kind == .background ? original.backgrounds[id, default: 0] : original.errors[id, default: 0]
+            let copies = kind == .background ? output.backgrounds[id, default: 0] : output.errors[id, default: 0]
+            if (initial == 0) != (copies == 0) {
+                failures.append("decoration \(id): \(copies) copies for \(initial) selected source copies")
+            }
+            if kind == .error, output.frames[id, default: 0] != copies {
+                failures.append("decoration \(id): \(output.frames[id, default: 0]) error frames for \(copies) fragments")
+            }
+            if kind == .error, original.frames[id, default: 0] != initial {
+                failures.append("decoration \(id): missing source error frame")
+            }
+        }
+        return failures
     }
 
     /// Everything `box` draws, in drawing order. Space glyphs are left out: a line that breaks at a
     /// space in an `mtext` drops it.
     static func marks(_ box: MathBox, at origin: CGPoint = .zero, into marks: inout [Mark],
-                      preservingFences: Bool = false, inFence: Bool = false, inCore: Bool = false) {
+                      preservingFences: Bool = false, inFence: Bool = false, inCore: Bool = false,
+                      annotationID inheritedAnnotation: Int? = nil,
+                      backgroundIDs inheritedBackgrounds: [Int] = [], errorIDs inheritedErrors: [Int] = []) {
+        var backgroundIDs = inheritedBackgrounds, errorIDs = inheritedErrors
+        for item in box.items {
+            if case .rect(_, let color) = item, let marker = decorationID(color) {
+                switch marker.kind {
+                case .background: if !backgroundIDs.contains(marker.id) { backgroundIDs.append(marker.id) }
+                case .error: if !errorIDs.contains(marker.id) { errorIDs.append(marker.id) }
+                }
+            }
+        }
+        let annotationID = box.items.compactMap { item -> Int? in
+            guard case .rect(_, let color) = item, let id = provenanceID(color), id < 0x8000 else { return nil }
+            return id
+        }.first ?? inheritedAnnotation
         let inFence = inFence || preservingFences && box.fenceLayout != nil
         let inCore = inCore || preservingFences && box.fenceLayout?.isCoreGeometry == true
         for item in box.items {
@@ -351,14 +463,26 @@ final class LineBreakingFuzzTests: MathTestCase {
                 if inCore { continue }
                 for (glyph, position) in zip(run.glyphs, run.positions) where glyph != .max && (space == 0 || glyph != space) {
                     marks.append(Mark(kind: font << 16 | Int(glyph), isToken: isToken, isBidiText: isBidiText,
+                                      annotationID: annotationID, backgroundIDs: backgroundIDs, errorIDs: errorIDs,
                                       y: inFence ? 0 : origin.y + position.y))
                 }
-            case .rect: marks.append(Mark(kind: -1, isToken: false, y: inFence ? 0 : origin.y))
-            case .path, .dashes: if !inCore { marks.append(Mark(kind: -2, isToken: false, y: inFence ? 0 : origin.y)) }
-            case .image: marks.append(Mark(kind: -3, isToken: false, y: inFence ? 0 : origin.y))
+            case .rect(_, let color):
+                if provenanceID(color) == nil, decorationID(color) == nil {
+                    marks.append(Mark(kind: -1, isToken: false, annotationID: annotationID,
+                                      backgroundIDs: backgroundIDs, errorIDs: errorIDs, y: inFence ? 0 : origin.y))
+                }
+            case .path(_, _, let color, _), .dashes(_, _, let color, _):
+                if !inCore, errorIDs.isEmpty || !isErrorFrame(color) {
+                    marks.append(Mark(kind: -2, isToken: false, annotationID: annotationID,
+                                      backgroundIDs: backgroundIDs, errorIDs: errorIDs, y: inFence ? 0 : origin.y))
+                }
+            case .image:
+                marks.append(Mark(kind: -3, isToken: false, annotationID: annotationID,
+                                  backgroundIDs: backgroundIDs, errorIDs: errorIDs, y: inFence ? 0 : origin.y))
             case .box(let inner, let point):
                 Self.marks(inner, at: CGPoint(x: origin.x + point.x, y: origin.y + point.y), into: &marks,
-                           preservingFences: preservingFences, inFence: inFence, inCore: inCore)
+                           preservingFences: preservingFences, inFence: inFence, inCore: inCore, annotationID: annotationID,
+                           backgroundIDs: backgroundIDs, errorIDs: errorIDs)
             }
         }
     }
@@ -374,7 +498,9 @@ final class LineBreakingFuzzTests: MathTestCase {
     static func isSubsequence(_ part: [Mark], of whole: [Mark]) -> Bool {
         var index = 0
         for mark in whole where index < part.count {
-            if mark.kind == part[index].kind, mark.isBidiText == part[index].isBidiText, abs(mark.y - part[index].y) < 1e-6 { index += 1 }
+            if mark.kind == part[index].kind, mark.isBidiText == part[index].isBidiText,
+               mark.backgroundIDs == part[index].backgroundIDs, mark.errorIDs == part[index].errorIDs,
+               abs(mark.y - part[index].y) < 1e-6 { index += 1 }
         }
         return index == part.count
     }
@@ -447,13 +573,45 @@ final class LineBreakingFuzzTests: MathTestCase {
     /// Lays `root` out at one width and returns what does not hold of the result, each with the
     /// name of the property; empty when all is well or the formula is refused as it may be.
     static func violations(_ input: MathMLNode, style: MathStyle, width: CGFloat, first: CGFloat?, thorough: Bool = true) -> [String] {
-        func tagged(_ node: MathMLNode) -> MathMLNode {
+        struct Annotation { let base: Int; let eligible: Bool; let stretchy: Bool }
+        var annotations: [Int: Annotation] = [:], provenance = 0
+        var decorations: [Int: DecorationKind] = [:], nextDecoration = 0
+        let eligibility = LayoutEngine(fontName: style.fontName)
+        eligibility.imageProvider = style.imageProvider
+        func marker(_ child: MathMLNode, id: Int) -> MathMLNode {
+            MathMLNode(name: "mrow", attributes: ["mathbackground": String(format: "#fe%04x", id)], children: [child])
+        }
+        func tagged(_ node: MathMLNode, _ outer: LayoutContext) -> MathMLNode {
             var result = node
             if node.name == "mtext", Facts(node).bidiText { result.attributes["mathcolor"] = "#00ffff" }
-            result.children = node.children.map(tagged)
+            let context = eligibility.inherit(node, outer)
+            result.children = node.children.map { tagged($0, context) }
+            if node.attributes["mathbackground"].flatMap(MathColor.parse) != nil {
+                nextDecoration += 1
+                decorations[nextDecoration] = .background
+                result.attributes["mathbackground"] = String(format: "#fd%04x", nextDecoration)
+            }
+            if ["munder", "mover", "munderover"].contains(node.name), node.children.count >= 2 {
+                eligibility.restart()
+                guard let shaped = try? eligibility.layout(node, outer, depth: 0) else { return result }
+                provenance += 1
+                let base = provenance | 0x8000
+                result.children[0] = marker(result.children[0], id: base)
+                for index in 1..<min(result.children.count, node.name == "munderover" ? 3 : 2) {
+                    provenance += 1
+                    annotations[provenance] = Annotation(base: base, eligible: shaped.row?.fragment != nil,
+                                                        stretchy: eligibility.isHorizontallyStretchy(node.children[index]))
+                    result.children[index] = marker(result.children[index], id: provenance)
+                }
+            }
+            if node.name == "merror" {
+                nextDecoration += 1
+                decorations[nextDecoration] = .error
+                result = MathMLNode(name: "mrow", attributes: ["mathbackground": String(format: "#fc%04x", nextDecoration)], children: [result])
+            }
             return result
         }
-        let root = tagged(input)
+        let root = tagged(input, eligibility.rootContext(input, style: style))
         var found: [String] = []
         let facts = Facts(root)
         let (limit, firstLimit) = limits(width, first)
@@ -514,23 +672,80 @@ final class LineBreakingFuzzTests: MathTestCase {
             }
         }
         func conserved(_ values: [Mark]) -> [Mark] {
+            let values = values.filter { $0.annotationID == nil }
             guard facts.bidiText else { return values }
             let ordered = values.filter { !$0.isBidiText }
             let text = values.filter(\.isBidiText).sorted {
                 if $0.kind != $1.kind { return $0.kind < $1.kind }
                 if $0.isToken != $1.isToken { return !$0.isToken }
+                if $0.backgroundIDs != $1.backgroundIDs { return $0.backgroundIDs.lexicographicallyPrecedes($1.backgroundIDs) }
+                if $0.errorIDs != $1.errorIDs { return $0.errorIDs.lexicographicallyPrecedes($1.errorIDs) }
                 return $0.y < $1.y
             }
             return ordered + text
         }
         // Nothing is lost or repeated. Text visual order can change with bidi line boundaries;
         // those cases preserve multiplicity, with exact order asserted by BidiTextTests.
-        // Other tokens are drawn as the unbroken formula draws them,
-        // whatever wraps inside it. Only a repeated operator repeats one, the script it is embellished with.
+        // Other tokens are drawn as the unbroken formula draws them. Annotation arguments
+        // are checked separately below, as complete copies belonging to their base fragments.
+        func checkAnnotations(_ original: [MathBox], _ output: [MathBox], tokensOnly: Bool,
+                              preservingFences: Bool = false) {
+            let before = marks(original, preservingFences: preservingFences)
+            let drawn = marks(output, preservingFences: preservingFences)
+            let originalCounts = provenanceCounts(original), outputCounts = provenanceCounts(output)
+            func normalized(_ values: [Mark]) -> [Mark] {
+                let ordinary = values.filter { !$0.isBidiText }
+                let bidi = values.filter(\.isBidiText).sorted {
+                    if $0.kind != $1.kind { return $0.kind < $1.kind }
+                    if $0.backgroundIDs != $1.backgroundIDs { return $0.backgroundIDs.lexicographicallyPrecedes($1.backgroundIDs) }
+                    return $0.errorIDs.lexicographicallyPrecedes($1.errorIDs)
+                }
+                return ordinary + bidi
+            }
+            for (id, annotation) in annotations {
+                let originalCopies = originalCounts[id, default: 0]
+                guard originalCopies > 0 else {
+                    if outputCounts[id, default: 0] != 0 { found.append("annotation \(id): unselected argument drawn") }
+                    continue
+                }
+                let originalBases = originalCounts[annotation.base, default: 0]
+                let outputBases = outputCounts[annotation.base, default: 0]
+                let expectedCopies = annotation.eligible ? outputBases
+                    : (originalBases > 0 ? outputBases * originalCopies / originalBases : originalCopies)
+                if outputCounts[id, default: 0] != expectedCopies {
+                    found.append("annotation \(id): \(outputCounts[id, default: 0]) copies for \(expectedCopies) base fragments")
+                }
+                func signature(_ marks: [Mark]) -> [Mark] {
+                    marks.filter { $0.annotationID == id && (!(tokensOnly || annotation.stretchy) || $0.isToken || $0.kind == -3) }
+                        .map { value in var mark = value; mark.annotationID = nil; mark.y = 0; return mark }
+                }
+                let expected = signature(before), actual = signature(drawn)
+                guard !expected.isEmpty else { continue }
+                // Keep complete original sequences: no lost/extra glyph, rule or image inside
+                // a nonstretching annotation, and no token/image changes in a stretchy one.
+                if expected.count % originalCopies != 0 {
+                    found.append("annotation \(id): inconsistent source copies")
+                } else {
+                    let one = Array(expected.prefix(expected.count / originalCopies))
+                    if normalized(actual) != normalized(Array(repeating: one, count: expectedCopies).flatMap({ $0 })) {
+                        found.append("annotation \(id): incomplete or changed repeated argument")
+                    }
+                }
+            }
+        }
         let drawn = marks(lines.rows.map(\.box))
         if let unbroken = try? LayoutEngine(fontName: style.fontName).layoutRoot(root, style: style) {
-            let tokens = conserved(marks([unbroken]).filter(\.isToken).map { Mark(kind: $0.kind, isToken: true, isBidiText: $0.isBidiText, y: 0) })
-            let shown = conserved(drawn.filter(\.isToken).map { Mark(kind: $0.kind, isToken: true, isBidiText: $0.isBidiText, y: 0) })
+            // Width fitting may internally wrap an atomic annotation's radical/table and
+            // change its structural glyphs. Across complete fits conserve its authored
+            // tokens/images; the same-pass check below also conserves its other drawing.
+            checkAnnotations([unbroken], lines.rows.map(\.box), tokensOnly: true)
+            found += checkDecoration([unbroken], lines.rows.map(\.box), decorations: decorations)
+            let tokens = conserved(marks([unbroken]).filter(\.isToken)).map { value in
+                var mark = value; mark.annotationID = nil; mark.y = 0; return mark
+            }
+            let shown = conserved(drawn.filter(\.isToken)).map { value in
+                var mark = value; mark.annotationID = nil; mark.y = 0; return mark
+            }
             if facts.adds ? !isSubsequence(tokens, of: shown) : shown != tokens { found.append("tokens: \(shown.count) drawn of \(tokens.count)") }
         }
         guard thorough else { return found }
@@ -547,6 +762,8 @@ final class LineBreakingFuzzTests: MathTestCase {
         if let box = try? wrapping.layoutRoot(root, style: style) {
             let paragraph = Paragraph(box, fontSize: LayoutEngine.fontSize(style))
             let rows = paragraph.rows(limit: limit, first: firstLimit, auto: (.left, 0))
+            checkAnnotations([box], rows.map(\.box), tokensOnly: false, preservingFences: true)
+            found += checkDecoration([box], rows.map(\.box), decorations: decorations)
             let before = conserved(marks([box], preservingFences: true)), after = conserved(marks(rows.map(\.box), preservingFences: true))
             if !isSubsequence(before, of: after) { found.append("units: \(after.count) marks in rows of \(before.count)") }
             if !facts.adds, before.count != after.count { found.append("units: \(after.count) marks in rows, \(before.count) unbroken") }
