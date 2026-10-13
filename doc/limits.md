@@ -17,7 +17,8 @@ work throw `MathLayoutError.limitExceeded`; malformed/zero spans use one, and ro
 at the last source row. Cell rebuilds share separate limits of 1,280,000 node visits and 200,000 table-work
 visits per pass; cached tables charge their original descendant count and measured grid work.
 Logical text range requests and row assembly share 2,000,000 units per pass: requested UTF-16
-range lengths (including cache hits) plus row units visited. This counter does not measure
+range lengths (including cache hits) plus row units visited, including retained-word candidate
+assembly in RTL paragraphs. This counter does not measure
 elapsed time or CoreText's internal paragraph resolution and shaping cost. Plain ASCII letters,
 digits and U+0020 spaces under LTR/natural direction reuse their full-token glyphs and word
 metrics in one pass, provided CoreText preserves separate space clusters. Other plain text
@@ -52,7 +53,7 @@ wrappers. This includes pure subscript and under-over chains. The sweep checks s
 comparisons above. Measurements used arm64 macOS 27.0 (build 26A428), Xcode 27.1 (build 27A9269),
 and Apple Swift 6.4 (`swiftlang-6.4.0.34.1`).
 
-The RTL alignment follow-up source `b9cd593` repeated all eleven pure-chain probes at 64
+The reviewed RTL alignment follow-up source `6b2d906` repeated all eleven pure-chain probes at 64
 levels in debug and release on the same platform. A new 64-level fixture also retains two
 alignment groups through 58 nested RTL rows in each table cell. Its geometry, drawing-item
 counts, ink, pixels and all five base-language readings match the reference layout on an
