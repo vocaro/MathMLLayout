@@ -11,13 +11,41 @@ struct MathBox {
     /// How far an italic glyph's top leans past the advance; superscripts start after it.
     var italicCorrection: CGFloat = 0
     /// Where an accent over this box centres, from its left edge; nil is the middle.
-    var topAccentAttachment: CGFloat?
+    var topAccentAttachment: CGFloat? {
+        get { metadata?.values.topAccentAttachment }
+        set {
+            if newValue == nil, metadata?.values.topAccentAttachment == nil { return }
+            makeMetadataUnique()
+            metadata!.values.topAccentAttachment = newValue
+        }
+    }
     /// Set when the box is an embellished operator: the core `mo`'s resolved properties.
-    var op: OperatorProperties?
+    var op: OperatorProperties? {
+        get { metadata?.values.op }
+        set {
+            if newValue == nil, metadata?.values.op == nil { return }
+            makeMetadataUnique()
+            metadata!.values.op = newValue
+        }
+    }
     /// Set when the box is a row a line may break inside: its children, kept apart.
-    var row: BreakableRow?
+    var row: BreakableRow? {
+        get { metadata?.values.row }
+        set {
+            if newValue == nil, metadata?.values.row == nil { return }
+            makeMetadataUnique()
+            metadata!.values.row = newValue
+        }
+    }
     /// Logical token text, retained for per-line shaping after line breaks are chosen.
-    var textSlice: LogicalTextSlice?
+    var textSlice: LogicalTextSlice? {
+        get { metadata?.values.textSlice }
+        set {
+            if newValue == nil, metadata?.values.textSlice == nil { return }
+            makeMetadataUnique()
+            metadata!.values.textSlice = newValue
+        }
+    }
     /// Decorations and structural edits invalidate the plain token shape, as they invalidate
     /// a breakable row's item count. Replacing such a box by reshaped text would lose its drawing.
     var logicalTextSlice: LogicalTextSlice? {
@@ -26,18 +54,89 @@ struct MathBox {
     }
     /// The table's column minima plus gaps, frame and labels; cell allocation may use this
     /// before rebuilding the table at its assigned width.
-    var tableMinimumWidth: CGFloat?
+    var tableMinimumWidth: CGFloat? {
+        get { metadata?.values.tableMinimumWidth }
+        set {
+            if newValue == nil, metadata?.values.tableMinimumWidth == nil { return }
+            makeMetadataUnique()
+            metadata!.values.tableMinimumWidth = newValue
+        }
+    }
     /// The source of a vertically stretched fence, for a pair that later stays on one output row.
-    var fenceLayout: FenceLayout?
+    var fenceLayout: FenceLayout? {
+        get { metadata?.values.fenceLayout }
+        set {
+            if newValue == nil, metadata?.values.fenceLayout == nil { return }
+            makeMetadataUnique()
+            metadata!.values.fenceLayout = newValue
+        }
+    }
     /// Hidden drawing still retains its geometry and row structure for line breaking.
     var isPhantom = false
     /// Logical text and atomic image pieces, retained only while a token can wrap.
-    var textSegments: [TextSegment]?
+    var textSegments: [TextSegment]? {
+        get { metadata?.values.textSegments }
+        set {
+            if newValue == nil, metadata?.values.textSegments == nil { return }
+            makeMetadataUnique()
+            metadata!.values.textSegments = newValue
+        }
+    }
     /// Decorated whitespace before a word, drawn only when it follows another word on a row.
-    var leadingTextSpace: [TextSegment]?
+    var leadingTextSpace: [TextSegment]? {
+        get { metadata?.values.leadingTextSpace }
+        set {
+            if newValue == nil, metadata?.values.leadingTextSpace == nil { return }
+            makeMetadataUnique()
+            metadata!.values.leadingTextSpace = newValue
+        }
+    }
     var items: [MathItem] = []
     /// Alignment events in source order, retained only inside a table cell.
-    var alignment: [AlignmentEvent] = []
+    var alignment: [AlignmentEvent] {
+        get { metadata?.values.alignment ?? [] }
+        set {
+            if newValue.isEmpty, metadata?.values.alignment.isEmpty != false { return }
+            makeMetadataUnique()
+            metadata!.values.alignment = newValue
+        }
+        _modify {
+            makeMetadataUnique()
+            yield &metadata!.values.alignment
+        }
+    }
+
+    // Row and text metadata can be large values. Keep it off recursive layout frames,
+    // allocating only for boxes that use it; copied boxes retain independent mutation.
+    private struct MetadataValues {
+        var topAccentAttachment: CGFloat? = nil
+        var op: OperatorProperties? = nil
+        var row: BreakableRow? = nil
+        var textSlice: LogicalTextSlice? = nil
+        var tableMinimumWidth: CGFloat? = nil
+        var fenceLayout: FenceLayout? = nil
+        var textSegments: [TextSegment]? = nil
+        var leadingTextSpace: [TextSegment]? = nil
+        var alignment: [AlignmentEvent] = []
+    }
+
+    private final class Metadata {
+        var values: MetadataValues
+        init(_ values: MetadataValues = MetadataValues()) { self.values = values }
+    }
+    private var metadata: Metadata?
+
+    private mutating func makeMetadataUnique() {
+        if metadata == nil {
+            metadata = Metadata()
+        } else if !isKnownUniquelyReferenced(&metadata) {
+            metadata = Metadata(metadata!.values)
+        }
+    }
+
+    init(width: CGFloat = 0, ascent: CGFloat = 0, descent: CGFloat = 0, items: [MathItem] = []) {
+        self.width = width; self.ascent = ascent; self.descent = descent; self.items = items
+    }
 
     var height: CGFloat { ascent + descent }
 
@@ -49,12 +148,14 @@ struct MathBox {
     /// their own metrics.
     mutating func add(_ box: MathBox, at point: CGPoint) {
         let index = items.count
-        alignment.append(contentsOf: box.alignment.map { event in
-            var event = event
-            event.x += point.x
-            event.path = box.items.isEmpty ? [index] : [index] + event.path
-            return event
-        })
+        if !box.alignment.isEmpty {
+            alignment.append(contentsOf: box.alignment.map { event in
+                var event = event
+                event.x += point.x
+                event.path = box.items.isEmpty ? [index] : [index] + event.path
+                return event
+            })
+        }
         guard !box.items.isEmpty else { return }
         if point == .zero, !box.isPhantom, box.alignment.isEmpty, box.fenceLayout == nil, box.items.count == 1, case .box = box.items[0] {
             items.append(box.items[0]); return

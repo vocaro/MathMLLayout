@@ -232,7 +232,10 @@ extension LayoutEngine {
     }
 
     func finishAlignment(_ box: inout MathBox, node: MathMLNode, context: LayoutContext) {
-        guard context.trackAlignment && !context.alignmentRTL else { box.alignment = []; return }
+        guard context.trackAlignment && !context.alignmentRTL else {
+            if !box.alignment.isEmpty { box.alignment = [] }
+            return
+        }
         guard node.name != "maligngroup", node.name != "malignmark" else { return }
         let groupContainers: Set<String> = ["math", "mrow", "mstyle", "mtd", "mphantom", "mfenced", "maction", "semantics"]
         if !groupContainers.contains(node.name) || (node.name == "mrow" || node.name == "mstyle") && node.attributes["dir"] != nil {

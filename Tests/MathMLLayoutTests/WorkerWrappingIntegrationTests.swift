@@ -87,6 +87,50 @@ final class WorkerWrappingIntegrationTests: MathTestCase {
         XCTAssertEqual(after.itemCount, before.itemCount)
     }
 
+    func testCopiedBoxMetadataAndNestedArrayMutationsRemainIndependent() throws {
+        var original = try box(MathMLNode(name: "mtext", text: "alpha beta"))
+        let source = try XCTUnwrap(original.textSlice?.source)
+        original.row = try box(MathMLNode(name: "mrow", children: [MathMLNode(name: "mtext", text: "alpha beta")])).row
+        original.tableMinimumWidth = 37
+        original.topAccentAttachment = 4
+        original.op = try box(MathMLNode(name: "mo", text: "+")).op
+        let space = TextSegment(box: MathBox(width: 3), x: 0, isSpace: true)
+        original.textSegments = [space]
+        original.leadingTextSpace = [space]
+        original.alignment = [AlignmentEvent(kind: .mark, x: 5, path: [0])]
+        let expectedInk = original.inkBounds
+        let expectedItems = original.itemCount
+        let expectedSpace = original.op?.lspace
+        var copy = original
+        copy.row = nil
+        copy.textSlice = nil
+        copy.tableMinimumWidth = 2
+        copy.topAccentAttachment = 9
+        copy.op?.lspace = 99
+        copy.textSegments?[0].x = 8
+        copy.leadingTextSpace?.removeAll()
+        copy.alignment[0].x = 42
+        copy.alignment[0].path.append(1)
+        copy.isPhantom = true
+        copy.items.removeAll()
+        XCTAssertNotNil(original.row)
+        XCTAssertTrue(original.textSlice?.source === source)
+        XCTAssertEqual(original.tableMinimumWidth, 37)
+        XCTAssertEqual(original.topAccentAttachment, 4)
+        XCTAssertEqual(original.op?.lspace, expectedSpace)
+        XCTAssertEqual(original.textSegments?[0].x, 0)
+        XCTAssertEqual(original.leadingTextSpace?.count, 1)
+        XCTAssertEqual(original.alignment[0].x, 5)
+        XCTAssertEqual(original.alignment[0].path, [0])
+        XCTAssertFalse(original.isPhantom)
+        XCTAssertEqual(original.inkBounds, expectedInk)
+        XCTAssertEqual(original.itemCount, expectedItems)
+        XCTAssertNil(copy.row)
+        XCTAssertEqual(copy.op?.lspace, 99)
+        XCTAssertEqual(copy.textSegments?[0].x, 8)
+        XCTAssertEqual(copy.alignment[0].path, [0, 1])
+    }
+
     func testDirectionAndLineStyleCopiesRemainIndependent() {
         var outer = LayoutContext(fontSize: 12, unclampedSize: 12, minSize: 8, display: false, color: black)
         outer.direction = .rightToLeft

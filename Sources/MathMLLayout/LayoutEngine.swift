@@ -742,7 +742,7 @@ final class LayoutEngine {
         let context = inherit(node, outer)
         let wrapStart = wrapParts.count
         if node.name == "mglyph" {
-            return try token(MathMLNode(name: "mtext", children: [node]), outer, countingGlyphs: false)
+            return try standaloneGlyph(node, outer)
         }
         let box = try makeBox(node, context, outer, embellishment, depth: depth)
         return finish(box, node, outer, context, embellishment, wrapStart: wrapStart)
@@ -762,6 +762,11 @@ final class LayoutEngine {
         // It is laid out as the `mtext` it would now be in, not as an element of its own: the
         // style it would hand down has no effect on an `mglyph` (MathML 3, 3.2.1.2.2). That
         // `mtext` is no node of the formula's, so it is not laid out as one, which would count it.
+        return try standaloneGlyph(node, outer)
+    }
+
+    @inline(never)
+    private func standaloneGlyph(_ node: MathMLNode, _ outer: LayoutContext) throws -> MathBox {
         return try token(MathMLNode(name: "mtext", children: [node]), outer, countingGlyphs: false)
     }
 
