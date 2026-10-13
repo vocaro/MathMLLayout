@@ -154,7 +154,7 @@ final class LayoutEngine {
         constants = font.constants
     }
 
-    fileprivate init(font: MathFont) {
+    init(font: MathFont) {
         self.font = font
         constants = font.constants
     }
