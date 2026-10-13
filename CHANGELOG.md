@@ -2,10 +2,70 @@
 
 ## Unreleased
 
-- Honor inherited RTL geometry for scripts, multiscripts, radicals, bevelled fractions,
-  leading padding and directional enclosures, preserving mixed-direction child shaping and
-  explicit alignment marks ([#108](https://github.com/vocaro/MathMLLayout/issues/108)).
-- Wrap plain bidirectional `mtext` in logical order with per-line shaping and inherited text paragraph direction.
+## 0.3.0 — 2026-10-13
+
+RTL layout, table spans and alignment, richer image support and extensible speech vocabularies.
+Existing 0.2.0 initializers and default base-language readings remain supported.
+
+### Added
+
+- Inherited RTL progression for rows, table columns, scripts, multiscripts, radicals,
+  bevelled fractions, leading padding and directional enclosures. Mixed-direction children
+  retain their own shaping and local overrides; physical alignment and explicit enclosure
+  sides retain their meaning. See [directionality](doc/directionality.md)
+  ([#108](https://github.com/vocaro/MathMLLayout/issues/108)).
+- Bounded table `rowspan` and `columnspan`, vertical cell/row alignment and inherited
+  `mstyle` row defaults. Alignment groups and marks work in LTR and RTL, through cell
+  wrapping, compatible spans, nested tables and wrapped neighbouring elements. Token marks
+  retain their position beside text, inline images and legacy glyphs through the new
+  `MathMLNode.tokenTextOffset` property. See [table alignment groups](doc/alignment-groups.md).
+- `MathImage` and `MathImageProvider.resolving` supply intrinsic image scale or logical size
+  in points. Existing image providers retain one pixel per point; authored dimensions take
+  precedence. Bounded legacy `mglyph` font/index lookup uses installed fonts and falls back
+  to `alt` for unsupported inputs. Explicit `stretchy` and `largeop` opt into whole-token
+  image-operator geometry. See [images](doc/images.md) and [image operators](doc/image-operators.md).
+- OpenType MATH corner kerning for eligible single-glyph script pairs, including the
+  adjoining physical corners of RTL scripts. Compound, fallback and assembled boxes retain
+  zero corner kerning.
+- Top-level `math maxwidth` can narrow host line budgets, including absolute/font-relative
+  widths with an unbounded host. See [line breaking](doc/line-breaking.md).
+- Public `MathVocabulary`, `MathRegionalVocabulary` and `MathVocabularyCatalog` APIs for
+  complete custom languages and explicit regional overrides, selected per reading. Locale
+  selection tries the exact supported tag, its base language, then English for the whole
+  reading. Built-in `en-GB` adds British bracket terminology. See
+  [the vocabulary extension contract](doc/speech-locales.md).
+- Offline corpus validation in the default test suite: 100 OpenStax Precalculus 2e equations
+  and 296 Speech Rule Engine regression inputs. All 393 valid inputs must render with
+  deterministic, bounded dimensions and contained raster ink; three malformed script inputs
+  must produce their recorded rejection. Sources, hashes, provenance and licenses are
+  bundled in test resources. These checks establish robustness, not visual conformance.
+
+### Fixed
+
+- Plain bidirectional `mtext` wraps in logical order with per-line shaping and inherited
+  paragraph direction. Simple LTR text reuses glyph/word measurements to reduce wrapping
+  work while other text retains full paragraph bidi context.
+- Inline images and decorated fallbacks wrap at supported spaces while retaining attachment
+  alignment, authored whitespace and explicit token marks. Each elementary-math `mglyph`
+  occupies one logical number column; embedded glyph descriptions follow source order,
+  and missing or empty `alt` remains silent.
+- Default `mpadded` and `mphantom` preserve wrapper semantics across line fragments;
+  phantom fragments stay invisible. Nested indentation targets and nested-table width
+  fitting retain their geometry through relayout.
+- Table alignment resolves against rendered neighbour fragments and retains marker and
+  background geometry through wrapping, spans and direction changes. Invalid direction
+  attributes preserve inherited scope.
+- Recursive layout uses less worker stack space, releases cached table engines and preserves
+  fence rebuild state. Exact 512 KB worker tests cover the documented 64-level shape matrices,
+  including RTL and wrapped alignment. Input and work limits remain enforced; this is not
+  universal coverage of every 64-level formula. See [bounds and limitations](doc/limits.md).
+
+### Documentation
+
+- Added guides for directionality, alignment groups, image operators and speech locale
+  extension, plus a native-speaker speech review packet. Consolidated third-party notices
+  under `doc/licenses`. Remaining linguistic review is tracked in
+  [#63](https://github.com/vocaro/MathMLLayout/issues/63).
 
 ## 0.2.0
 
