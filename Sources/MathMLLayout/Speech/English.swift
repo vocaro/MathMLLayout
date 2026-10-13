@@ -1,6 +1,6 @@
 // Selected multiscript wording adapted from MathCAT (MIT) and Speech Rule Engine
 // (Apache-2.0), modified for explicit sides and compound closure in MathMLLayout.
-// See THIRD_PARTY_NOTICES.md and doc/speech-wording-audit.md for sources.
+// See doc/licenses/THIRD_PARTY_NOTICES.md and doc/speech-wording-audit.md for sources.
 /// English, and the reading of every locale without a vocabulary of its own.
 /// Structural speech follows the policies in doc/speech.md.
 enum EnglishVocabulary: MathVocabulary {

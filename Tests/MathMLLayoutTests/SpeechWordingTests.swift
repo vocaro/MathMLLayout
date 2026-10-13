@@ -1,5 +1,5 @@
 // Selected expectations adapted from MathCAT (MIT) and Speech Rule Engine (Apache-2.0).
-// Modified into isolated MathMLLayout regression cases; see THIRD_PARTY_NOTICES.md and
+// Modified into isolated MathMLLayout regression cases; see doc/licenses/THIRD_PARTY_NOTICES.md and
 // doc/speech-wording-audit.md for pinned upstream files and rule/test identifiers.
 import Foundation
 @testable import MathMLLayout

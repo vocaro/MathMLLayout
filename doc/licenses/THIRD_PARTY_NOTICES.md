@@ -1,6 +1,6 @@
 # Third-party notices
 
-MathMLLayout's original code is licensed under the [MIT license](LICENSE).
+MathMLLayout's original code is licensed under the [MIT license](../../LICENSE).
 Selected localized speech vocabulary and regression expectations are adapted from
 the following projects. Their notices and license conditions apply to the adapted
 material; no third-party speech engine is bundled or required at runtime.
@@ -13,14 +13,14 @@ material; no third-party speech engine is bundled or required at runtime.
 Copyright (c) 2022 NSoiffer
 
 Licensed under MIT; the complete copyright and permission notice is retained in
-[Licenses/MathCAT-MIT.txt](Licenses/MathCAT-MIT.txt).
+[doc/licenses/MathCAT-MIT.txt](MathCAT-MIT.txt).
 
 Adapted material: French and German accent names and ∂ names, German ∮ name,
 French comparison wording, Spanish double-dot accent name, English/French multiscript
 names, French and Spanish ordinal-root templates, English point name,
 the tensor multiscript regression structure, and selected regression expectations.
 References for retained wording are also recorded in the
-[speech wording audit](doc/speech-wording-audit.md).
+[speech wording audit](../speech-wording-audit.md).
 
 ## Speech Rule Engine
 
@@ -30,8 +30,8 @@ References for retained wording are also recorded in the
 Copyright 2014-2018 Volker Sorge
 
 Licensed under Apache License, Version 2.0. The complete license is retained in
-[Licenses/SRE-Apache-2.0.txt](Licenses/SRE-Apache-2.0.txt), and the upstream NOTICE
-is retained unchanged in [Licenses/SRE-NOTICE.txt](Licenses/SRE-NOTICE.txt).
+[doc/licenses/SRE-Apache-2.0.txt](SRE-Apache-2.0.txt), and the upstream NOTICE
+is retained unchanged in [doc/licenses/SRE-NOTICE.txt](SRE-NOTICE.txt).
 
 Adapted material: selected accent and operator names from the English, French, German, Spanish
 and Italian `mathmaps` files; underbar actions, brace names and Italian caron wording;
@@ -43,7 +43,7 @@ are composed for MathMLLayout, and its reading order follows source order.
 In MathMLLayout these are incorporated into Swift
 phrase templates and isolated test formulas, with existing operand and alias handling.
 The affected vocabulary and test files prominently identify this adaptation.
-The [audit](doc/speech-wording-audit.md) records exact source files and decisions.
+The [audit](../speech-wording-audit.md) records exact source files and decisions.
 These adaptations retain the Apache license and notice obligations.
 
 The adapted ClearSpeak fixtures also carry these attribution notices, retained here
@@ -59,15 +59,15 @@ SRE's browser or Node dependencies, including wicked good XPath.
 
 ## Redistributing MathMLLayout
 
-For source distributions, retain this file, [LICENSE](LICENSE), the three files in
-[Licenses](Licenses), and the adaptation notices in the affected Swift files.
+For source distributions, retain this file, [LICENSE](../../LICENSE), the three files in
+[doc/licenses](.), and the adaptation notices in the affected Swift files.
 Keep those notices when modifying the adapted material, and identify further changes.
 
 For compiled libraries or apps containing the adapted speech material, include readable
 copies of this file, LICENSE, MathCAT-MIT.txt, SRE-Apache-2.0.txt and SRE-NOTICE.txt
 with the distribution, for example in the app's bundled acknowledgments or accompanying
 documentation. A link to this repository alone does not supply those copies.
-SwiftPM does not automatically copy these root-level files into an app bundle;
+SwiftPM does not automatically copy these notice and license files into an app bundle;
 the distributing app or binary package must include them.
 
 These instructions preserve the upstream MIT notice condition and Apache-2.0

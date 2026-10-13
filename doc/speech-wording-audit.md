@@ -354,11 +354,11 @@ chosen wording; they do not certify linguistic quality or byte-for-byte equivale
 either complete upstream engine.
 
 Selected names and test expectations are adapted; neither upstream engine is a runtime
-dependency. See [third-party notices](../THIRD_PARTY_NOTICES.md) for the retained MIT and
+dependency. See [third-party notices](licenses/THIRD_PARTY_NOTICES.md) for the retained MIT and
 Apache licenses, copyright notices and SRE NOTICE.
 The notices also retain the German fixtures' ETH Zurich sponsorship and the Italian
 fixtures' TextHelp acknowledgment. Apps distributing the compiled speech material must
-include the [license and attribution copies](../THIRD_PARTY_NOTICES.md#redistributing-mathmllayout).
+include the [license and attribution copies](licenses/THIRD_PARTY_NOTICES.md#redistributing-mathmllayout).
 
 Initial #53 audit validation on 2026-10-12 with Swift 6.4 on macOS: the full debug and release suites
 each passed all 394 tests with zero failures. The release run used `-Xswiftc -enable-testing`.

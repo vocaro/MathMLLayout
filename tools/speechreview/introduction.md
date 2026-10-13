@@ -95,13 +95,13 @@ Optional listening/user QA (separate from the wording verdict):
 From the repository root on macOS with Xcode and STIX Two Math installed:
 
 ```sh
-python3 Tools/SpeechReview/generate.py
+python3 tools/speechreview/generate.py
 ```
 
 The generator compiles the checked-out Swift library sources, parses
-[`cases.json`](../../Tools/SpeechReview/cases.json), and writes this packet, exact locale
+[`cases.json`](../../tools/speechreview/cases.json), and writes this packet, exact locale
 [`readings.json`](readings.json), and rendered PNG examples. Edit
-[`introduction.md`](../../Tools/SpeechReview/introduction.md) for review instructions or
+[`introduction.md`](../../tools/speechreview/introduction.md) for review instructions or
 `cases.json` for example inputs/prompts, then regenerate. Example IDs stay stable so feedback
 remains attributable across revisions. The snapshot revision identifies library code, not a
 claim that uncommitted vocabulary changes have been reviewed.
