@@ -890,8 +890,8 @@ final class LineBreakingTests: MathTestCase {
         // A no-break space keeps its words together, and so does `linebreak="nobreak"` above the text.
         XCTAssertEqual(try broken("<mtext>alpha\u{A0}beta gamma</mtext>", width: 0).rows.count, 2)
         XCTAssertEqual(try broken("<mstyle linebreak=\"nobreak\"><mtext>alpha beta gamma</mtext></mstyle>", width: 0).rows.count, 1)
-        // Right-to-left text stays whole: its words are drawn last first.
-        XCTAssertEqual(try broken("<mtext>שלום עולם טוב</mtext>", width: 0).rows.count, 1)
+        // RTL breaks consume logical words in order; each selected line resolves its visual order.
+        XCTAssertEqual(try broken("<mtext>שלום עולם טוב</mtext>", width: 0).rows.count, 3)
         // Other tokens do not break at spaces.
         XCTAssertEqual(try broken("<mi>alpha beta</mi><mn>1 000 000</mn><ms>a b</ms>", width: 0).rows.count, 1)
     }

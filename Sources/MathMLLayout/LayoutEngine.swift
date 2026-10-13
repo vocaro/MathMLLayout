@@ -59,6 +59,8 @@ struct LayoutContext {
     var lines = LineStyle()
     /// `decimalpoint`: the character a stack's rows align on (`stackalign="decimalpoint"`); nil is ".".
     var decimalPoint: String?
+    /// The text paragraph direction; the mathematical row still follows its own geometry.
+    var direction = CTWritingDirection.natural
 }
 
 /// What an embellished operator learns from where it sits: its form from its position in a
@@ -143,6 +145,7 @@ final class LayoutEngine {
     let constants: MathConstants
     private var nodeCount = 0
     private var textLength = 0
+    var textWork = TextShapingWork()
     /// `MathLimits.stackFloor` of the thread that lays out, found as the root starts.
     private var stackFloor: UInt = 0
     /// `MathStyle.imageProvider`, and what it has returned for each `src` it was asked for.
@@ -170,7 +173,9 @@ final class LayoutEngine {
                                     display: style.isDisplay || root.attributes["display"]?.trimmingCharacters(in: .whitespaces).lowercased() == "block",
                                     color: style.color)
         // One unbroken row: `lines` breaks it, makes each row cover its ink and checks the result's size.
-        return try layout(root, context, depth: 0)
+        let box = try layout(root, context, depth: 0)
+        guard !textWork.exhausted else { throw MathLayoutError.limitExceeded }
+        return box
     }
 
     // MARK: Context
@@ -225,6 +230,9 @@ final class LayoutEngine {
         let attributes = node.attributes
         guard !attributes.isEmpty else { return outer }
         var context = outer
+        let direction = attributes["dir"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if direction == "ltr" { context.direction = .leftToRight }
+        if direction == "rtl" { context.direction = .rightToLeft }
         if node.name == "mstyle" {
             if let multiplier = attributes["scriptsizemultiplier"].flatMap({ Double($0.trimmingCharacters(in: .whitespaces)) }),
                multiplier > 0.1, multiplier <= 10 {
@@ -417,6 +425,7 @@ final class LayoutEngine {
     func restart() {
         nodeCount = 0
         textLength = 0
+        textWork = TextShapingWork()
         narrowable = nil
         loosest = 0
         wrapParts.removeAll(keepingCapacity: true)
@@ -803,6 +812,10 @@ final class LayoutEngine {
     /// says otherwise, and its width includes its italic correction (TeX's rule 17). An `mglyph`
     /// is not a character, so an `mi` of one stays upright even when its `alt` is drawn instead.
     private func token(_ node: MathMLNode, _ context: LayoutContext) throws -> MathBox {
+        var context = context
+        // MathML's numeric exception also applies to the single-character mn cells of a stack.
+        // A surrounding RTL text paragraph must not mirror their physical parentheses.
+        if node.name == "mn" { context.direction = .leftToRight }
         var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", context)
         if node.name == "ms" {
             // The quotes are text, whatever they hold: only `mglyph`s have markers.
@@ -814,6 +827,12 @@ final class LayoutEngine {
         if let variant { text = variant.apply(to: text) }
         guard images.isEmpty else { return textBox(text, images: images, context) }
         var box = textBox(text, context)
+        if node.name == "mtext", context.lines.linebreak != .nobreak, text.contains(" ") {
+            let source = LogicalTextSource(attributedText(text, context), color: context.color, work: textWork)
+            if source.words.count > 1 {
+                box.textSlice = LogicalTextSlice(source: source, range: 0..<text.utf16.count)
+            }
+        }
         if let glyph = singleGlyph(box), let table = font.table {
             let size = context.fontSize
             if node.name == "mi", let correction = table.italicsCorrection(glyph) {
@@ -829,8 +848,24 @@ final class LayoutEngine {
     /// system's fallback fonts.
     func textBox(_ text: String, _ context: LayoutContext) -> MathBox {
         guard !text.isEmpty else { return .empty() }
-        let attributes = [kCTFontAttributeName: ctFont(context)] as CFDictionary
-        let line = CTLineCreateWithAttributedString(CFAttributedStringCreate(nil, text as CFString, attributes))
+        return Self.shapedTextBox(CTLineCreateWithAttributedString(attributedText(text, context)), color: context.color)
+    }
+
+    func attributedText(_ text: String, _ context: LayoutContext) -> CFAttributedString {
+        if context.direction == .natural {
+            return CFAttributedStringCreate(nil, text as CFString, [kCTFontAttributeName: ctFont(context)] as CFDictionary)
+        }
+        var direction = context.direction
+        let paragraph = withUnsafePointer(to: &direction) { pointer in
+            var setting = CTParagraphStyleSetting(spec: .baseWritingDirection,
+                valueSize: MemoryLayout<CTWritingDirection>.size, value: pointer)
+            return CTParagraphStyleCreate(&setting, 1)
+        }
+        let attributes = [kCTFontAttributeName: ctFont(context), kCTParagraphStyleAttributeName: paragraph] as CFDictionary
+        return CFAttributedStringCreate(nil, text as CFString, attributes)
+    }
+
+    static func shapedTextBox(_ line: CTLine, color: CGColor) -> MathBox {
         var box = MathBox(width: CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)))
         var ink: CGRect?
         for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
@@ -851,7 +886,7 @@ final class LayoutEngine {
             }
             if let runInk { ink = ink.map { $0.union(runInk) } ?? runInk }
             box.items.append(.glyphs(GlyphRun(font: runFont, glyphs: glyphs, positions: positions,
-                                              color: context.color, ink: runInk ?? .null)))
+                                              color: color, ink: runInk ?? .null)))
         }
         box.ascent = ink?.maxY ?? 0
         box.descent = ink.map { -$0.minY } ?? 0

@@ -11,14 +11,22 @@ same way and leave out what is past the bounds. `MathMLNode.parse(xml:)` refuses
 declarations in any encoding, so no entity expands and nothing external loads; it reads at most
 4 MiB.
 
+Per layout pass, logical text line shaping and row assembly are limited to 2,000,000 UTF-16
+units of work (including cached range visits and units visited during row assembly). Candidate lines share that budget across tokens;
+exhaustion throws `MathLayoutError.limitExceeded`. The existing complete-layout retry bound
+also applies. Long paragraphs at very narrow widths can reach this work limit before the
+input text limit.
+
 ## Limitations
 
 - **Line breaking.** No breaks inside `mpadded`, `mphantom`, `merror`, `munder`/`mover`/
   `munderover`, a script, or a row with a `mathbackground`; none between adjacent identifiers or
   inside a number. `indenttarget` must name a child of a row
   being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
-  a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
-  drawn on a `mathbackground` of its own does not wrap.
+  a table cell does not narrow, and `mtext` with an image or an `alt` drawn on a
+  `mathbackground` of its own does not wrap. Plain `mtext` wraps in logical text order, with
+  per-line Arabic shaping and bidirectional resolution; inherited `dir` selects its paragraph
+  direction. Mathematical row geometry itself remains left to right.
   `overflow` and `maxwidth` on `math` are not read:
   the host decides by the `maximumWidth` it passes.
 - **`mglyph`.** MathML 2's `fontfamily` and `index` glyphs have no image and show their `alt`.

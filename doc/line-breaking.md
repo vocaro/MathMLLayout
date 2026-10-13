@@ -11,7 +11,11 @@ See [LineBreaking.swift](examples/LineBreaking.swift) for the complete Swift exa
   argument. Separators break after; other operators start the next row and keep their spacing.
 - **How deep.** Inside nested `mrow`, `mstyle` and `mfenced`, and inside the base of a script. A
   bracket pair split across rows keeps one size; a pair wholly on one row shrinks to that row's
-  content after the breaks are chosen. Long `mtext` wraps at its spaces. A table wider
+  content after the breaks are chosen. Long `mtext` wraps at its logical U+0020 spaces. Arabic, Hebrew and mixed direction
+  text are resolved and shaped for each selected line from the full token paragraph. Numbers,
+  punctuation, neutral characters and directional controls retain that paragraph context;
+  no-break spaces keep adjacent words together. An inherited `dir="rtl"` or `dir="ltr"` sets
+  the text paragraph direction. A table wider
   than the line narrows its columns and wraps its cells; fraction parts, radicands and
   `menclose` contents wrap the same way.
 - **Attributes** (MathML 3 §3.1.7): `linebreak`, `linebreakstyle`, `linebreakmultchar`,
