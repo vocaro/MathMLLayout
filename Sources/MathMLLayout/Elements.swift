@@ -527,31 +527,44 @@ extension LayoutEngine {
         func pick(_ values: [String], _ index: Int) -> String? { values.isEmpty ? nil : values[min(index, values.count - 1)] }
         var cells: [[(box: MathBox, align: String?)]] = []
         var labels: [MathBox?] = []
-        for rowNode in node.children {
-            let rowContext: LayoutContext
-            var cellNodes: [MathMLNode]
-            var label: MathMLNode?
-            switch rowNode.name {
-            case "mtr", "mlabeledtr":
-                // A row is a node as its cells are, though only they are laid out.
-                try visit(cellContext, depth: depth + 1)
-                rowContext = inherit(rowNode, cellContext)
-                cellNodes = rowNode.children
-                if rowNode.name == "mlabeledtr", !cellNodes.isEmpty { label = cellNodes.removeFirst() }
-            default:
-                rowContext = cellContext
-                cellNodes = [rowNode]
+        var sources: [[TableCellSource]] = []
+        let cached = isCellRebuild ? tableMeasurements.lookup(node, context) : nil
+        if let cached {
+            try countCellRebuildNodes(cached.descendantNodes)
+            cells = cached.cells; labels = cached.labels; sources = cached.sources
+        } else {
+            let startNodes = visitedNodes
+            for rowNode in node.children {
+                let rowContext: LayoutContext
+                var cellNodes: [MathMLNode]
+                var label: MathMLNode?
+                switch rowNode.name {
+                case "mtr", "mlabeledtr":
+                    // A row is a node as its cells are, though only they are laid out.
+                    try visit(cellContext, depth: depth + 1)
+                    rowContext = inherit(rowNode, cellContext)
+                    cellNodes = rowNode.children
+                    if rowNode.name == "mlabeledtr", !cellNodes.isEmpty { label = cellNodes.removeFirst() }
+                default:
+                    rowContext = cellContext
+                    cellNodes = [rowNode]
+                }
+                let rowAlign = list("columnalign", in: rowNode.attributes)
+                var row: [(MathBox, String?)] = []
+                var rowSources: [TableCellSource] = []
+                for (index, cell) in cellNodes.enumerated() {
+                    let box = try layout(cell, rowContext, depth: depth + 2)
+                    let align = cell.attributes["columnalign"]?.trimmingCharacters(in: .whitespaces).lowercased()
+                        ?? pick(rowAlign, index)
+                    row.append((box, align))
+                    rowSources.append(TableCellSource(node: cell, context: rowContext, depth: depth + 2))
+                }
+                cells.append(row)
+                sources.append(rowSources)
+                labels.append(try label.map { try layout($0, rowContext, depth: depth + 2) })
             }
-            let rowAlign = list("columnalign", in: rowNode.attributes)
-            var row: [(MathBox, String?)] = []
-            for (index, cell) in cellNodes.enumerated() {
-                let box = try layout(cell, rowContext, depth: depth + 2)
-                let align = cell.attributes["columnalign"]?.trimmingCharacters(in: .whitespaces).lowercased()
-                    ?? pick(rowAlign, index)
-                row.append((box, align))
-            }
-            cells.append(row)
-            labels.append(try label.map { try layout($0, rowContext, depth: depth + 2) })
+            tableMeasurements.keep(node, context, cells: cells, labels: labels, sources: sources,
+                                   descendantNodes: visitedNodes - startNodes)
         }
         let columns = cells.map(\.count).max() ?? 0
         let ex = xHeight(context), em = context.fontSize
@@ -572,7 +585,8 @@ extension LayoutEngine {
         let labelGap = length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em
         let labelWidth = labels.compactMap { $0?.width }.max().map { $0 + labelGap } ?? 0
         // Before the rows are measured: a table too wide for the line wraps its cells, which grow taller.
-        wrapCells(&cells, columnAlign: tableAlign, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
+        let minimum = try wrapCells(&cells, sources: sources, columnAlign: tableAlign,
+                                    fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
         var widths = [CGFloat](repeating: 0, count: columns)
         var ascents = [CGFloat](repeating: 0, count: cells.count), descents = ascents
         for (rowIndex, row) in cells.enumerated() {
@@ -678,6 +692,7 @@ extension LayoutEngine {
         if !dashed.isEmpty {
             box.items.append(.dashes(dashed, lineWidth: stroke, color: context.color, lengths: [stroke * 4, stroke * 3]))
         }
+        box.tableMinimumWidth = minimum
         box.width = gridWidth + 2 * frameX + labelWidth
         box.ascent = top
         box.descent = height - top

@@ -16,6 +16,9 @@ struct MathBox {
     var op: OperatorProperties?
     /// Set when the box is a row a line may break inside: its children, kept apart.
     var row: BreakableRow?
+    /// The table's column minima plus gaps, frame and labels; cell allocation may use this
+    /// before rebuilding the table at its assigned width.
+    var tableMinimumWidth: CGFloat?
     /// The source of a vertically stretched fence, for a pair that later stays on one output row.
     var fenceLayout: FenceLayout?
     var items: [MathItem] = []
