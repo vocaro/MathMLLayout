@@ -52,6 +52,12 @@ wrappers. This includes pure subscript and under-over chains. The sweep checks s
 comparisons above. Measurements used arm64 macOS 27.0 (build 26A428), Xcode 27.1 (build 27A9269),
 and Apple Swift 6.4 (`swiftlang-6.4.0.34.1`).
 
+The RTL alignment follow-up source `b9cd593` repeated all eleven pure-chain probes at 64
+levels in debug and release on the same platform. A new 64-level fixture also retains two
+alignment groups through 58 nested RTL rows in each table cell. Its geometry, drawing-item
+counts, ink, pixels and all five base-language readings match the reference layout on an
+exactly 512 KB worker. The ordinary node, text, table-work and extent limits still apply.
+
 These fixtures do not establish universal 64-level coverage. Different attributes, fonts,
 stretched operators, width constraints or callbacks can exhaust the stack sooner. Smaller
 workers may safely reject bounded inputs; tests include exact 128 KB and 256 KB stacks and the
