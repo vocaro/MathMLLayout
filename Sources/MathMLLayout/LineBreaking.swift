@@ -40,7 +40,7 @@ struct LineLength: Sendable, Equatable {
 /// has a default, the schema lists `linebreak` among those it takes (appendix A), and a value
 /// there changes the default "for all elements within its scope" (3.3.4.1). The second is
 /// followed: `linebreak="nobreak"` on an `mstyle` keeps what it holds on one line.
-struct LineStyle: Sendable {
+struct LineStyle: Sendable, Equatable {
     var linebreak = Linebreak.auto
     /// nil is the default: before an operator, after a separator.
     var style: LinebreakStyle?
@@ -190,10 +190,9 @@ final class BreakableRow {
         fontSize = context.fontSize; display = context.display; style = context.lines
     }
 
-    /// Keep placed children for anchor lookup while making the decorated row indivisible.
-    init(opaque row: BreakableRow) {
-        children = row.children; visible = row.visible; itemCount = -1; isOperator = row.isOperator
-        hasForced = row.hasForced; isSeveral = row.isSeveral
+    init(children: [Child], replacing row: BreakableRow, itemCount: Int) {
+        self.children = children; visible = row.visible; self.itemCount = itemCount
+        isOperator = row.isOperator; hasForced = row.hasForced; isSeveral = row.isSeveral
         fontSize = row.fontSize; display = row.display; style = row.style
     }
 }
@@ -201,6 +200,9 @@ final class BreakableRow {
 // MARK: Layout
 
 extension LayoutEngine {
+    /// Cell rebuilds share one counter per complete pass. Retained table measurements avoid
+    /// exponential remeasurement; this also bounds work for reused source trees and wrappers.
+    static let maximumCellRebuildNodes = MathLimits.nodes * MathLimits.depth
     /// Limits on retries of complete layouts. Part retries compare completed ancestors; the
     /// boundary search only runs when the first measurement fails to reproduce its own width.
     static let wrappingPartTrials = 12
@@ -655,70 +657,86 @@ extension LayoutEngine {
     /// engine's. Columns narrower than an equal share keep their width and the rest share what
     /// is left, none below its widest unbreakable unit. A cell with a forced break is stacked
     /// whatever the width. `fixed` is the width of everything but the columns.
-    func wrapCells(_ cells: inout [[(box: MathBox, align: String?)]], columnAlign: [String], fixed: CGFloat) {
+    func wrapCells(_ cells: inout TableGrid, sources: [[TableCellSource]],
+                   columnAlign: [String], gaps: [CGFloat], fixed: CGFloat) throws -> CGFloat {
         let part = wrapParts.count, budget = nextWrapWidth
         wrapParts.append((0, 0, 0))
         func align(_ row: Int, _ column: Int) -> IndentAlign {
-            let name = cells[row][column].align ?? columnAlign.last.map { _ in columnAlign[min(column, columnAlign.count - 1)] }
+            let name = cells.rows[row][column].align ?? columnAlign.last.map { _ in columnAlign[min(cells.rows[row][column].column, columnAlign.count - 1)] }
             return name == "left" ? .left : name == "right" ? .right : .center
         }
-        var paragraphs: [[Paragraph?]] = cells.map { [Paragraph?](repeating: nil, count: $0.count) }
+        var paragraphs: [[Paragraph?]] = cells.rows.map { [Paragraph?](repeating: nil, count: $0.count) }
+        let originalCells = cells
         // Asked before a forced break stacks a cell, which is then a box and no row.
-        let isSeveral = cells.contains { $0.contains { $0.box.row?.isSeveral == true } }
-        for row in cells.indices {
-            for column in cells[row].indices where cells[row][column].box.row?.hasForced == true {
-                let paragraph = Paragraph(cells[row][column].box)
+        let isSeveral = cells.rows.contains { $0.contains { $0.box.row?.isSeveral == true } }
+        for row in cells.rows.indices {
+            for column in cells.rows[row].indices where cells.rows[row][column].box.row?.hasForced == true {
+                let paragraph = Paragraph(cells.rows[row][column].box)
                 paragraphs[row][column] = paragraph
                 guard let box = wrapped(paragraph, width: .infinity, align: align(row, column)) else { continue }
-                cells[row][column].box = box
+                cells.rows[row][column].box = box
             }
         }
-        var natural = [CGFloat](repeating: 0, count: cells.map(\.count).max() ?? 0), least = natural
+        var natural = cells.widths(gaps: gaps) { _, _, cell in cell.box.width }
         func total() -> CGFloat {
-            for index in natural.indices { natural[index] = 0 }
-            for row in cells {
-                for (column, cell) in row.enumerated() { natural[column] = max(natural[column], cell.box.width) }
-            }
+            natural = cells.widths(gaps: gaps) { _, _, cell in cell.box.width }
             return natural.reduce(0, +) + fixed
         }
         var width = total()
         wrapParts[part] = (width, width, width)
-        // Smaller tables are left alone, and unmeasured: a row breaks around them.
-        guard lineWidth.isFinite, width > min(budget, lineWidth / 2) else {
-            if isSeveral { loose(width) }
-            return
-        }
-        for row in cells.indices {
-            for column in cells[row].indices {
-                let paragraph = paragraphs[row][column] ?? Paragraph(cells[row][column].box)
+        for row in cells.rows.indices {
+            for column in cells.rows[row].indices {
+                let paragraph = paragraphs[row][column] ?? Paragraph(cells.rows[row][column].box)
                 paragraphs[row][column] = paragraph
-                least[column] = max(least[column], min(paragraph.widest, cells[row][column].box.width))
             }
+        }
+        let least = cells.widths(gaps: gaps) { row, index, cell in
+            let paragraph = paragraphs[row][index]!
+            let hasTable = paragraph.units.contains { $0.box.tableMinimumWidth != nil }
+            let cellMinimum = hasTable ? Paragraph.minimumTables(originalCells.rows[row][index].box).widest : paragraph.widest
+            return min(cellMinimum, cell.box.width)
+        }
+        let minimum = least.reduce(0, +) + fixed
+        // Compute nested minima even without a finite budget: the containing table needs them.
+        guard lineWidth.isFinite, width > min(budget, lineWidth / 2) else {
+            if isSeveral || width > minimum + Paragraph.slop { loose(width) }
+            wrapParts[part].minimum = minimum
+            return minimum
         }
         if width > budget + Paragraph.slop {
             let room = budget - fixed
-            func filled(_ level: CGFloat) -> CGFloat { zip(natural, least).reduce(0) { $0 + min($1.0, max($1.1, level)) } }
-            var low: CGFloat = 0, high = natural.max() ?? 0
+            let upper = zip(natural, least).map { max($0.0, $0.1) }
+            func filled(_ level: CGFloat) -> CGFloat { zip(upper, least).reduce(0) { $0 + min($1.0, max($1.1, level)) } }
+            var low: CGFloat = 0, high = upper.max() ?? 0
             if filled(0) < room {
                 for _ in 0..<48 {
                     let level = (low + high) / 2
                     if filled(level) <= room { low = level } else { high = level }
                 }
             }
-            for row in cells.indices {
-                for column in cells[row].indices {
-                    let share = max(least[column], low)
-                    guard cells[row][column].box.width > share + Paragraph.slop, let paragraph = paragraphs[row][column],
-                          let box = wrapped(paragraph, width: share, align: align(row, column)) else { continue }
-                    cells[row][column].box = box
+            let shares = zip(upper, least).map { min($0.0, max($0.1, low)) }
+            for row in cells.rows.indices {
+                for column in cells.rows[row].indices {
+                    let share = cells.spanWidth(cells.rows[row][column], widths: shares, gaps: gaps)
+                    guard cells.rows[row][column].box.width > share + Paragraph.slop else { continue }
+                    var paragraph = paragraphs[row][column]!
+                    if paragraph.units.contains(where: { $0.box.tableMinimumWidth != nil }) {
+                        let rebuilt = try relayoutCell(sources[row][column], width: share)
+                        cells.rows[row][column].box = rebuilt
+                        paragraph = Paragraph(rebuilt)
+                    }
+                    if let box = wrapped(paragraph, width: share, align: align(row, column)) {
+                        cells.rows[row][column].box = box
+                    }
                 }
             }
             width = total()
         }
-        if width > least.reduce(0, +) + fixed + Paragraph.slop { loose(width) }
+        if width > minimum + Paragraph.slop { loose(width) }
         wrapParts[part].width = width
-        wrapParts[part].minimum = least.reduce(0, +) + fixed
-        note(width: width, minimum: least.reduce(0, +) + fixed, isTable: true)
+        wrapParts[part].minimum = minimum
+        note(width: width, minimum: minimum, isTable: true)
+        return minimum
     }
 }
 
@@ -917,6 +935,65 @@ struct Paragraph {
         if !rises(ends) { farthest = Maxima(ends) }
         if !rises(rights) { rightmost = Maxima(rights) }
         if !rises(lefts) { leftmost = Maxima(lefts.map { -$0 }) }
+    }
+
+    /// Active ancestry while rebuilding row children at their nested-table minima.
+    private struct MinimumTableFrame {
+        var result: MathBox
+        let row: BreakableRow
+        var children: [BreakableRow.Child]
+        var index = 0
+        var lost: CGFloat = 0
+
+        init(_ box: MathBox, _ row: BreakableRow) {
+            result = box
+            result.items = []
+            // Rebuilding children also rebuilds their placed alignment paths.
+            result.alignment = []
+            self.row = row
+            children = row.children
+        }
+    }
+
+    /// Measure cell tracks with nested tables reduced to their own track minima. Rebuild only
+    /// ordinary row structure, preserving operator spacing, attachments and break points.
+    /// Opaque wrappers retain their actual width, just as they do in normal line breaking.
+    static func minimumTables(_ box: MathBox) -> Paragraph {
+        var pending: [MinimumTableFrame] = []
+        var current = box
+        while true {
+            if let minimum = current.tableMinimumWidth {
+                current = .empty(width: minimum)
+            } else if let row = current.row, row.itemCount == current.items.count {
+                pending.append(MinimumTableFrame(current, row))
+                if let child = row.children.first {
+                    current = child.box
+                    continue
+                }
+                var frame = pending.removeLast()
+                frame.result.row = BreakableRow(children: [], replacing: row, itemCount: 0)
+                current = frame.result
+            }
+            while !pending.isEmpty {
+                var frame = pending.removeLast()
+                let original = frame.children[frame.index].box
+                frame.children[frame.index].box = current
+                frame.children[frame.index].x -= frame.lost
+                frame.lost += original.width - current.width
+                frame.result.add(current, at: CGPoint(x: frame.children[frame.index].x, y: 0))
+                frame.index += 1
+                if frame.index < frame.children.count {
+                    current = frame.children[frame.index].box
+                    pending.append(frame)
+                    break
+                }
+                frame.result.width -= frame.lost
+                frame.result.row = BreakableRow(children: frame.children, replacing: frame.row,
+                                               itemCount: frame.result.items.count)
+                current = frame.result
+            }
+            if pending.isEmpty { return Paragraph(current) }
+        }
     }
 
     /// The greatest of any stretch of a sequence, found in constant time: a table whose every level

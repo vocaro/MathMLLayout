@@ -329,8 +329,8 @@ final class TableTests: XCTestCase {
             XCTAssertTrue(layout.width.isFinite && layout.ascent.isFinite && layout.descent.isFinite, body)
             XCTAssertGreaterThanOrEqual(layout.width, 0, body)
         }
-        // Spans are documented as ignored: the cell takes one place and nothing throws.
-        try assertSameBox("<mtable><mtr><mtd columnspan=\"2\" rowspan=\"3\"><mi>a</mi></mtd><mtd><mi>b</mi></mtd></mtr></mtable>",
+        // Malformed spans use one cell. Valid spans have separate grid and geometry coverage.
+        try assertSameBox("<mtable><mtr><mtd columnspan=\"invalid\" rowspan=\"-3\"><mi>a</mi></mtd><mtd><mi>b</mi></mtd></mtr></mtable>",
                           "<mtable><mtr><mtd><mi>a</mi></mtd><mtd><mi>b</mi></mtd></mtr></mtable>")
     }
 

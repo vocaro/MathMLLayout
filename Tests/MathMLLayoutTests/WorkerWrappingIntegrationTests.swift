@@ -20,6 +20,43 @@ final class WorkerWrappingIntegrationTests: MathTestCase {
         XCTAssertEqual(inner.lines.align, .right)
     }
 
+    func testTableContextsCompareValuesAndCopyIndependently() {
+        func context() -> LayoutContext {
+            LayoutContext(fontSize: 12, unclampedSize: 12, minSize: 8, display: false, color: black)
+        }
+        let original = context()
+        XCTAssertEqual(original, context()) // Independently allocated storage remains a cache hit.
+        let mutations: [(inout LayoutContext) -> Void] = [
+            { $0.tableRowAlign = "top" }, { $0.tableGroupAlign = "decimalpoint" },
+            { $0.trackAlignment = true }, { $0.alignmentRTL = true },
+            { $0.alignmentBaseline = false }, { $0.direction = .rightToLeft },
+            { $0.lines.align = .right },
+        ]
+        for mutate in mutations {
+            var changed = original
+            mutate(&changed)
+            XCTAssertNotEqual(changed, original)
+            XCTAssertEqual(original, context())
+        }
+        var inherited = original
+        inherited.tableRowAlign = "center"
+        inherited.tableGroupAlign = "right"
+        inherited.trackAlignment = true
+        inherited.alignmentRTL = true
+        inherited.alignmentBaseline = false
+        var child = inherited
+        child.tableRowAlign = "bottom"
+        child.tableGroupAlign = "left"
+        child.trackAlignment = false
+        child.alignmentRTL = false
+        child.alignmentBaseline = true
+        XCTAssertEqual(inherited.tableRowAlign, "center")
+        XCTAssertEqual(inherited.tableGroupAlign, "right")
+        XCTAssertTrue(inherited.trackAlignment)
+        XCTAssertTrue(inherited.alignmentRTL)
+        XCTAssertFalse(inherited.alignmentBaseline)
+    }
+
     func testBothPhantomDispatchPathsRetainSpacingWithoutDrawing() throws {
         let cases = [
             [MathMLNode(name: "mtext", text: "alpha beta")],

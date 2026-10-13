@@ -10,8 +10,8 @@ import Foundation
 ///
 /// An `mglyph` in a token marks its place in `text` with one U+FFFC OBJECT REPLACEMENT
 /// CHARACTER, in document order: `<mi>a<mglyph src="s" alt="t"/>b</mi>` is the text "a\u{FFFC}b"
-/// with one `mglyph` child. Other element children (`malignmark`) leave no mark. A host that
-/// builds nodes from its own DOM should do the same. Where it does not, `mglyph` children beyond
+/// with one `mglyph` child. An embedded `malignmark` records its UTF-16 position in
+/// `tokenTextOffset`. A host that builds nodes from its own DOM should do the same. Where it does not, `mglyph` children beyond
 /// the markers go after the text, in order, and a marker with no `mglyph` left for it is ignored.
 public struct MathMLNode: Equatable, Sendable {
     /// Local name in the MathML namespace, e.g. `mfrac`.
@@ -20,8 +20,11 @@ public struct MathMLNode: Equatable, Sendable {
     public var attributes: [String: String]
     public var children: [MathMLNode]
     public var text: String
-    public init(name: String, attributes: [String: String] = [:], children: [MathMLNode] = [], text: String = "") {
-        self.name = name; self.attributes = attributes; self.children = children; self.text = text
+    /// An embedded `malignmark`'s position in its parent token's raw UTF-16 text.
+    /// nil places a programmatically constructed marker at the end of the token.
+    public var tokenTextOffset: Int?
+    public init(name: String, attributes: [String: String] = [:], children: [MathMLNode] = [], text: String = "", tokenTextOffset: Int? = nil) {
+        self.name = name; self.attributes = attributes; self.children = children; self.text = text; self.tokenTextOffset = tokenTextOffset
     }
 }
 

@@ -7,6 +7,8 @@ enum MathLimits {
     /// Element nesting. Layout recurses per level, so this also bounds stack use.
     static let depth = 64
     static let nodes = 20_000
+    /// Occupancy probes and label-span row visits across all tables in a layout pass.
+    static let tableWork = 200_000
     /// UTF-16 units of token text in one formula.
     static let textLength = 50_000
     /// Points, any dimension of the result.
@@ -40,10 +42,10 @@ enum MathLimits {
 
 /// The inherited state of layout at one element: MathML's `displaystyle`, `scriptlevel`,
 /// `math-shift` (cramped), `mathvariant`, `mathcolor` and the font size they produce.
-struct LayoutContext {
+struct LayoutContext: Equatable {
     // A context is passed by value throughout layout. Keep its large inherited line style on
     // the heap, with copy-on-write mutation, rather than copying it into every recursive frame.
-    private struct Values {
+    private struct Values: Equatable {
         var fontSize: CGFloat
         /// The size scriptlevel changes compute before the minimum applies.
         var unclampedSize: CGFloat
@@ -63,6 +65,11 @@ struct LayoutContext {
         var decimalPoint: String?
         /// The text paragraph direction; mathematical rows retain their own geometry.
         var direction = CTWritingDirection.natural
+        var tableRowAlign: String? = nil
+        var trackAlignment: Bool = false
+        var alignmentRTL: Bool = false
+        var alignmentBaseline: Bool = true
+        var tableGroupAlign: String? = nil
     }
 
     private final class Storage {
@@ -74,11 +81,21 @@ struct LayoutContext {
     init(fontSize: CGFloat, unclampedSize: CGFloat, minSize: CGFloat, sizeMultiplier: CGFloat? = nil,
          scriptLevel: Int = 0, display: Bool, cramped: Bool = false, variant: MathVariant? = nil,
          color: CGColor, lines: LineStyle = LineStyle(), decimalPoint: String? = nil,
-         direction: CTWritingDirection = .natural) {
+         direction: CTWritingDirection = .natural,
+         tableRowAlign: String? = nil,
+         trackAlignment: Bool = false,
+         alignmentRTL: Bool = false,
+         alignmentBaseline: Bool = true,
+         tableGroupAlign: String? = nil) {
         storage = Storage(Values(fontSize: fontSize, unclampedSize: unclampedSize, minSize: minSize,
                                  sizeMultiplier: sizeMultiplier, scriptLevel: scriptLevel, display: display,
                                  cramped: cramped, variant: variant, color: color, lines: lines, decimalPoint: decimalPoint,
-                                 direction: direction))
+                                 direction: direction,
+                                 tableRowAlign: tableRowAlign,
+                                 trackAlignment: trackAlignment,
+                                 alignmentRTL: alignmentRTL,
+                                 alignmentBaseline: alignmentBaseline,
+                                 tableGroupAlign: tableGroupAlign))
     }
 
     private mutating func makeUnique() {
@@ -144,6 +161,34 @@ struct LayoutContext {
         get { storage.values.direction }
         set { makeUnique(); storage.values.direction = newValue }
     }
+
+    /// The row alignment inherited from an mstyle applies to tables.
+    var tableRowAlign: String? {
+        get { storage.values.tableRowAlign }
+        set { makeUnique(); storage.values.tableRowAlign = newValue }
+    }
+
+    var trackAlignment: Bool {
+        get { storage.values.trackAlignment }
+        set { makeUnique(); storage.values.trackAlignment = newValue }
+    }
+
+    var alignmentRTL: Bool {
+        get { storage.values.alignmentRTL }
+        set { makeUnique(); storage.values.alignmentRTL = newValue }
+    }
+
+    var alignmentBaseline: Bool {
+        get { storage.values.alignmentBaseline }
+        set { makeUnique(); storage.values.alignmentBaseline = newValue }
+    }
+
+    var tableGroupAlign: String? {
+        get { storage.values.tableGroupAlign }
+        set { makeUnique(); storage.values.tableGroupAlign = newValue }
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.storage.values == rhs.storage.values }
 }
 
 /// What an embellished operator learns from where it sits: its form from its position in a
@@ -227,8 +272,14 @@ final class LayoutEngine {
     let font: MathFont
     let constants: MathConstants
     private var nodeCount = 0
+    var visitedNodes: Int { nodeCount }
+    var alignmentSequence = 0
     private var textLength = 0
     var textWork = TextShapingWork()
+    private var tableWork = 0
+    var remainingTableWork: Int {
+        min(MathLimits.tableWork - tableWork, isCellRebuild ? MathLimits.tableWork - tableMeasurements.rebuildTableWork : MathLimits.tableWork)
+    }
     /// `MathLimits.stackFloor` of the thread that lays out, found as the root starts.
     private var stackFloor: UInt = 0
     /// `MathStyle.imageProvider`, and what it has returned for each `src` it was asked for.
@@ -307,6 +358,7 @@ final class LayoutEngine {
     /// `levels` script levels deeper.
     func scriptContext(_ context: LayoutContext, levels: Int = 1, cramped: Bool? = nil) -> LayoutContext {
         var result = context
+        result.alignmentBaseline = false
         result.display = false
         if levels != 0 { setScriptLevel(&result, context.scriptLevel + levels) }
         if let cramped { result.cramped = cramped }
@@ -322,6 +374,7 @@ final class LayoutEngine {
         if direction == "ltr" { context.direction = .leftToRight }
         if direction == "rtl" { context.direction = .rightToLeft }
         if node.name == "mstyle" {
+            if let rowAlign = attributes["rowalign"] { context.tableRowAlign = rowAlign }
             if let multiplier = attributes["scriptsizemultiplier"].flatMap({ Double($0.trimmingCharacters(in: .whitespaces)) }),
                multiplier > 0.1, multiplier <= 10 {
                 context.sizeMultiplier = CGFloat(multiplier)
@@ -359,6 +412,8 @@ final class LayoutEngine {
             let bold = attributes["fontweight"] == "bold", italic = attributes["fontstyle"] == "italic"
             context.variant = bold ? (italic ? .boldItalic : .bold) : (italic ? .italic : .normal)
         }
+        if node.name == "mstyle", let groups = attributes["groupalign"] { context.tableGroupAlign = groups }
+        if let direction { context.alignmentRTL = direction == "rtl" }
         inheritLineStyle(node, &context)
         return context
     }
@@ -395,10 +450,31 @@ final class LayoutEngine {
         }
     }
 
+    /// Charges grid searches and label spans to the same budget across nested and sibling tables.
+    func countTableWork(_ count: Int) throws {
+        tableWork += count
+        if isCellRebuild {
+            tableMeasurements.rebuildTableWork += count
+            guard tableMeasurements.rebuildTableWork <= MathLimits.tableWork else { throw MathLayoutError.limitExceeded }
+        }
+        guard tableWork <= MathLimits.tableWork else { throw MathLayoutError.limitExceeded }
+    }
+
     /// Elements visited without a box still count toward the formula's node bound.
     func countNodes(_ count: Int = 1) throws {
         nodeCount += count
+        try countCellRebuildNodes(count)
         guard nodeCount <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
+    }
+
+    /// Cached tables still scan retained cell paragraphs. Charge their original descendant
+    /// count too, rather than letting a cache hit bypass the shared wrapping work budget.
+    func countCellRebuildNodes(_ count: Int) throws {
+        guard isCellRebuild else { return }
+        tableMeasurements.rebuildNodes += count
+        guard tableMeasurements.rebuildNodes <= Self.maximumCellRebuildNodes else {
+            throw MathLayoutError.limitExceeded
+        }
     }
 
     /// A single-child wrapper can be descended and assembled without retaining the recursive
@@ -459,7 +535,7 @@ final class LayoutEngine {
         var box = try layoutNode(node, outer, embellishment, depth: depth)
         while let frame = pending.popLast() {
             box = try assembleWrapper(frame, child: box)
-            box = finish(box, frame.node, frame.outer, frame.embellishment, wrapStart: frame.wrapStart)
+            box = finish(box, frame.node, frame.outer, frame.context, frame.embellishment, wrapStart: frame.wrapStart)
         }
         return box
     }
@@ -488,7 +564,7 @@ final class LayoutEngine {
     // Classify strings before entering recursive dispatch: a debug string switch otherwise
     // reserves all of its comparison temporaries in every active layout frame.
     private enum Element {
-        case row, token, glyph, operatorBox, space, fraction, squareRoot, root, scripts, underOver, padded, phantom, enclose, table, tableRow, elementaryMath, fenced, selected, error, empty, unsupported
+        case row, token, glyph, operatorBox, space, fraction, squareRoot, root, scripts, underOver, padded, phantom, enclose, table, tableRow, elementaryMath, fenced, selected, error, alignment, empty, unsupported
 
         static func named(_ name: String) -> Element {
             switch name {
@@ -530,6 +606,8 @@ final class LayoutEngine {
                 return .selected
             case "merror":
                 return .error
+            case "maligngroup", "malignmark":
+                return .alignment
             case let name where LayoutEngine.empty.contains(name):
                 return .empty
             default:
@@ -616,6 +694,10 @@ final class LayoutEngine {
                 return { engine, node, context, outer, embellishment, depth in
                     return try engine.errorBox(node, context, depth: depth)
                 }
+            case .alignment:
+                return { engine, node, context, outer, embellishment, depth in
+                    return engine.alignmentElement(node, context)
+                }
             case .empty:
                 return { engine, node, context, outer, embellishment, depth in
                     return .empty()
@@ -642,7 +724,7 @@ final class LayoutEngine {
             return try token(MathMLNode(name: "mtext", children: [node]), outer)
         }
         let box = try makeBox(node, context, outer, embellishment, depth: depth)
-        return finish(box, node, outer, embellishment, wrapStart: wrapStart)
+        return finish(box, node, outer, context, embellishment, wrapStart: wrapStart)
     }
 
     @inline(never)
@@ -718,18 +800,19 @@ final class LayoutEngine {
         let shown = shownIndex(of: node)
         if node.name == "semantics" {
             // The annotations before the child, or all of them when there is no child.
-            nodeCount += shown ?? children.count
-            guard nodeCount <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
+            try countNodes(shown ?? children.count)
         }
         return try shown.map { try layout(children[$0], context, embellishment, depth: depth + 1) } ?? .empty()
     }
 
     @inline(never)
     private func finish(_ result: MathBox, _ node: MathMLNode, _ outer: LayoutContext,
-                        _ embellishment: Embellishment, wrapStart: Int) -> MathBox {
+                        _ context: LayoutContext, _ embellishment: Embellishment, wrapStart: Int) -> MathBox {
         var box = result
         let children = node.children
-        if let background = node.attributes["mathbackground"].flatMap(MathColor.parse) {
+        finishAlignment(&box, node: node, context: context)
+        if node.name != "maligngroup", node.name != "malignmark",
+           node.attributes["mathbackground"].flatMap(MathColor.parse) != nil {
             // A background encloses one stack, including gaps between its lines. It is never
             // discarded by flattening, nor painted on unrelated neighbours.
             box = wrapped(box, beside: 0, align: .left) ?? box
@@ -737,10 +820,11 @@ final class LayoutEngine {
                 let hidden = box
                 box.isPhantom = false
                 box.items = []
+                box.alignment = []
                 box.add(hidden, at: .zero)
             }
             box.row = box.row.map { BreakableRow(opaque: $0) }
-            box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), background), at: 0)
+            background(&box, node: node)
         }
         if box.op?.has(.fence) == true, case .vertical = embellishment.stretch,
            isStretchy(node, form: embellishment.form, horizontal: false) {
@@ -772,15 +856,35 @@ final class LayoutEngine {
     var wrapOverrides: [Int: CGFloat] = [:]
     var wrapParts: [(natural: CGFloat, width: CGFloat, minimum: CGFloat)] = []
     var nextWrapWidth: CGFloat { wrapOverrides[wrapParts.count] ?? wrapWidth }
+    /// Measurements shared by cell rebuilds during one complete wrapping pass. A cached table
+    /// rebuild starts from its measured cells, so nesting does not remeasure descendants.
+    var tableMeasurements = TableMeasurements()
+
+    func relayoutCell(_ source: TableCellSource, width: CGFloat) throws -> MathBox {
+        let fresh = LayoutEngine(font: font)
+        fresh.imageProvider = imageProvider
+        fresh.imageCache = imageCache
+        fresh.lineWidth = width
+        fresh.wrapWidth = width
+        fresh.textWork = textWork
+        fresh.tableMeasurements = tableMeasurements
+        fresh.isCellRebuild = true
+        fresh.stackFloor = stackFloor == 0 ? MathLimits.stackFloor() : stackFloor
+        return try fresh.layout(source.node, source.context, depth: source.depth)
+    }
+    private(set) var isCellRebuild = false
 
     /// Starts the counts of untrusted input again, to lay the same formula out once more.
     func restart() {
         nodeCount = 0
+        alignmentSequence = 0
         textLength = 0
         textWork = TextShapingWork()
+        tableWork = 0
         narrowable = nil
         loosest = 0
         wrapParts.removeAll(keepingCapacity: true)
+        tableMeasurements = TableMeasurements()
     }
 
     // MARK: Embellished operators
@@ -1074,6 +1178,7 @@ final class LayoutEngine {
         var box = MathBox()
         var x: CGFloat = 0
         var offsets: [CGFloat] = []
+        var markEvents: [(child: Int, event: Int)] = []
         for (index, child) in boxes.enumerated() {
             var lspace = child.op?.lspace ?? 0, rspace = child.op?.rspace ?? 0
             if index == core {
@@ -1086,12 +1191,22 @@ final class LayoutEngine {
             }
             x += lspace
             offsets.append(x)
+            if !child.alignment.isEmpty, Self.alignmentMark(children[index]) != nil {
+                markEvents.append((index, box.alignment.count))
+            }
             box.add(child, at: CGPoint(x: x, y: 0))
             x += child.width + rspace
             box.ascent = index == 0 ? child.ascent : max(box.ascent, child.ascent)
             box.descent = index == 0 ? child.descent : max(box.descent, child.descent)
         }
         box.width = x
+        for mark in markEvents {
+            let right = Self.alignmentMark(children[mark.child])?.attributes["edge"]?.lowercased() == "right"
+            let neighbour = right ? mark.child - 1 : mark.child + 1
+            box.alignment[mark.event].x = boxes.indices.contains(neighbour)
+                ? offsets[neighbour] + (right ? boxes[neighbour].alignmentEdges.right : boxes[neighbour].alignmentEdges.left)
+                : offsets[mark.child]
+        }
         if boxes.count == 1 {
             box.italicCorrection = boxes[0].italicCorrection
             box.topAccentAttachment = boxes[0].topAccentAttachment
@@ -1102,6 +1217,7 @@ final class LayoutEngine {
             if spacesCore.left { box.op?.lspace = 0 }
             if spacesCore.right { box.op?.rspace = 0 }
         }
+        orderAlignment(boxes, box: &box)
         box.row = try breakableRow(children, boxes, at: offsets, unary: unary, box, context, depth: depth)
         return box
     }
@@ -1176,6 +1292,7 @@ final class LayoutEngine {
         // MathML's numeric exception also applies to the single-character mn cells of a stack.
         // A surrounding RTL text paragraph must not mirror their physical parentheses.
         if node.name == "mn" { context.direction = .leftToRight }
+        try countNodes(node.children.lazy.filter { $0.name == "malignmark" }.count)
         var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", context)
         if node.name == "ms" {
             // The quotes are text, whatever they hold: only `mglyph`s have markers.
@@ -1201,6 +1318,7 @@ final class LayoutEngine {
             }
             box.topAccentAttachment = table.topAccentAttachment(glyph).map { font.points($0, size: size) }
         }
+        try tokenAlignment(&box, node: node, text: text, context: context)
         return box
     }
 
@@ -1289,6 +1407,7 @@ final class LayoutEngine {
     /// An `mo`: dictionary properties, the display size of large operators, and stretching.
     /// One with an `mglyph` is drawn as its author sized it, neither enlarged nor stretched.
     private func operatorBox(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment) throws -> MathBox {
+        try countNodes(node.children.lazy.filter { $0.name == "malignmark" }.count)
         var text = operatorText(node)
         let properties = properties(node, form: embellishment.form, context)
         if Self.hasGlyph(node) {
@@ -1302,6 +1421,7 @@ final class LayoutEngine {
         guard !Self.invisible.contains(text) else {
             var box = MathBox.empty()
             box.op = properties
+            try tokenAlignment(&box, node: node, text: text, context: context)
             return box
         }
         if let variant = context.variant { text = variant.apply(to: text) }
@@ -1326,6 +1446,7 @@ final class LayoutEngine {
         // display-style large operators (MathML Core 3.2.4.3).
         if properties.has(.largeop), context.display { box = centered(box, on: value(\.axisHeight, context)) }
         box.op = properties
+        try tokenAlignment(&box, node: node, text: text, context: context)
         return box
     }
 

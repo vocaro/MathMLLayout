@@ -48,12 +48,13 @@ private final class TreeBuilder: NSObject, XMLParserDelegate {
         for (key, value) in attributes where !key.hasPrefix("xmlns") {
             local[String(key.split(separator: ":").last ?? Substring(key))] = value
         }
-        let node = MathMLNode(name: name, attributes: local)
+        var node = MathMLNode(name: name, attributes: local)
         guard let token = stack.indices.last, LayoutEngine.tokens.contains(stack[token].name) else {
             stack.append(node)
             return
         }
         // A token keeps its element children, and an `mglyph` marks where in the text it stands.
+        if name == "malignmark" { node.tokenTextOffset = stack[token].text.utf16.count }
         stack[token].children.append(node)
         if name == "mglyph" { stack[token].text.unicodeScalars.append(LayoutEngine.glyphMarker) }
         tokenDepth = 1
