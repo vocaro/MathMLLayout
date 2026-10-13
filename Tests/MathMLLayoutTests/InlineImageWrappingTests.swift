@@ -158,7 +158,15 @@ final class InlineImageWrappingTests: MathTestCase {
         let icon = image(), provider = MathImageProvider { _ in icon }
         for background in ["", " mathbackground=\"yellow\""] {
             let body = "<mtext>before words <mglyph src=\"icon\" alt=\"אבג דהו\"\(background)/> after words</mtext>"
-            XCTAssertEqual(try lines(body).rows.count, 1)
+            if background.isEmpty {
+                let plain = try lines("<mtext>before words אבג דהו after words</mtext>")
+                let fallback = try lines(body)
+                XCTAssertEqual(fallback.rows.count, plain.rows.count)
+                for (actual, expected) in zip(fallback.rows, plain.rows) {
+                    XCTAssertEqual(actual.box.width, expected.box.width, accuracy: 0.001)
+                    assertShaping(actual.box, matches: expected.box)
+                }
+            } else { XCTAssertEqual(try lines(body).rows.count, 1) }
             // When the provider supplies the image, an undisplayed RTL alt does not block wrapping.
             XCTAssertEqual(try lines(body, provider: provider).rows.count, 5)
         }
@@ -180,4 +188,63 @@ final class InlineImageWrappingTests: MathTestCase {
         XCTAssertEqual(unbreakable.widestUnbreakable, unbreakable.rows[0].box.width, accuracy: 0.01)
         assertContained(unbreakable)
     }
+    private func assertSameGeometry(_ hidden: MathLines, _ visible: MathLines,
+                                    file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(hidden.rows.count, visible.rows.count, file: file, line: line)
+        XCTAssertEqual(hidden.widestUnbreakable, visible.widestUnbreakable, accuracy: 0.001, file: file, line: line)
+        for (a, b) in zip(hidden.rows, visible.rows) {
+            XCTAssertEqual(a.origin, b.origin, file: file, line: line)
+            XCTAssertEqual(a.box.width, b.box.width, accuracy: 0.001, file: file, line: line)
+            XCTAssertEqual(a.box.ascent, b.box.ascent, accuracy: 0.001, file: file, line: line)
+            XCTAssertEqual(a.box.descent, b.box.descent, accuracy: 0.001, file: file, line: line)
+        }
+    }
+
+    func testPhantomDecoratedSpacesAndImagesKeepPartialRowGeometryWithoutDrawing() throws {
+        let icon = image(), provider = MathImageProvider { source in source == "icon" ? icon : nil }
+        let content = "<mtext>before <mglyph src='missing' alt='office cafe words' mathbackground='yellow'/> <mglyph src='icon' width='23px'/> after</mtext>"
+            + "<mo linebreak='newline'>+</mo><mi>b</mi>"
+        let limit = try layout("<mtext>office cafe</mtext>").width + 0.01
+        for width in [limit, CGFloat.infinity] {
+            let visible = try lines("<mrow>\(content)</mrow>", width: width, provider: provider)
+            let hidden = try lines("<mphantom>\(content)</mphantom>", width: width, provider: provider)
+            assertSameGeometry(hidden, visible)
+            XCTAssertTrue(hidden.rows.allSatisfy { $0.box.inkBounds == nil })
+            XCTAssertTrue(visible.rows.contains { backgrounds($0.box).count >= 3 })
+            XCTAssertEqual(hidden.rows.flatMap { images($0.box) }.count, 1)
+            let publicHidden = try MathLayout(node("<mphantom>\(content)</mphantom>"),
+                style: MathStyle(fontSize: 20, color: black, imageProvider: provider), maximumWidth: width)
+            XCTAssertNil(ink(publicHidden))
+        }
+    }
+
+    func testPhantomBidiRangesStayInvisibleWhenFormulaAndTextBothBreak() throws {
+        let content = "<mtext>אב 12 גד EF הו</mtext><mo linebreak='newline'>+</mo><mi>b</mi>"
+        for width in [CGFloat(70), .infinity] {
+            let visible = try lines("<mrow>\(content)</mrow>", width: width)
+            let hidden = try lines("<mphantom>\(content)</mphantom>", width: width)
+            assertSameGeometry(hidden, visible)
+            XCTAssertTrue(hidden.rows.allSatisfy { $0.box.inkBounds == nil })
+            XCTAssertNil(ink(try MathLayout(node("<mphantom>\(content)</mphantom>"),
+                                           style: MathStyle(fontSize: 20, color: black), maximumWidth: width)))
+        }
+    }
+
+    func testAuthoredCapAndNestedImageTextAnchorShareExplicitHostGeometry() throws {
+        let icon = image(), provider = MathImageProvider { source in source == "icon" ? icon : nil }
+        let body = "<mi>A</mi><mo linebreak='newline' linebreakstyle='after' indentshift='1em'>=</mo>"
+            + "<mstyle><mrow id='target'><mtext>first <mglyph src='missing' alt='office cafe words' mathbackground='yellow'/> <mglyph src='icon' width='23px'/> last words</mtext></mrow></mstyle>"
+            + "<mo linebreak='newline' indentalign='id' indenttarget='target'>=</mo><mi>b</mi>"
+        var capped = try node(body); capped.attributes["maxwidth"] = "120px"
+        let style = MathStyle(fontSize: 20, color: black, imageProvider: provider)
+        let actual = try LayoutEngine.lines(capped, style: style, maximumWidth: 400, firstRowMaximumWidth: 70)
+        let explicit = try LayoutEngine.lines(node(body), style: style, maximumWidth: 120, firstRowMaximumWidth: 70)
+        assertSameGeometry(actual, explicit)
+        XCTAssertGreaterThan(actual.rows.count, 3)
+        XCTAssertEqual(try XCTUnwrap(actual.rows.last).origin.x, actual.rows[1].origin.x, accuracy: 0.001)
+        XCTAssertEqual(actual.rows[1].origin.x, 20, accuracy: 0.001)
+        XCTAssertLessThanOrEqual(actual.layoutPasses, LayoutEngine.maximumWrappingPasses)
+        assertContained(actual)
+    }
+
 }
