@@ -131,6 +131,111 @@ final class ElementaryMathTests: MathTestCase {
         XCTAssertGreaterThanOrEqual(drawn.minY, -result.descent - 0.5, body, file: file, line: line)
     }
 
+    // MARK: Direction in elementary math
+
+    /// MathML 3's elementary exception: columns and carries remain LTR in RTL contexts.
+    private func sameDrawing(_ lhs: String, _ rhs: String, file: StaticString = #filePath, line: UInt = #line) throws {
+        let a = try drawing(lhs), b = try drawing(rhs)
+        equal(a.box.width, b.box.width, file: file, line: line)
+        equal(a.box.ascent, b.box.ascent, file: file, line: line)
+        equal(a.box.descent, b.box.descent, file: file, line: line)
+        XCTAssertEqual(a.glyphs.map(\.name), b.glyphs.map(\.name), file: file, line: line)
+        for (x, y) in zip(a.glyphs, b.glyphs) {
+            equal(x.origin.x, y.origin.x, file: file, line: line)
+            equal(x.origin.y, y.origin.y, file: file, line: line)
+        }
+        XCTAssertEqual(a.rules.map(\.rect), b.rules.map(\.rect), file: file, line: line)
+        XCTAssertEqual(a.segments.count, b.segments.count, file: file, line: line)
+        for (x, y) in zip(a.segments, b.segments) {
+            XCTAssertEqual(x.from, y.from, file: file, line: line)
+            XCTAssertEqual(x.to, y.to, file: file, line: line)
+            XCTAssertEqual(x.isCurve, y.isCurve, file: file, line: line)
+        }
+    }
+
+    func testRTLColumnsKeepPhysicalAlignmentPositionsAndDecimalPoint() throws {
+        for alignment in MathStackAlignment.allCases {
+            for charAlignment in ["left", "center", "right"] {
+                let body = "<msgroup position='1' shift='-1'><msrow><mo>+</mo><none/><mn>12.3</mn></msrow>"
+                    + "<msrow position='-1'><mn>4.56</mn></msrow><msline length='3' position='1' "
+                    + "leftoverhang='0.3em' rightoverhang='0.1em'/></msgroup>"
+                let attrs = "stackalign='\(alignment.rawValue)' charalign='\(charAlignment)'"
+                try sameDrawing("<mstack \(attrs) dir='ltr'>\(body)</mstack>", "<mstack \(attrs) dir='rtl'>\(body)</mstack>")
+                try assertCoversInk("<mstack \(attrs) dir='rtl'>\(body)</mstack>")
+            }
+        }
+        let arabic = "<mstack><mn>١٢٫٣</mn><mn>٤٫٥٦</mn><msline/></mstack>"
+        try sameDrawing("<mstyle dir='rtl'>\(arabic)</mstyle>", "<mstyle dir='ltr'>\(arabic)</mstyle>")
+        let decimal = "<mstack><mn>12,3</mn><msrow position='1'><mn>4,56</mn></msrow></mstack>"
+        try sameDrawing("<math dir='rtl' decimalpoint=','>\(decimal)</math>",
+                        "<math dir='ltr' decimalpoint=','>\(decimal)</math>")
+    }
+
+    func testRTLCompassCarriesCrossoutsAndOverhangsKeepPhysicalSides() throws {
+        for location in CarryLocation.allCases {
+            let body = "<mscarries position='1' location='\(location.rawValue)' "
+                + "crossout='updiagonalstrike downdiagonalstrike verticalstrike horizontalstrike'>"
+                + "<mn>1</mn><mscarry location='e' crossout='none'><mn>2</mn></mscarry></mscarries>"
+                + "<mn>345</mn><msline leftoverhang='0.7em' rightoverhang='0.2em'/>"
+            try sameDrawing("<mstack dir='ltr'>\(body)</mstack>", "<mstack dir='rtl'>\(body)</mstack>")
+            try assertCoversInk("<mstack dir='rtl'>\(body)</mstack>")
+        }
+    }
+
+    func testEveryDivisionFrameKeepsOperandsAndSeparatorsOnNamedSidesInRTL() throws {
+        for frame in LongDivision.allCases {
+            let body = "<mn>3</mn><mn>24</mn><mn>72</mn><msgroup shift='-1'><mn>6</mn>"
+                + "<msline length='1'/><mn>12</mn><mn>12</mn><msline/><mn>0</mn></msgroup>"
+            let attrs = "longdivstyle='\(frame.rawValue)'"
+            try sameDrawing("<mlongdiv \(attrs) dir='ltr'>\(body)</mlongdiv>",
+                            "<mlongdiv \(attrs) dir='rtl'>\(body)</mlongdiv>")
+            try assertCoversInk("<mlongdiv \(attrs) dir='rtl'>\(body)</mlongdiv>")
+        }
+    }
+
+    /// Mixed bidi tokens use their base direction inside a single physical grid column.
+    func testArabicHebrewTokenAndCarryDirectionsInheritAndOverride() throws {
+        for text in ["+ 12 אב", "+ 12 العربية"] {
+            let token = "<mtext>\(text)</mtext>"
+            try sameDrawing("<math dir='rtl'><mstack><msgroup><msrow>\(token)</msrow></msgroup></mstack></math>",
+                            "<mstack><mtext dir='rtl'>\(text)</mtext></mstack>")
+            try sameDrawing("<mstack dir='rtl'><msrow dir='ltr'>\(token)</msrow></mstack>",
+                            "<mstack dir='ltr'>\(token)</mstack>")
+            try sameDrawing("<mstack dir='rtl'><mstyle dir='ltr'>\(token)</mstyle></mstack>",
+                            "<mstack dir='ltr'>\(token)</mstack>")
+            try sameDrawing("<mstack dir='rtl'><mscarries><mscarry dir='ltr'>\(token)</mscarry></mscarries><mn>1</mn></mstack>",
+                            "<mstack dir='ltr'><mscarries><mscarry>\(token)</mscarry></mscarries><mn>1</mn></mstack>")
+            let rtl = try drawing("<mstack dir='rtl'>\(token)</mstack>")
+            let ltr = try drawing("<mstack dir='ltr'>\(token)</mstack>")
+            XCTAssertNotEqual(rtl.glyphs.map(\.name), ltr.glyphs.map(\.name), "base direction affects mixed token order")
+            try assertCoversInk("<mstack dir='rtl'><mscarries>\(token)</mscarries>\(token)</mstack>")
+        }
+        // Invalid values inherit, while numeric tokens remain LTR even with an override.
+        try sameDrawing("<mstack dir='rtl'><mtext dir='invalid'>+ 12 אב</mtext></mstack>",
+                        "<mstack dir='rtl'><mtext>+ 12 אב</mtext></mstack>")
+        try sameDrawing("<mstack><mscarries><mn dir='rtl'>12</mn></mscarries><mn dir='rtl'>345</mn></mstack>",
+                        "<mstack><mscarries><mn dir='ltr'>12</mn></mscarries><mn dir='ltr'>345</mn></mstack>")
+    }
+
+    func testRTLSpeechCoordinatesStayIdenticalToPhysicalLTRColumns() throws {
+        let body = "<msgroup position='1' shift='-1'><mscarries position='1' location='nw' crossout='updiagonalstrike'>"
+            + "<mn>1</mn><none/></mscarries><mn>12.3</mn><msline length='2' position='1'/><mn>4.56</mn></msgroup>"
+        for alignment in MathStackAlignment.allCases {
+            let lhs = try node("<mstack dir='ltr' stackalign='\(alignment.rawValue)'>\(body)</mstack>")
+            let rhs = try node("<mstack dir='rtl' stackalign='\(alignment.rawValue)'>\(body)</mstack>")
+            for language in MathReading.languages {
+                XCTAssertEqual(lhs.accessibilityDescription(locale: Locale(identifier: language)).text,
+                               rhs.accessibilityDescription(locale: Locale(identifier: language)).text)
+            }
+        }
+        for frame in LongDivision.allCases {
+            let content = "<mn>3</mn><mn>24</mn><mn>72</mn>\(body)"
+            let lhs = try node("<mlongdiv dir='ltr' longdivstyle='\(frame.rawValue)'>\(content)</mlongdiv>")
+            let rhs = try node("<mlongdiv dir='rtl' longdivstyle='\(frame.rawValue)'>\(content)</mlongdiv>")
+            XCTAssertEqual(lhs.accessibilityDescription, rhs.accessibilityDescription)
+        }
+    }
+
     // MARK: Columns
 
     /// The specification's first example (3.6): 424 over + 33 over a line.

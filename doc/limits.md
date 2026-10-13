@@ -42,11 +42,14 @@ input text limit.
   An image has no scale of its own: size a 2x asset with `width` and `height`. An `mo` with an
   `mglyph` keeps the size its author gave it: it is not stretched, enlarged or centred on the
   axis.
-- **Elementary math.** Columns run left to right only. `decimalpoint` names one character. An
+- **Elementary math.** Columns and frame sides follow MathML 3's LTR elementary-math policy
+  in either direction; see [direction and columns](elementary-direction.md). `decimalpoint` names one character. An
   `mglyph` in a stack's number is not drawn. Division frames are drawn, not font glyphs.
+- **Direction.** Inherited `dir` sets the base direction within shaped token text. General
+  layout schemata (such as an `mrow` inside one elementary cell) still progress LTR.
 - **Speech.** Five languages, without regional variants or grammatical agreement. Token text and
-  `alt` are spoken as written. A stack's reading gives its rows, carries and lines in order,
-  not their column positions.
+  `alt` are spoken as written. A stack's reading gives its rows, carries, lines and logical
+  column positions in order.
 - Cell spans in `mtable` are ignored, and rows align on their baselines only.
 - No kerning from the font's MathKernInfo.
 
