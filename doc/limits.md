@@ -70,6 +70,13 @@ pure-chain probes in debug and release on the same platform, again reaching 64 l
 its geometry, drawing-item counts, ink, pixels and readings match the 8 MB reference worker
 on an exactly 512 KB worker, including a repeated run.
 
+The structural RTL follow-up source `2d3eb85` repeated the fixed matrices and all eleven
+pure-chain probes in debug and release on the same platform, again reaching 64 levels.
+The new RTL matrix uses the same eleven fixed shapes and depths with inherited `dir="rtl"`;
+geometry, drawing-item counts, ink, pixels and all five readings match the 8 MB reference on
+an exactly 512 KB worker, including repeated runs. Generated sign reflection keeps the
+font's glyph runs and introduces no extra drawing-tree depth.
+
 These fixtures do not establish universal 64-level coverage. Different attributes, fonts,
 stretched operators, width constraints or callbacks can exhaust the stack sooner. Smaller
 workers may safely reject bounded inputs; tests include exact 128 KB and 256 KB stacks and the
@@ -100,8 +107,11 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   chosen before ID placement; an ID continuation can extend the returned width beyond that
   frame. See [Line breaking](line-breaking.md).
 - **Direction and elementary math.** Inherited `dir` sets direction within shaped token text;
-  rows and table columns progress in the inherited layout direction. Scripts, radicals and
-  other schemata retain their existing geometry; full RTL schema mirroring is unsupported.
+  rows, table columns and layout schemata use the inherited structural direction. RTL scripts
+  attach on the left; surds/root degrees move right; bevelled fractions and directional
+  enclosures reverse progression. Children retain their own shaping and local overrides.
+  Physical alignments, glyph accent attachments and explicit enclosure sides remain physical.
+  See [Directionality](directionality.md) for each schema's policy and remaining restrictions.
   Elementary grids, numeric text and frame sides
   retain the LTR policy. `decimalpoint` names one character. A number's `mglyph` occupies one
   column, sized to its image or entire fallback; its `alt` supplies neither a decimal separator

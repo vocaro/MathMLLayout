@@ -271,8 +271,18 @@ struct MathBox {
             switch item {
             case .glyphs(let run):
                 context.setFillColor(run.color)
-                let positions = run.positions.map { CGPoint(x: $0.x + origin.x, y: $0.y + origin.y) }
-                CTFontDrawGlyphs(run.font, run.glyphs, positions, run.glyphs.count, context)
+                if let width = run.reflectionWidth {
+                    // Only structural decorations opt in. Token runs always retain their
+                    // shaped glyph orientation, even when the owning component moves.
+                    context.saveGState()
+                    context.translateBy(x: origin.x + width, y: origin.y)
+                    context.scaleBy(x: -1, y: 1)
+                    CTFontDrawGlyphs(run.font, run.glyphs, run.positions, run.glyphs.count, context)
+                    context.restoreGState()
+                } else {
+                    let positions = run.positions.map { CGPoint(x: $0.x + origin.x, y: $0.y + origin.y) }
+                    CTFontDrawGlyphs(run.font, run.glyphs, positions, run.glyphs.count, context)
+                }
             case .rect(let rect, let color):
                 context.setFillColor(color)
                 context.fill(rect.offsetBy(dx: origin.x, dy: origin.y))
@@ -326,6 +336,9 @@ struct GlyphRun {
     var color: CGColor
     /// Ink bounds relative to the same origin.
     var ink: CGRect
+    /// Opt-in reflection for generated surds and bevelled fraction slashes only. Positions
+    /// remain in the original font/assembly coordinates; ink is already reflected.
+    var reflectionWidth: CGFloat? = nil
 }
 
 enum MathItem {

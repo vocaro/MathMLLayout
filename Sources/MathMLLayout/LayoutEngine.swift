@@ -63,7 +63,7 @@ struct LayoutContext: Equatable {
         var lines = LineStyle()
         /// `decimalpoint`: the character a stack's rows align on (`stackalign="decimalpoint"`); nil is ".".
         var decimalPoint: String?
-        /// The text paragraph direction, separate from physical row and table progression.
+        /// The text paragraph direction, separate from structural progression.
         var direction = CTWritingDirection.natural
         var tableRowAlign: String? = nil
         var trackAlignment: Bool = false
@@ -173,6 +173,8 @@ struct LayoutContext: Equatable {
         set { makeUnique(); storage.values.trackAlignment = newValue }
     }
 
+    /// Structural progression shared by rows, tables and layout schemata. Token shaping
+    /// uses `direction` independently; elementary column geometry remains explicitly LTR.
     var alignmentRTL: Bool {
         get { storage.values.alignmentRTL }
         set { makeUnique(); storage.values.alignmentRTL = newValue }
@@ -841,11 +843,8 @@ final class LayoutEngine {
     private func finish(_ result: MathBox, _ node: MathMLNode, _ outer: LayoutContext,
                         _ context: LayoutContext, _ embellishment: Embellishment, wrapStart: Int) -> MathBox {
         var box = result
-        let changesRowDirection = (node.name == "mrow" || node.name == "mstyle")
-            && context.alignmentRTL != outer.alignmentRTL
-        let stagedScript = ["msub", "msup", "msubsup", "mmultiscripts"].contains(node.name)
-            && box.row.map { $0.rtl != context.alignmentRTL } == true
-        if changesRowDirection || stagedScript {
+        let changesRowDirection = node.name != "math" && context.alignmentRTL != outer.alignmentRTL && box.row != nil
+        if changesRowDirection {
             // Opposite-direction rows are atomic to the outer paragraph, but their own
             // forced and automatic breaks must be resolved before becoming an outer unit.
             box = wrapped(box, beside: 0, align: .left) ?? box
@@ -1458,7 +1457,7 @@ final class LayoutEngine {
 
     /// The glyph when `box` is exactly one glyph of the math font.
     func singleGlyph(_ box: MathBox) -> CGGlyph? {
-        guard box.items.count == 1, case .glyphs(let run) = box.items[0], run.glyphs.count == 1,
+        guard box.items.count == 1, case .glyphs(let run) = box.items[0], run.glyphs.count == 1, run.reflectionWidth == nil,
               CTFontCopyPostScriptName(run.font) == CTFontCopyPostScriptName(font.base) else { return nil }
         return run.glyphs[0]
     }

@@ -69,7 +69,7 @@ extension LayoutEngine {
         }
         guard let scalar,
               let box = drawnVerticalArrow(scalar, height: target, natural: natural, context)
-                ?? drawnDelimiter(scalar, height: target, context) else { return nil }
+                ?? drawnDelimiter(directionalDelimiter(scalar, context), height: target, context) else { return nil }
         return centered(box, on: center)
     }
 
@@ -173,6 +173,29 @@ extension LayoutEngine {
     }
 
     // MARK: Drawn shapes
+
+    /// CoreText already chooses the mirrored font glyph. A drawn fallback must choose the
+    /// same physical fence, rather than reverting to the unshaped source character.
+    private func directionalDelimiter(_ scalar: Unicode.Scalar, _ context: LayoutContext) -> Unicode.Scalar {
+        guard context.direction == .rightToLeft else { return scalar }
+        switch scalar {
+        case "(": return ")"
+        case ")": return "("
+        case "[": return "]"
+        case "]": return "["
+        case "{": return "}"
+        case "}": return "{"
+        case "⌈": return "⌉"
+        case "⌉": return "⌈"
+        case "⌊": return "⌋"
+        case "⌋": return "⌊"
+        case "⟨": return "⟩"
+        case "⟩": return "⟨"
+        case "〈": return "〉"
+        case "〉": return "〈"
+        default: return scalar
+        }
+    }
 
     func strokeWidth(_ context: LayoutContext) -> CGFloat {
         max(value(\.fractionRuleThickness, context) * 1.2, 0.5)

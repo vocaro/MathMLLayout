@@ -25,6 +25,8 @@
 `mo` follows an operator dictionary for form, spacing, stretchiness, large operators and fences.
 Stretchy operators use the font's MATH variants and assemblies. Attributes include `displaystyle`,
 `scriptlevel`, `mathvariant`, `mathsize`, `mathcolor`, `columnalign` and table spacing.
+Inherited `dir` controls token shaping and structural progression, with local overrides;
+see [the RTL policy for each schema](directionality.md).
 
 Tables honor `rowspan` and `columnspan` using the [MathML 3 table model](https://www.w3.org/TR/MathML3/chapter3.html#presm.mtd).
 Later cells skip occupied positions; shorter rows leave empty slots. A spanning cell measures

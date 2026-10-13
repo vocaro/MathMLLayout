@@ -175,6 +175,28 @@ final class MathKernTests: XCTestCase {
         XCTAssertEqual(textEngine.scriptKern(base, script, shift: 6, upper: true, before: false), 0)
     }
 
+    func testRTLPostscriptsUsePhysicalLeftCornersWithoutReflectingItalicGlyphs() throws {
+        let (engine, base, script, original) = try fixture()
+        var context = original
+        context.alignmentRTL = true
+        // TL + BR = -1.5; BL + TR = 3 points. The base keeps its right-side
+        // italic correction, so it does not tuck a postscript under its physical left.
+        let result = engine.attachScripts(base, post: [(script, script)], pre: [], context)
+        guard case .box(_, let origin) = result.items[0], case .box(_, let sub) = result.items[1],
+              case .box(_, let sup) = result.items[2] else { return XCTFail("missing RTL scripts") }
+        XCTAssertEqual(result.width, 29, accuracy: 0.05)
+        XCTAssertEqual(origin.x, 9, accuracy: 0.05)
+        XCTAssertEqual(sub.x, 1, accuracy: 0.05); XCTAssertEqual(sub.y, -4, accuracy: 0.04)
+        XCTAssertEqual(sup.x, 5.5, accuracy: 0.05); XCTAssertEqual(sup.y, 6, accuracy: 0.04)
+        let pre = engine.attachScripts(base, post: [], pre: [(script, script)], context)
+        guard case .box(_, let preSub) = pre.items[0], case .box(_, let preSup) = pre.items[1],
+              case .box(_, let preBase) = pre.items[2] else { return XCTFail("missing RTL prescripts") }
+        XCTAssertEqual(pre.width, 27, accuracy: 0.05)
+        XCTAssertEqual(preBase.x, 0, accuracy: 0.05)
+        XCTAssertEqual(preSub.x, 22, accuracy: 0.05)
+        XCTAssertEqual(preSup.x, 20, accuracy: 0.05)
+    }
+
     func testRealFormulaInkIsContainedForAllScriptKinds() throws {
         for font in [nil, "Helvetica"] {
             for body in ["<msup><mi>ω</mi><mi>f</mi></msup>", "<msub><mi>V</mi><mi>A</mi></msub>",

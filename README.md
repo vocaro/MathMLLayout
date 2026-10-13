@@ -10,6 +10,7 @@ Requires iOS/iPadOS or macOS 27+, Swift 6.2 and Xcode 27.
 
 - Native drawing with CoreText and CoreGraphics.
 - Fractions, radicals, scripts, stretchy operators, tables and elementary math.
+- Inherited RTL layout with mixed-direction token shaping and local overrides.
 - Automatic line breaking and individual rows for inline placement.
 - Host-supplied images for `mglyph`.
 - Spoken readings in English, French, German, Spanish and Italian.
@@ -102,6 +103,7 @@ are included; see [how to regenerate the images](doc/usage.md#regenerating-the-r
 - [Supported markup](doc/markup.md): elements, attributes and layout rules.
 - [Fonts](doc/fonts.md): font selection and fallbacks.
 - [Bounds and limitations](doc/limits.md): input limits and unsupported behavior.
+- [Directionality](doc/directionality.md): RTL schemas, token shaping and mixed nesting.
 - [Elementary direction](doc/elementary-direction.md): RTL token contents and MathML 3's LTR columns.
 - [Testing](doc/testing.md): debug, release, simulator and fuzz testing.
 - [External validation](doc/external-validation.md): pinned standards, reference rendering, font checks and corpus sampling.
