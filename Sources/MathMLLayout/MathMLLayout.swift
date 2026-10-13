@@ -100,7 +100,8 @@ public struct MathStyle: Equatable, Sendable {
     /// PostScript name of an OpenType MATH font. nil, or a font that is not installed, uses
     /// the platform's STIX Two Math.
     public var fontName: String?
-    /// The images of `mglyph` elements. nil draws each one's `alt` text.
+    /// Images for `mglyph` elements with `src`; nil uses their `alt` text. Legacy font/index
+    /// glyphs resolve independently of this provider.
     public var imageProvider: MathImageProvider?
     public init(fontSize: CGFloat, color: CGColor, isDisplay: Bool = false, fontName: String? = nil,
                 imageProvider: MathImageProvider? = nil) {

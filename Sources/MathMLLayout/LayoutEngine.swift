@@ -805,7 +805,7 @@ final class LayoutEngine {
     /// `mi`, `mn`, `mtext` and `ms`. A single-character `mi` is italic unless a `mathvariant`
     /// says otherwise, and its width includes its italic correction (TeX's rule 17). An `mglyph`
     /// is not a character, so an `mi` of one stays upright even when its `alt` is drawn instead.
-    private func token(_ node: MathMLNode, _ context: LayoutContext, countingGlyphs: Bool = true) throws -> MathBox {
+    func token(_ node: MathMLNode, _ context: LayoutContext, countingGlyphs: Bool = true) throws -> MathBox {
         var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", countingGlyphs: countingGlyphs, context)
         if node.name == "ms" {
             // The quotes are text, whatever they hold: only `mglyph`s have markers.

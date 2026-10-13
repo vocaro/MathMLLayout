@@ -328,7 +328,10 @@ extension LayoutEngine {
                     func cell(_ text: String, glyph: MathMLNode? = nil) throws {
                         let node = MathMLNode(name: "mn", attributes: attributes, children: glyph.map { [$0] } ?? [],
                                               text: text)
-                        let box = try layout(node, context, depth: depth)
+                        // The source children were visited above. Charge this numeric column,
+                        // then resolve its synthetic token without charging the same glyph twice.
+                        try visit(context, depth: depth)
+                        let box = try token(node, inherit(node, context), countingGlyphs: false)
                         // A space in a number (between groups of three, say) sizes an empty column.
                         line.digits.insert(line.cells.count)
                         line.cells.append(text == " " ? .empty(width: textBox(text, inherit(child, context)).width) : box)

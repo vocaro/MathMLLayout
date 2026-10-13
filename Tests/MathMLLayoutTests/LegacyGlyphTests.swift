@@ -186,10 +186,20 @@ final class LegacyGlyphTests: MathTestCase {
         XCTAssertEqual(try XCTUnwrap(actual.inkBounds).minX, 0, accuracy: 1e-8)
         XCTAssertEqual(try XCTUnwrap(runs(actual).first).positions, [CGPoint(x: -rect.minX, y: 0)])
         let rawFont = try selected(), ordinary = try id(in: rawFont)
-        let operatorBox = try box("<mo stretchy=\"true\" largeop=\"true\" displaystyle=\"true\">\(markup(ordinary))</mo>")
         let tokenBox = try box("<mtext>\(markup(ordinary))</mtext>")
-        XCTAssertEqual(runs(operatorBox).map(\.glyphs), runs(tokenBox).map(\.glyphs))
-        XCTAssertEqual(runs(operatorBox).map { CTFontGetSize($0.font) }, [20])
+        for attributes in ["", "stretchy=\"false\" largeop=\"false\""] {
+            let authored = try box("<mo displaystyle=\"true\" \(attributes)>\(markup(ordinary))</mo>")
+            XCTAssertEqual(authored.width, tokenBox.width)
+            XCTAssertEqual(authored.height, tokenBox.height)
+            XCTAssertEqual(runs(authored).map(\.glyphs), runs(tokenBox).map(\.glyphs))
+        }
+        // Explicit #80 opt-ins apply to legacy glyphs too, preserving their actual ID while
+        // changing whole-token geometry through the font matrix rather than Unicode shaping.
+        let enlarged = try box("<mo stretchy=\"true\" largeop=\"true\" displaystyle=\"true\">\(markup(ordinary))</mo>")
+        XCTAssertGreaterThan(enlarged.height, tokenBox.height)
+        XCTAssertGreaterThan(enlarged.width, tokenBox.width)
+        XCTAssertEqual(runs(enlarged).map(\.glyphs), runs(tokenBox).map(\.glyphs))
+        XCTAssertNotEqual(CTFontGetMatrix(try XCTUnwrap(runs(enlarged).first).font), CGAffineTransform.identity)
     }
 
     func testNestedGlyphsShareTheFormulaNodeBudget() throws {
