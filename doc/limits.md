@@ -59,6 +59,11 @@ alignment groups through 58 nested RTL rows in each table cell. Its geometry, dr
 counts, ink, pixels and all five base-language readings match the reference layout on an
 exactly 512 KB worker. The ordinary node, text, table-work and extent limits still apply.
 
+The wrapping and span alignment follow-up source `fe59c6a` repeated the fixed worker matrix,
+the RTL alignment fixture, and all eleven pure-chain probes in debug and release on the same
+platform. All pure-chain probes again reached 64 levels. Group minimum measurements and
+fragment marker metadata retained the existing exact 512 KB worker coverage.
+
 These fixtures do not establish universal 64-level coverage. Different attributes, fonts,
 stretched operators, width constraints or callbacks can exhaust the stack sooner. Smaller
 workers may safely reject bounded inputs; tests include exact 128 KB and 256 KB stacks and the
