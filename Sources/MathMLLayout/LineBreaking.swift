@@ -215,10 +215,7 @@ extension LayoutEngine {
             case "mspace":
                 item.point = spaceBreak(child, context)
             case "mtext":
-                // Right-to-left text is drawn in visual order: its words would wrap last first.
-                if !child.text.unicodeScalars.contains(where: Self.isRightToLeft) {
-                    item.box.row = words(item.box, inherit(child, context))
-                }
+                item.box.row = words(item.box, inherit(child, context))
             case "mo":
                 if let point = item.point, point.isInvisibleTimes, let text = point.style.multiplication {
                     visible[index] = try layout(MathMLNode(name: "mo", text: text), context, Embellishment(form: .infix),
@@ -232,14 +229,6 @@ extension LayoutEngine {
                             context)
     }
 
-    /// Hebrew, Arabic and the other right-to-left scripts, by block.
-    private static func isRightToLeft(_ scalar: Unicode.Scalar) -> Bool {
-        switch scalar.value {
-        case 0x0590...0x08FF, 0xFB1D...0xFDFF, 0xFE70...0xFEFF, 0x10800...0x10FFF, 0x1E800...0x1EFFF: true
-        default: false
-        }
-    }
-
     /// An `mspace` is a place to break when its `linebreak` says so and it has no size: the
     /// attribute "should be ignored if any dimensional attribute is set" (MathML 3, 3.2.7.2).
     private func spaceBreak(_ node: MathMLNode, _ context: LayoutContext) -> BreakPoint? {
@@ -249,9 +238,33 @@ extension LayoutEngine {
         return BreakPoint(kind: .none, linebreak: style.linebreak, style: style)
     }
 
+    /// Break only at logical U+0020 spaces. NBSP, narrow NBSP and directional controls stay
+    /// inside their logical words. The source typesetter retains the whole paragraph's bidi
+    /// context; selected ranges are shaped together, rather than concatenating visual words.
+    private func words(_ box: MathBox, _ context: LayoutContext) -> BreakableRow? {
+        guard context.lines.linebreak != .nobreak, let slice = box.logicalTextSlice,
+              box.items.allSatisfy({ if case .glyphs = $0 { return true }; return false }) else { return segmentWords(box, context) }
+        let source = slice.source
+        guard source.words.count > 1 else { return nil }
+        let point = BreakPoint(kind: .space, linebreak: .auto, style: context.lines)
+        var children: [BreakableRow.Child] = []
+        var x: CGFloat = 0
+        for (index, range) in source.words.enumerated() {
+            if index > 0 { x += source.spaceWidth }
+            var word = source.box(range)
+            word.textSlice = LogicalTextSlice(source: source, range: range)
+            children.append(BreakableRow.Child(box: word, x: x, point: index > 0 ? point : nil))
+            x += word.width
+        }
+        // Keep the last logical edge at the original token edge: following formula children
+        // were placed using that advance. Per-line shaping then applies its exact width delta.
+        children[children.count - 1].box.width += box.width - x
+        return BreakableRow(children: children, itemCount: box.items.count, context)
+    }
+
     /// An `mtext`'s logical text/image pieces grouped at eligible spaces. An image is atomic,
     /// and a decorated fallback retains its shaped glyphs and local background on every word.
-    private func words(_ box: MathBox, _ context: LayoutContext) -> BreakableRow? {
+    private func segmentWords(_ box: MathBox, _ context: LayoutContext) -> BreakableRow? {
         guard context.lines.linebreak != .nobreak, let segments = box.textSegments,
               // A token's own background still makes it an indivisible box.
               !box.items.contains(where: { if case .rect = $0 { return true }; return false }) else { return nil }
@@ -262,7 +275,7 @@ extension LayoutEngine {
         func close(at end: CGFloat) {
             guard let x = start else { return }
             word.width = end - x
-            let ink = word.inkBounds
+            let ink = word.spacingInkBounds
             word.ascent = ink?.maxY ?? 0
             word.descent = ink.map { -$0.minY } ?? 0
             children.append(BreakableRow.Child(box: word, x: x, point: spaced && !children.isEmpty ? point : nil))
@@ -272,7 +285,7 @@ extension LayoutEngine {
             if segment.isSpace {
                 close(at: segment.x)
                 spaced = true
-                if segment.box.inkBounds != nil { spaces.append(segment) }
+                if segment.box.spacingInkBounds != nil { spaces.append(segment) }
             } else {
                 let x = start ?? segment.x
                 if start == nil, !spaces.isEmpty {
@@ -515,7 +528,7 @@ extension LayoutEngine {
             items += row.box.itemCount
         }
         guard [lines.width, lines.ascent, lines.descent].allSatisfy({ $0.isFinite && $0 <= MathLimits.extent }),
-              items <= MathLimits.items else { throw MathLayoutError.limitExceeded }
+              items <= MathLimits.items, !paragraph.textWorkExceeded else { throw MathLayoutError.limitExceeded }
         return lines
     }
 
@@ -743,6 +756,9 @@ struct Paragraph {
     static let emptiness: CGFloat = 60, rowCost: CGFloat = 10, nesting: CGFloat = 25, overflow: CGFloat = 1_000_000
 
     private(set) var units: [Unit] = []
+    private var hasLogicalText = false
+    private var textWork: TextShapingWork?
+    var textWorkExceeded: Bool { textWork?.exhausted == true }
     /// The start, every place a row may end, and the end.
     private(set) var stops: [Stop] = []
     /// A duplicated operator, or an invisible times made visible, for the stops that have one.
@@ -788,6 +804,8 @@ struct Paragraph {
             em = fontSize; display = false
         }
         if units.isEmpty { units = [Unit(box: box, x: 0, ink: box.spacingInkBounds)] }
+        textWork = units.first { $0.box.logicalTextSlice != nil }?.box.logicalTextSlice?.source.work
+        hasLogicalText = textWork != nil
         var opened: [Int] = []
         for index in units.indices {
             guard let op = units[index].box.op, op.has(.fence), let point = op.breakPoint else { continue }
@@ -1020,10 +1038,14 @@ struct Paragraph {
     }
 
     /// The width of the row between two stops, its box covering its ink, and how far that ink
-    /// overhangs its left edge. Constant time, from the unbroken row's ink, and never less than
-    /// the row that `row` builds measures: what fits by this fits.
+    /// overhangs its left edge. Formula-only rows use constant-time ink summaries; text rows
+    /// measure the same per-line shape they draw, under the shared shaping/assembly budget.
     private func extent(_ i: Int, _ j: Int) -> (width: CGFloat, left: CGFloat) {
         if i == 0, j == stops.count - 1 { return entire }
+        if hasLogicalText {
+            let built = row(i, j)
+            return (built.box.width, built.left)
+        }
         let content = stops[i].headAdvance + ends[j] - starts[i] + stops[j].tailAdvance
         // The running extremes take in what the stops add, a duplicate where the operator it repeats
         // was and a tail where the next unit is. Those of the row alone do not.
@@ -1046,6 +1068,9 @@ struct Paragraph {
         var ink: CGRect?
         var isFirst = true
         let first = stops[i].at, end = stops[j].at
+        if let textWork, !textWork.consume(end - first) {
+            return (.empty(width: MathLimits.extent + 1), 0, [:])
+        }
         let head = stops[i].insert.flatMap { inserts[$0].head }
         let tail = stops[j].insert.flatMap { inserts[$0].tail }
         var ascent = -CGFloat.infinity, descent = -CGFloat.infinity
@@ -1072,8 +1097,23 @@ struct Paragraph {
             ink = ink.map { $0.union(placed) } ?? placed
         }
         if let head { add(head, head.spacingInkBounds, at: 0) }
-        for index in first..<end {
+        var index = first
+        while index < end {
             let unit = units[index]
+            if let slice = unit.box.logicalTextSlice {
+                var next = index + 1
+                while next < end, units[next].box.logicalTextSlice?.source === slice.source { next += 1 }
+                let last = units[next - 1]
+                let range = slice.range.lowerBound..<(last.box.logicalTextSlice!.range.upperBound)
+                var shaped = slice.source.box(range)
+                shaped.isPhantom = unit.box.isPhantom
+                for word in index..<next { shifts[word] = delta }
+                add(shaped, shaped.spacingInkBounds, at: unit.x + shift + delta)
+                delta += shaped.width - (last.x + last.box.width - unit.x)
+                index = next
+                continue
+            }
+
             shifts[index] = delta
             var child = unit.box
             var childInk = unit.ink
@@ -1086,11 +1126,14 @@ struct Paragraph {
             }
             if index > first, let spaces = child.leadingTextSpace {
                 for space in spaces {
-                    add(space.box, space.box.inkBounds, at: unit.x + shift + delta + space.x)
+                    var hiddenSpace = space.box
+                    hiddenSpace.isPhantom = hiddenSpace.isPhantom || child.isPhantom
+                    add(hiddenSpace, hiddenSpace.spacingInkBounds, at: unit.x + shift + delta + space.x)
                 }
             }
             add(child, childInk, at: unit.x + shift + delta)
             delta += child.width - unit.box.width
+            index += 1
         }
         if let tail { add(tail, tail.spacingInkBounds, at: ends[j] + shift + delta + stops[j].tailOffset) }
         box.width += delta
@@ -1237,7 +1280,9 @@ struct Paragraph {
                     let to = rightmost.map { $0(firstUnit..<endUnit) } ?? inkTo[endUnit]
                     let left = max(0, starts[i] - from - stops[i].headAdvance, stops[i].headLeft)
                     let right = max(end, to, starts[i] - stops[i].headAdvance + stops[i].headInk)
-                    let fits = stops[i].headAdvance + right - starts[i] + left <= room + Self.slop
+                    let measured = hasLogicalText ? extent(i, middle).width
+                        : stops[i].headAdvance + right - starts[i] + left
+                    let fits = measured <= room + Self.slop
                     if fits { low = middle } else { high = middle - 1 }
                 }
                 var reached = false

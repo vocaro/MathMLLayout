@@ -16,6 +16,14 @@ struct MathBox {
     var op: OperatorProperties?
     /// Set when the box is a row a line may break inside: its children, kept apart.
     var row: BreakableRow?
+    /// Logical token text, retained for per-line shaping after line breaks are chosen.
+    var textSlice: LogicalTextSlice?
+    /// Decorations and structural edits invalidate the plain token shape, as they invalidate
+    /// a breakable row's item count. Replacing such a box by reshaped text would lose its drawing.
+    var logicalTextSlice: LogicalTextSlice? {
+        guard !items.isEmpty, items.allSatisfy({ if case .glyphs = $0 { return true }; return false }) else { return nil }
+        return textSlice
+    }
     /// The source of a vertically stretched fence, for a pair that later stays on one output row.
     var fenceLayout: FenceLayout?
     /// Hidden drawing still retains its geometry and row structure for line breaking.
@@ -44,6 +52,7 @@ struct MathBox {
         box.row = nil
         box.textSegments = nil
         box.leadingTextSpace = nil
+        box.textSlice = nil
         items.append(.box(box, at: point))
     }
 

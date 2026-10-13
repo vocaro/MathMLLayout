@@ -1,0 +1,186 @@
+import CoreGraphics
+import CoreText
+import CryptoKit
+import Foundation
+@testable import MathMLLayout
+import XCTest
+
+final class BidiTextTests: MathTestCase {
+    let fontName = "MathMLBidiTest-Regular"
+
+    override func setUpWithError() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "MathMLBidiTest", withExtension: "ttf",
+                                                 subdirectory: "ExternalFixtures/fonts"))
+        XCTAssertEqual(SHA256.hash(data: try Data(contentsOf: url)).map { String(format: "%02x", $0) }.joined(), "bb045c01ab5c80d784fa71d299d0828ab572b2a8ced8563e33b595a5a56fed78")
+        var error: Unmanaged<CFError>?
+        if !CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) {
+            XCTAssertEqual(CFErrorGetCode(try XCTUnwrap(error).takeRetainedValue()), CTFontManagerError.alreadyRegistered.rawValue)
+        }
+        XCTAssertEqual(CTFontCopyPostScriptName(CTFontCreateWithName(fontName as CFString, 20, nil)) as String, fontName)
+    }
+
+    func rows(_ text: String, width: CGFloat, direction: String? = nil) throws -> [Paragraph.Row] {
+        let root = MathMLNode(name: "math", attributes: direction.map { ["dir": $0] } ?? [:],
+                              children: [MathMLNode(name: "mtext", text: text)])
+        let box = try LayoutEngine(fontName: fontName).layoutRoot(root,
+            style: MathStyle(fontSize: 20, color: black, fontName: fontName))
+        return Paragraph(box).rows(limit: width, first: width, auto: (.left, 0))
+    }
+
+    /// Decode fixture glyph names from its pinned glyph order, never from the shaping result.
+    /// Sorting by draw coordinates verifies the visual order, independent of CTRun enumeration.
+    func visualGlyphs(_ box: MathBox) -> [String] {
+        let chars = Array(" ABCDEF1234().-+אבגדהוبت".unicodeScalars)
+        var names = [".notdef"] + chars.map { $0 == " " ? "space" : String(format: "uni%04X", $0.value) }
+        for name in ["uni0628", "uni062A"] { for form in ["isol", "init", "medi", "fina"] { names.append("\(name).\(form)") } }
+        var placed: [(CGFloat, String)] = []
+        func visit(_ box: MathBox, _ x: CGFloat) {
+            for item in box.items {
+                switch item {
+                case .box(let child, let point): visit(child, x + point.x)
+                case .glyphs(let run):
+                    for (glyph, position) in zip(run.glyphs, run.positions) {
+                        // CoreText emits its invisible glyph sentinel for bidi controls.
+                        guard glyph != .max else { continue }
+                        placed.append((x + position.x, Int(glyph) < names.count ? names[Int(glyph)] : "other"))
+                    }
+                default: break
+                }
+            }
+        }
+        visit(box, 0)
+        return placed.sorted { $0.0 < $1.0 }.map(\.1).filter { $0 != ".notdef" }
+    }
+
+    func names(_ text: String) -> [String] {
+        text.unicodeScalars.map { $0 == " " || $0 == "\u{A0}" || $0 == "\u{202F}" ? "space" : String(format: "uni%04X", $0.value) }
+    }
+
+    func testHebrewLinesFollowLogicalWordsAndVisualBidiOrder() throws {
+        let output = try rows("אב גד הו", width: 45)
+        XCTAssertEqual(output.count, 2)
+        XCTAssertEqual(visualGlyphs(output[0].box), names("דג בא"))
+        XCTAssertEqual(visualGlyphs(output[1].box), names("וה"))
+        XCTAssertEqual(output[0].box.width, 45, accuracy: 0.001)
+        XCTAssertEqual(output[1].box.width, 20, accuracy: 0.001)
+    }
+
+    func testArabicContextualFormsAreReshapedOnEachLine() throws {
+        let output = try rows("بت تب بت", width: 45)
+        XCTAssertEqual(output.count, 2)
+        XCTAssertEqual(visualGlyphs(output[0].box), ["uni0628.fina", "uni062A.init", "space", "uni062A.fina", "uni0628.init"])
+        XCTAssertEqual(visualGlyphs(output[1].box), ["uni062A.fina", "uni0628.init"])
+        XCTAssertEqual(output[0].box.width, 45, accuracy: 0.001)
+    }
+
+    func testMixedNumbersPunctuationAndInheritedParagraphDirection() throws {
+        let rtl = try rows("אב 12 גד EF", width: 70, direction: "rtl")
+        XCTAssertEqual(rtl.count, 2)
+        XCTAssertEqual(visualGlyphs(rtl[0].box), names("דג 12 בא"))
+        XCTAssertEqual(visualGlyphs(rtl[1].box), names("EF"))
+        XCTAssertEqual(visualGlyphs(try XCTUnwrap(rows("אב - AB", width: 100, direction: "rtl").first).box), names("AB - בא"))
+        XCTAssertEqual(visualGlyphs(try XCTUnwrap(rows("אב - AB", width: 100, direction: "ltr").first).box), names("בא - AB"))
+        XCTAssertEqual(visualGlyphs(try XCTUnwrap(rows("אב (12)", width: 100, direction: "rtl").first).box), names("(12) בא"))
+    }
+
+    func testDirectionalEmbeddingAndIsolateSurviveLineBoundary() throws {
+        // RLO begins on the preceding line: CD must still reverse to DC on the next.
+        let embedded = try rows("אב \u{202E}AB CD\u{202C} גד", width: 20, direction: "rtl")
+        XCTAssertEqual(embedded.count, 4)
+        XCTAssertEqual(visualGlyphs(embedded[0].box), names("בא"))
+        XCTAssertEqual(visualGlyphs(embedded[1].box), names("BA"))
+        XCTAssertEqual(visualGlyphs(embedded[2].box), names("DC"))
+        XCTAssertEqual(visualGlyphs(embedded[3].box), names("דג"))
+        let isolated = try rows("אב \u{2066}AB CD\u{2069} גד", width: 20, direction: "rtl")
+        XCTAssertEqual(isolated.count, 4)
+        XCTAssertEqual(visualGlyphs(isolated[1].box), names("AB"))
+        XCTAssertEqual(visualGlyphs(isolated[2].box), names("CD"))
+    }
+
+    func testNoBreakSpacesDrawingAndReportedMinimum() throws {
+        for space in ["\u{A0}", "\u{202F}"] {
+            let root = MathMLNode(name: "math", attributes: ["dir": "rtl"], children: [MathMLNode(name: "mtext", text: "אב\(space)גד הו")])
+            let style = MathStyle(fontSize: 20, color: black, fontName: fontName)
+            let output = try MathLayout(root, style: style, maximumWidth: 0)
+            XCTAssertEqual(output.rows.count, 2)
+            XCTAssertEqual(output.widestUnbreakableWidth, 45, accuracy: 0.001)
+            let fitted = try MathLayout(root, style: style, maximumWidth: output.widestUnbreakableWidth)
+            XCTAssertLessThanOrEqual(fitted.width, output.widestUnbreakableWidth + 0.001)
+            assertBoxCoversInk(output, "RTL no-break space")
+        }
+    }
+
+    func testFallbackFontsAndNeighbourGeometry() throws {
+        var fonts: Set<String> = []
+        func collect(_ box: MathBox) {
+            for item in box.items {
+                if case .glyphs(let run) = item { fonts.insert(CTFontCopyPostScriptName(run.font) as String) }
+                if case .box(let child, _) = item { collect(child) }
+            }
+        }
+        for row in try rows("אב Ω גד", width: 25) { collect(row.box) }
+        XCTAssertTrue(fonts.contains(fontName))
+        XCTAssertGreaterThan(fonts.count, 1, "The Greek symbol must retain its CoreText fallback font")
+        let root = MathMLNode(name: "math", children: [MathMLNode(name: "mtext", text: "אב Ω גד"), MathMLNode(name: "mi", text: "A")])
+        let style = MathStyle(fontSize: 20, color: black, fontName: fontName)
+        for width: CGFloat in [0, 30, 55, 100] {
+            let output = try MathLayout(root, style: style, maximumWidth: width)
+            XCTAssertLessThanOrEqual(output.width, max(width, output.widestUnbreakableWidth) + 0.001)
+            assertBoxCoversInk(output, "RTL fallback \(width)")
+        }
+    }
+
+    func testAuthorOuterSpacesSurviveFormulaBreaksAndKeepNeighbourPlacement() throws {
+        let style = MathStyle(fontSize: 20, color: black, fontName: fontName)
+        for neighbour in [false, true] {
+            var children = [MathMLNode(name: "mtext", text: " אב גד ")]
+            if neighbour { children.append(MathMLNode(name: "mi", attributes: ["mathvariant": "normal"], text: "A")) }
+            children += [MathMLNode(name: "mo", attributes: ["linebreak": "newline"], text: "+"), MathMLNode(name: "mi", text: "B")]
+            let root = MathMLNode(name: "math", children: children)
+            let output = try MathLayout(root, style: style)
+            XCTAssertEqual(output.rows.count, 2)
+            XCTAssertEqual(output.rows[0].width, neighbour ? 65 : 55, accuracy: 0.001)
+            let box = try LayoutEngine(fontName: fontName).layoutRoot(root, style: style)
+            let broken = Paragraph(box).rows(limit: .infinity, first: .infinity, auto: (.left, 0))
+            XCTAssertEqual(visualGlyphs(broken[0].box), names(neighbour ? " דג בא A" : " דג בא "))
+        }
+        let split = try rows(" אב גד ", width: 25)
+        XCTAssertEqual(split.map { $0.box.width }, [25, 25])
+    }
+
+    func testStackNumericParenthesesStayLTRUnderInheritedRTLTextDirection() throws {
+        let root = MathMLNode(name: "math", attributes: ["dir": "rtl"], children: [
+            MathMLNode(name: "mstack", children: [MathMLNode(name: "mn", text: "(12)")]),
+        ])
+        let box = try LayoutEngine(fontName: fontName).layoutRoot(root,
+            style: MathStyle(fontSize: 20, color: black, fontName: fontName))
+        XCTAssertEqual(visualGlyphs(box), names("(12)"))
+    }
+
+    func testDecoratedTextRetainsItsBackgroundWhenTheFormulaBreaks() throws {
+        let root = MathMLNode(name: "math", children: [
+            MathMLNode(name: "mtext", attributes: ["mathbackground": "lime"], text: "אב גד"),
+            MathMLNode(name: "mo", attributes: ["linebreak": "newline"], text: "+"),
+            MathMLNode(name: "mi", text: "A"),
+        ])
+        let output = try MathLayout(root, style: MathStyle(fontSize: 20, color: black, fontName: fontName), maximumWidth: 25)
+        XCTAssertEqual(output.rows.count, 2)
+        XCTAssertNotNil(Rendering(output).bounds(.green))
+        assertBoxCoversInk(output, "decorated RTL text")
+    }
+
+    func testWorkBoundIsEnforcedForAParagraphWithinInputAndExtentBounds() throws {
+        let root = MathMLNode(name: "math", children: [MathMLNode(name: "mtext", text: String(repeating: "אב ", count: 2_000))])
+        XCTAssertThrowsError(try MathLayout(root, style: MathStyle(fontSize: 1, color: black, fontName: fontName), maximumWidth: 0.5)) {
+            XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+        }
+    }
+
+    func testTextWorkBudgetIsSharedAndStopsBeforeShaping() {
+        let work = TextShapingWork()
+        XCTAssertTrue(work.consume(TextShapingWork.limit))
+        XCTAssertFalse(work.consume(1))
+        XCTAssertFalse(work.consume(0))
+        XCTAssertEqual(work.spent, TextShapingWork.limit)
+    }
+}

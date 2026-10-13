@@ -30,6 +30,12 @@ succeeds and that every row fits that width, including formulas with wrapping un
 
 [Documentation index](../README.md#documentation)
 
+## Bidirectional text
+
+The [bidi text regressions](bidi-text-tests.md) use a checksum-pinned synthetic font and
+explicit Unicode-derived expected visual order. They run in the regular suite without Python
+or a font download. The font generator is optional.
+
 ## External validation
 
 The pinned subset added for [#52](https://github.com/vocaro/MathMLLayout/issues/52) is described
