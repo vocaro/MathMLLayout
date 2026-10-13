@@ -1371,7 +1371,8 @@ final class LayoutEngine {
             && Self.hasSimpleLTRWordBoundaries(text, direction: context.direction)
         var box = textBox(text, context, retainSegments: canSegment, requireSeparatedSpaces: canSegment)
         if node.name == "mtext", context.lines.linebreak != .nobreak, text.contains(" "), box.textSegments == nil {
-            let source = LogicalTextSource(attributedText(text, context), color: context.color, work: textWork)
+            let source = LogicalTextSource(attributedText(text, context), color: context.color, work: textWork,
+                                           trackAlignment: context.trackAlignment)
             if source.words.count > 1 {
                 box.textSlice = LogicalTextSlice(source: source, range: 0..<text.utf16.count)
             }

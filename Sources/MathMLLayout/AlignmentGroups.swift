@@ -2,6 +2,9 @@ import CoreGraphics
 import CoreText
 import Foundation
 
+/// Shared across event copies so fragment assembly can recover the parent's source priority.
+final class AlignmentIdentity {}
+
 /// Source-ordered events survive ordinary layout, including nested rows. Drawing-item paths
 /// distinguish groups even when their x positions coincide (empty groups or negative space).
 struct AlignmentEvent {
@@ -15,6 +18,39 @@ struct AlignmentEvent {
     var x: CGFloat
     var order = 0
     var path: [Int] = []
+    var tokenEdgeRight = false
+    var identity: AlignmentIdentity?
+    var fenceTarget: FenceLayout?
+    var fenceEdgeRight = false
+
+    init(kind: Kind, x: CGFloat, order: Int = 0, path: [Int] = [], tokenEdgeRight: Bool = false) {
+        self.kind = kind; self.x = x; self.order = order; self.path = path; self.tokenEdgeRight = tokenEdgeRight
+        switch kind {
+        case .mark, .number: identity = AlignmentIdentity()
+        default: identity = nil
+        }
+    }
+}
+
+/// A span participates only with cells covering the same source-column interval. A mixed
+/// scope span is opaque; an entirely unscoped interval exports its explicit marks.
+struct TableAlignmentScopes {
+    enum Scope { case local, inherited, mixed }
+    private let unscoped: [Int]
+
+    init(_ values: [String], columns: Int) {
+        var counts = [0]
+        for column in 0..<columns {
+            let isFalse = !values.isEmpty && values[min(column, values.count - 1)] == "false"
+            counts.append(counts.last! + (isFalse ? 1 : 0))
+        }
+        unscoped = counts
+    }
+
+    func scope(_ cell: TableCell) -> Scope {
+        let count = unscoped[cell.column + cell.columnSpan] - unscoped[cell.column]
+        return count == 0 ? .local : count == cell.columnSpan ? .inherited : .mixed
+    }
 }
 
 extension MathBox {
@@ -100,6 +136,35 @@ extension MathBox {
                 ranges[prefix] = (ranges[prefix]?.first ?? index, index)
             }
         }
+        // On different cell lines, source groups can occupy overlapping horizontal
+        // intervals. Stretching a background by its endpoint shift difference then
+        // counts blank space twice. Measure its actual descendant extents instead.
+        struct BackgroundBounds {
+            var oldLeft: CGFloat
+            var oldRight: CGFloat
+            var left: CGFloat
+            var right: CGFloat
+        }
+        var backgroundBounds: [[Int]: BackgroundBounds] = [:]
+        let overlaps = groups.indices.dropFirst().contains { index in
+            rtl ? groups[index - 1].start < groups[index].end : groups[index - 1].end > groups[index].start
+        }
+        if overlaps {
+            var current = -1
+            for event in alignment {
+                if case .group = event.kind { current += 1 }
+                guard current >= 0, current < shifts.count, case .extent(let size) = event.kind else { continue }
+                for length in 0..<event.path.count {
+                    let prefix = Array(event.path.prefix(length))
+                    guard ranges[prefix] != nil else { continue }
+                    let old = backgroundBounds[prefix]
+                    backgroundBounds[prefix] = BackgroundBounds(oldLeft: min(old?.oldLeft ?? event.x, event.x),
+                        oldRight: max(old?.oldRight ?? event.x + size, event.x + size),
+                        left: min(old?.left ?? event.x + shifts[current], event.x + shifts[current]),
+                        right: max(old?.right ?? event.x + size + shifts[current], event.x + size + shifts[current]))
+                }
+            }
+        }
         func precedes(_ a: [Int], _ b: [Int]) -> Bool { a == b || a.lexicographicallyPrecedes(b) }
         // One cursor per active ancestor retains source order without recursive frames.
         // A hidden ancestor still contributes spacing and groups, but never paints its leaves.
@@ -138,6 +203,17 @@ extension MathBox {
                 var left = cursor.path.isEmpty ? 0 : cursor.origin.x + shifts[rtl ? last : first]
                 var right = cursor.path.isEmpty ? width
                     : left + max(0, rect.width + (rtl ? shifts[first] - shifts[last] : shifts[last] - shifts[first]))
+                if !cursor.path.isEmpty, let bounds = backgroundBounds[cursor.path] {
+                    left = bounds.left - max(0, bounds.oldLeft - cursor.origin.x)
+                    right = bounds.right + max(0, cursor.origin.x + rect.width - bounds.oldRight)
+                    // A complete group also owns the blank space reserved by its section.
+                    for index in first...last where !sections.isEmpty {
+                        if groups[index].start >= cursor.origin.x, groups[index].end <= cursor.origin.x + rect.width {
+                            left = min(left, sections[index].left)
+                            right = max(right, sections[index].right)
+                        }
+                    }
+                }
                 // RTL automatic left alignment can insert blank space at the right edge
                 // without translating either endpoint. A background containing complete
                 // groups must cover those reserved sections as well as their shifted ink.
@@ -336,7 +412,10 @@ extension LayoutEngine {
                 position = prefix.utf16.count
             }
             alignmentSequence += 1
-            box.alignment.append(AlignmentEvent(kind: .mark, x: offset(position), order: alignmentSequence))
+            let event = AlignmentEvent(kind: .mark, x: offset(position), order: alignmentSequence,
+                                       tokenEdgeRight: mark.attributes["edge"]?.lowercased() == "right")
+            box.alignment.append(event)
+            box.logicalTextSlice?.source.setAlignmentMark(position, event: event)
         }
         if node.name == "mn", context.alignmentBaseline {
             let decimal = context.decimalPoint ?? "."
@@ -347,17 +426,22 @@ extension LayoutEngine {
     }
 
     func alignColumns(_ cells: inout TableGrid, scopes: [String], rtl: Bool = false) throws {
-        var columns: [Int: [(row: Int, index: Int, groups: [MathBox.AlignmentGroup])]] = [:]
+        struct Interval: Hashable { let column: Int; let span: Int }
+        let scopes = TableAlignmentScopes(scopes, columns: cells.columns)
+        var columns: [Interval: [(row: Int, index: Int, groups: [MathBox.AlignmentGroup])]] = [:]
         for row in cells.rows.indices {
             for column in cells.rows[row].indices {
-                let gridColumn = cells.rows[row][column].column
-                let scope = scopes.isEmpty || scopes[min(gridColumn, scopes.count - 1)] != "false"
-                if scope && cells.rows[row][column].box.row?.hasForced != true {
-                    let groups = cells.rows[row][column].box.alignmentGroups(cells.rows[row][column].groupAlign)
-                    if !groups.isEmpty { columns[gridColumn, default: []].append((row, column, groups)) }
-                }
-                if !scope {
+                let cell = cells.rows[row][column]
+                switch scopes.scope(cell) {
+                case .local:
+                    let groups = cell.box.alignmentGroups(cell.groupAlign)
+                    if !groups.isEmpty {
+                        columns[Interval(column: cell.column, span: cell.columnSpan), default: []].append((row, column, groups))
+                    }
+                case .inherited:
                     cells.rows[row][column].box.alignment.removeAll { if case .mark = $0.kind { return false }; return true }
+                case .mixed:
+                    cells.rows[row][column].box.alignment = []
                 }
             }
         }
@@ -385,12 +469,8 @@ extension LayoutEngine {
                 cells.rows[entry.row][index].box = cells.rows[entry.row][index].box.aligning(entry.groups, shifts: shifts, width: width, rtl: rtl, sections: sections)
             }
         }
-        consumeColumnAlignment(&cells, scopes: scopes)
-    }
-
-    func consumeColumnAlignment(_ cells: inout TableGrid, scopes: [String]) {
         for row in cells.rows.indices {
-            for column in cells.rows[row].indices where scopes.isEmpty || scopes[min(cells.rows[row][column].column, scopes.count - 1)] != "false" {
+            for column in cells.rows[row].indices where scopes.scope(cells.rows[row][column]) != .inherited {
                 cells.rows[row][column].box.alignment = []
             }
         }

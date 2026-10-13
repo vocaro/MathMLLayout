@@ -44,7 +44,10 @@ scrolling, eliding, truncating or scaling remain the host's responsibility.
   the text paragraph direction. Text with inline images and decorated `alt` fallbacks wraps
   at ordinary spaces, keeping images whole and fallback backgrounds on each word. A table wider
   than the line narrows its columns and wraps its cells, including spanning cells within
-  their combined track widths and internal gaps; fraction parts, radicands and
+  their combined track widths and internal gaps. Alignment groups and embedded text marks
+  survive cell breaks; all fragments of a source group share one horizontal shift, with
+  [defined span scopes and minimum-width measurements](alignment-groups.md#wrapping-and-spans).
+  Fraction parts, radicands and
   `menclose` contents wrap the same way. Default `mpadded` and `mphantom` also flow across
   rows; phantoms keep the visible content's spacing while drawing nothing. `merror` contents
   stack inside one frame; background-bearing rows stack inside one filled rectangle.

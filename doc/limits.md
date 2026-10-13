@@ -59,6 +59,11 @@ alignment groups through 58 nested RTL rows in each table cell. Its geometry, dr
 counts, ink, pixels and all five base-language readings match the reference layout on an
 exactly 512 KB worker. The ordinary node, text, table-work and extent limits still apply.
 
+The reviewed wrapping and span alignment follow-up source `2a92c87` repeated the fixed worker matrix,
+the RTL alignment fixture, and all eleven pure-chain probes in debug and release on the same
+platform. All pure-chain probes again reached 64 levels. Group minimum measurements and
+fragment marker metadata retained the existing exact 512 KB worker coverage.
+
 These fixtures do not establish universal 64-level coverage. Different attributes, fonts,
 stretched operators, width constraints or callbacks can exhaust the stack sooner. Smaller
 workers may safely reject bounded inputs; tests include exact 128 KB and 256 KB stacks and the
@@ -102,8 +107,9 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   uses a midpoint baseline, and labels contribute to row height. Equal tracks, authored
   table/column widths and stretching cell operators to neighboring cells remain unsupported;
   overlap label sides reserve the same space as non-overlap forms. LTR and RTL alignment groups and
-  marks are supported, but aligned cells stay indivisible under automatic wrapping. Forced
-  breaks and non-default spans opt out. Token marks also align beside inline images, legacy
+  marks survive forced and automatic cell wrapping. Row spans share their column's groups;
+  column spans align only within identical source-column intervals. Mixed scoped/unscoped
+  spans consume their markers. Token marks also align beside inline images, legacy
   glyphs, and fallbacks. Left/right edges and label sides remain physical. See [Alignment groups](alignment-groups.md).
 - **Images and legacy glyphs.** Intrinsic image scale/logical size is supplied by the host;
   markup can override image dimensions. An `mo` containing `mglyph` preserves author sizing
