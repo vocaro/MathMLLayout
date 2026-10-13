@@ -534,6 +534,14 @@ extension LayoutEngine {
         var rowAxes: [CGFloat] = []
         var cells = try TableGrid(rowCount: node.children.count)
         var labels: [TableCell?] = []
+        var sources: [[TableCellSource]] = []
+        let cached = isCellRebuild ? tableMeasurements.lookup(node, context) : nil
+        if let cached {
+            try countCellRebuildNodes(cached.descendantNodes)
+            try countTableWork(cached.tableWork)
+            cells = cached.cells; labels = cached.labels; sources = cached.sources; rowAxes = cached.rowAxes
+        } else {
+            let startNodes = visitedNodes, startWork = remainingTableWork
         for (rowIndex, rowNode) in node.children.enumerated() {
             let rowContext: LayoutContext
             var cellNodes: [MathMLNode]
@@ -554,7 +562,9 @@ extension LayoutEngine {
                 ? vertical(rowNode.attributes["rowalign"]) : nil)
                 ?? vertical(pick(tableRowAlign, rowIndex)) ?? "baseline"
             rowAxes.append(value(\.axisHeight, rowContext))
+            var rowSources: [TableCellSource] = []
             for cell in cellNodes {
+                rowSources.append(TableCellSource(node: cell, context: rowContext, depth: depth + 2))
                 let box = try layout(cell, rowContext, depth: depth + 2)
                 let align = cell.attributes["columnalign"]?.trimmingCharacters(in: .whitespaces).lowercased()
                 let alignment = vertical(cell.attributes["rowalign"]) ?? rowVertical
@@ -570,6 +580,7 @@ extension LayoutEngine {
                     cells.rows[rowIndex][index].align = pick(rowAlign, cells.rows[rowIndex][index].column)
                 }
             }
+            sources.append(rowSources)
             labels.append(try label.map {
                 // Labels have their own gutter; neither their spans nor previous grid spans reserve
                 // a position for the next label (MathML 3, 3.5.4.2).
@@ -582,6 +593,10 @@ extension LayoutEngine {
                                  column: 0, rowSpan: rowSpan, columnSpan: 1,
                                  axis: value(\.axisHeight, inherit($0, rowContext)))
             })
+        }
+            tableMeasurements.keep(node, context, cells: cells, labels: labels, sources: sources,
+                                   rowAxes: rowAxes, descendantNodes: visitedNodes - startNodes,
+                                   tableWork: startWork - remainingTableWork)
         }
         let columns = cells.columns
         let ex = xHeight(context), em = context.fontSize
@@ -602,7 +617,7 @@ extension LayoutEngine {
         let labelGap = length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em
         let labelWidth = labels.compactMap { $0?.box.width }.max().map { $0 + labelGap } ?? 0
         // Before the rows are measured: a table too wide for the line wraps its cells, which grow taller.
-        wrapCells(&cells, columnAlign: tableAlign, gaps: columnGaps, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
+        let minimum = try wrapCells(&cells, sources: sources, columnAlign: tableAlign, gaps: columnGaps, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
         let widths = cells.widths(gaps: columnGaps) { _, _, cell in cell.box.width }
         var ascents = [CGFloat](repeating: 0, count: cells.rows.count), descents = ascents
         for (rowIndex, row) in cells.rows.enumerated() {
@@ -779,6 +794,7 @@ extension LayoutEngine {
         box.width = gridWidth + 2 * frameX + labelWidth
         box.ascent = top
         box.descent = height - top
+        box.tableMinimumWidth = minimum
         return box
     }
 }

@@ -43,7 +43,7 @@ enum MathLimits {
 
 /// The inherited state of layout at one element: MathML's `displaystyle`, `scriptlevel`,
 /// `math-shift` (cramped), `mathvariant`, `mathcolor` and the font size they produce.
-struct LayoutContext {
+struct LayoutContext: Equatable {
     var fontSize: CGFloat
     /// The size scriptlevel changes compute before the minimum applies.
     var unclampedSize: CGFloat
@@ -146,9 +146,12 @@ final class LayoutEngine {
     let font: MathFont
     let constants: MathConstants
     private var nodeCount = 0
+    var visitedNodes: Int { nodeCount }
     private var textLength = 0
     private var tableWork = 0
-    var remainingTableWork: Int { MathLimits.tableWork - tableWork }
+    var remainingTableWork: Int {
+        min(MathLimits.tableWork - tableWork, isCellRebuild ? MathLimits.tableWork - tableMeasurements.rebuildTableWork : MathLimits.tableWork)
+    }
     /// `MathLimits.stackFloor` of the thread that lays out, found as the root starts.
     private var stackFloor: UInt = 0
     /// `MathStyle.imageProvider`, and what it has returned for each `src` it was asked for.
@@ -160,7 +163,7 @@ final class LayoutEngine {
         constants = font.constants
     }
 
-    fileprivate init(font: MathFont) {
+    init(font: MathFont) {
         self.font = font
         constants = font.constants
     }
@@ -309,13 +312,28 @@ final class LayoutEngine {
     /// Charges grid searches and label spans to the same budget across nested and sibling tables.
     func countTableWork(_ count: Int) throws {
         tableWork += count
+        if isCellRebuild {
+            tableMeasurements.rebuildTableWork += count
+            guard tableMeasurements.rebuildTableWork <= MathLimits.tableWork else { throw MathLayoutError.limitExceeded }
+        }
         guard tableWork <= MathLimits.tableWork else { throw MathLayoutError.limitExceeded }
     }
 
     /// Elements visited without a box still count toward the formula's node bound.
     func countNodes(_ count: Int = 1) throws {
         nodeCount += count
+        try countCellRebuildNodes(count)
         guard nodeCount <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
+    }
+
+    /// Cached tables still scan retained cell paragraphs. Charge their original descendant
+    /// count too, rather than letting a cache hit bypass the shared wrapping work budget.
+    func countCellRebuildNodes(_ count: Int) throws {
+        guard isCellRebuild else { return }
+        tableMeasurements.rebuildNodes += count
+        guard tableMeasurements.rebuildNodes <= Self.maximumCellRebuildNodes else {
+            throw MathLayoutError.limitExceeded
+        }
     }
 
     func layout(_ node: MathMLNode, _ outer: LayoutContext, _ embellishment: Embellishment = .none,
@@ -425,6 +443,22 @@ final class LayoutEngine {
     var wrapOverrides: [Int: CGFloat] = [:]
     var wrapParts: [(natural: CGFloat, width: CGFloat, minimum: CGFloat)] = []
     var nextWrapWidth: CGFloat { wrapOverrides[wrapParts.count] ?? wrapWidth }
+    /// Measurements shared by cell rebuilds during one complete wrapping pass. A cached table
+    /// rebuild starts from its measured cells, so nesting does not remeasure descendants.
+    var tableMeasurements = TableMeasurements()
+
+    func relayoutCell(_ source: TableCellSource, width: CGFloat) throws -> MathBox {
+        let fresh = LayoutEngine(font: font)
+        fresh.imageProvider = imageProvider
+        fresh.imageCache = imageCache
+        fresh.lineWidth = width
+        fresh.wrapWidth = width
+        fresh.tableMeasurements = tableMeasurements
+        fresh.isCellRebuild = true
+        fresh.stackFloor = stackFloor == 0 ? MathLimits.stackFloor() : stackFloor
+        return try fresh.layout(source.node, source.context, depth: source.depth)
+    }
+    private(set) var isCellRebuild = false
 
     /// Starts the counts of untrusted input again, to lay the same formula out once more.
     func restart() {
@@ -434,6 +468,7 @@ final class LayoutEngine {
         narrowable = nil
         loosest = 0
         wrapParts.removeAll(keepingCapacity: true)
+        tableMeasurements = TableMeasurements()
     }
 
     // MARK: Embellished operators

@@ -9,7 +9,10 @@ calling thread's stack has room for, within those 64 levels: a thread other than
 has 512 KB, which an unoptimized build spends in about twenty levels. Readings are bounded the
 same way and leave out what is past the bounds. `MathMLNode.parse(xml:)` refuses document type
 declarations in any encoding, so no entity expands and nothing external loads; it reads at most
-4 MiB.
+4 MiB. Width fitting retains its bound of 1,114 complete layout passes. Within each pass,
+rebuilds of cells containing nested tables share at most 1,280,000 node visits (the node bound
+multiplied by the depth bound). Cached table measurements prevent recursive remeasurement;
+tracks are assigned once, then row heights and frame geometry are recomputed from the cells.
 
 Tables reserve at most 20,000 occupied grid slots apiece and perform at most 200,000 occupancy
 probes and label-span row visits across all tables in a layout pass. A valid span above 20,000, a larger occupied area,
@@ -23,8 +26,9 @@ instead of overwriting an earlier cell. Sparse grid slots are not materialized.
 - **Line breaking.** No breaks inside `mpadded`, `mphantom`, `merror`, `munder`/`mover`/
   `munderover`, a script, or a row with a `mathbackground`; none between adjacent identifiers or
   inside a number. `indenttarget` must name a child of a row
-  being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
-  a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
+  being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. Nested tables
+  in breakable cell rows narrow to their containing cell’s assigned width, retaining unbreakable
+  content and fixed space for frames and labels. `mtext` with a right-to-left run, an image, or an `alt`
   drawn on a `mathbackground` of its own does not wrap.
   `overflow` and `maxwidth` on `math` are not read:
   the host decides by the `maximumWidth` it passes.
