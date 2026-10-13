@@ -17,8 +17,8 @@ work throw `MathLayoutError.limitExceeded`; malformed/zero spans use one, and ro
 at the last source row. Cell rebuilds share separate limits of 1,280,000 node visits and 200,000 table-work
 visits per pass; cached tables charge their original descendant count and measured grid work.
 Logical text range requests and row assembly share 2,000,000 units per pass: requested UTF-16
-range lengths (including cache hits) plus row units visited, including retained-word candidate
-assembly in RTL paragraphs. This counter does not measure
+range lengths (including cache hits), row units visited, and neighbouring-element fragment
+edges generated for alignment marks, including retained-word candidate assembly in RTL paragraphs. This counter does not measure
 elapsed time or CoreText's internal paragraph resolution and shaping cost. Plain ASCII letters,
 digits and U+0020 spaces under LTR/natural direction reuse their full-token glyphs and word
 metrics in one pass, provided CoreText preserves separate space clusters. Other plain text
@@ -63,6 +63,12 @@ The reviewed wrapping and span alignment follow-up source `2a92c87` repeated the
 the RTL alignment fixture, and all eleven pure-chain probes in debug and release on the same
 platform. All pure-chain probes again reached 64 levels. Group minimum measurements and
 fragment marker metadata retained the existing exact 512 KB worker coverage.
+
+The neighbouring-element fragment follow-up source `55ddacd` repeated that matrix and all eleven
+pure-chain probes in debug and release on the same platform, again reaching 64 levels. A new
+64-level RTL table fixture tracks a neighbouring row through 58 wrappers and a forced break;
+its geometry, drawing-item counts, ink, pixels and readings match the 8 MB reference worker
+on an exactly 512 KB worker, including a repeated run.
 
 These fixtures do not establish universal 64-level coverage. Different attributes, fonts,
 stretched operators, width constraints or callbacks can exhaust the stack sooner. Smaller

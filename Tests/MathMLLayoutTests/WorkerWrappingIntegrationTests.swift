@@ -99,6 +99,8 @@ final class WorkerWrappingIntegrationTests: MathTestCase {
         original.textSegments = [space]
         original.leadingTextSpace = [space]
         original.alignment = [AlignmentEvent(kind: .mark, x: 5, path: [0])]
+        let target = AlignmentTarget(work: source.work)
+        original.alignmentTargets = [target]
         let expectedInk = original.inkBounds
         let expectedItems = original.itemCount
         let expectedSpace = original.op?.lspace
@@ -110,6 +112,7 @@ final class WorkerWrappingIntegrationTests: MathTestCase {
         copy.op?.lspace = 99
         copy.textSegments?[0].x = 8
         copy.leadingTextSpace?.removeAll()
+        copy.alignmentTargets.removeAll()
         copy.alignment[0].x = 42
         copy.alignment[0].path.append(1)
         copy.isPhantom = true
@@ -121,6 +124,8 @@ final class WorkerWrappingIntegrationTests: MathTestCase {
         XCTAssertEqual(original.op?.lspace, expectedSpace)
         XCTAssertEqual(original.textSegments?[0].x, 0)
         XCTAssertEqual(original.leadingTextSpace?.count, 1)
+        XCTAssertTrue(original.alignmentTargets.first === target)
+        XCTAssertTrue(copy.alignmentTargets.isEmpty)
         XCTAssertEqual(original.alignment[0].x, 5)
         XCTAssertEqual(original.alignment[0].path, [0])
         XCTAssertFalse(original.isPhantom)
