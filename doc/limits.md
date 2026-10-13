@@ -102,7 +102,8 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
 - **Tables.** Row and column spans use a bounded sparse grid; overlapping requests advance
   to a vacant rectangle in source-column order. Ordinary labels have independent gutters;
   overlap labels use the physical table edges without reserving those gutters. Equal tracks,
-  authored table/column widths and whole-cell operator stretching share the bounded grid pipeline. Row/cell
+  authored table/column widths and whole-cell operator stretching share the bounded grid
+  pipeline. Row/cell
   vertical alignment uses final cell geometry; a row with only top/bottom/center entries has
   a midpoint baseline, and ordinary labels contribute to row height. Overlap label ink is
   included in the final bounds. LTR and RTL alignment groups and
@@ -160,14 +161,14 @@ The following restrictions remain in the current implementation:
   `mglyph` occupies one column; its `alt` supplies neither a decimal separator nor several
   digit columns. Division frames are drawn, not font glyphs. The remaining per-schema
   restrictions and direction-changing scope policies are in [Directionality](directionality.md).
-- **Tables.** Equal tracks, authored table/column widths, whole-cell operator stretching and
-  overlap label placement use the bounded grid/measurement pipeline. Fixed column floors and
-  content minima can exceed the available width; percentage/fit sizing is a preference above
+- **Tables.** Fixed column floors and content minima can exceed the available width;
+  percentage/fit sizing is a preference above
   those minima, and oversubscribed percentages reduce toward them. Invalid/negative widths
   are automatic, unresolved relative table widths are automatic without a finite host, and
   ordinary MathML length limits apply. Allocation uses a fixed 48-step search, never retries
   to solve percentages. Stretch neighbour visits share the existing table-work bound, and
-  stretching shares cell-rebuild/stack limits. A label's `columnspan` adds no main-grid columns. Alignment groups in
+  stretching shares cell-rebuild/stack limits. A label's `columnspan` adds no main-grid columns.
+  Alignment groups in
   column spans interact only within identical source-column intervals; spans crossing a
   mixture of scoped and unscoped columns consume their internal markers.
 - **Images and legacy glyphs.** Compound text/image and multiple-image tokens have no
