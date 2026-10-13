@@ -50,7 +50,8 @@ input text limit.
   shaping and bidirectional resolution; inherited `dir` selects its paragraph direction.
   Mathematical row geometry itself remains left to right.
   Text with inline images or decorated `alt` fallbacks breaks at ordinary spaces; images and
-  segments joined by no-break spaces stay whole.
+  segments joined by no-break spaces stay whole. Mixed image/decorated tokens containing
+  RTL text or unrecoverable drawing origins remain atomic; plain bidi text still wraps.
   `maxwidth` on `math` can narrow the host width (see [Line breaking](line-breaking.md)).
   `overflow` is not read: scrolling, eliding, truncating and scaling remain the host responsibility.
 - **`mglyph`.** MathML 2's `fontfamily` and `index` glyphs have no image and show their `alt`.

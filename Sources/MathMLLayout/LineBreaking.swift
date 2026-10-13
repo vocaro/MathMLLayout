@@ -174,6 +174,14 @@ final class BreakableRow {
     let display: Bool
     let style: LineStyle
 
+    /// Retains placed children for ID anchors, while decorations make this row atomic.
+    /// A sentinel avoids coincidental item-count equality after a phantom background holder.
+    init(opaque row: BreakableRow) {
+        children = row.children; visible = row.visible; itemCount = -1
+        isOperator = row.isOperator; hasForced = row.hasForced; isSeveral = row.isSeveral
+        fontSize = row.fontSize; display = row.display; style = row.style
+    }
+
     init(children: [Child], visible: [Int: MathBox] = [:], itemCount: Int, isOperator: Bool = false,
          _ context: LayoutContext) {
         self.children = children; self.visible = visible; self.itemCount = itemCount; self.isOperator = isOperator

@@ -945,7 +945,8 @@ final class LineBreakingTests: MathTestCase {
                        visible.rows[2].origin.x + below.minX, accuracy: 0.6)
         let hidden = try broken(opening + "<mphantom>" + target + "</mphantom>" + continuation, width: 400)
         XCTAssertEqual(hidden.rows.count, 3)
-        XCTAssertEqual(hidden.rows[2].origin.x, hidden.rows[1].origin.x - em + thick, accuracy: 0.01)
+        let transparent = try broken(opening + target + continuation, width: 400)
+        XCTAssertEqual(hidden.rows[2].origin.x, transparent.rows[2].origin.x, accuracy: 0.01)
     }
 
     func testUnavailableAndAmbiguousIndentTargetsRevertToAuto() throws {

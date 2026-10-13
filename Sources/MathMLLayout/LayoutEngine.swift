@@ -402,7 +402,7 @@ final class LayoutEngine {
                 box.items = []
                 box.add(hidden, at: .zero)
             }
-            box.row = nil
+            box.row = box.row.map { BreakableRow(opaque: $0) }
             box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), background), at: 0)
         }
         if box.op?.has(.fence) == true, case .vertical = embellishment.stretch,
