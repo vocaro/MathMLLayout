@@ -110,10 +110,11 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   [vocabulary extension contract](speech-locales.md). Selection tries the exact supported
   canonical locale, then its base language, then English for the whole reading; it does not
   borrow individual English terms into a selected language. Recognized mathematical symbols
-  in `mi`/`mo` have localized names; unknown identifiers, `mtext`, `ms` and ordinary token
-  `alt` retain author wording. In elementary numeric rows, embedded `mglyph` content and its
-  atomic column are omitted from spatial speech, including image/font glyphs and fallback
-  `alt`; spoken column alignment can therefore differ from the drawing. Stacks and divisions
+  in `mi`/`mo` have localized names; unknown identifiers, `mtext`, `ms` and token
+  `alt` retain author wording, including alt that resembles a mathematical symbol or digit.
+  Embedded `mglyph` descriptions follow token source order; each glyph in an elementary
+  number reserves one logical column, for image/font glyphs and fallback alike. Missing or
+  empty `alt` is silent but still reserves its column. Stacks and divisions
   describe logical columns, carries, crossouts, line
   endpoints and frames without inferring arithmetic meaning. French root/limit templates
   elide `de` before written vowels except `oui`, `onze` and `onzième`; they do not infer silent/
