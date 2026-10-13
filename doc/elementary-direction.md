@@ -56,9 +56,9 @@ The supported scope for [issue #75](https://github.com/vocaro/MathMLLayout/issue
 is inherited bidi **token contents** and MathML 3's physical elementary column policy.
 Rows and tables now follow inherited layout direction, including compound rows inside
 one elementary cell. The enclosing elementary columns themselves still progress LTR.
-Scripts, radicals and other schemata retain their existing geometric policies, so complete
-RTL schema mirroring remains unsupported. Reversing elementary columns would instead require an explicitly chosen
-extension to MathML 3.
+Scripts, radicals and other compound content inside a cell now honor structural direction;
+see [Directionality](directionality.md) for the schema policies. Reversing elementary columns
+would instead require an explicitly chosen extension to MathML 3.
 
 ## Regression coverage
 
@@ -75,6 +75,6 @@ extension to MathML 3.
 and style contexts retain inherited RTL alignment policy, while a valid LTR override
 changes back to LTR column and group progression. `BidiTextTests` checks logical token wrapping
 with paragraph bidi context and numeric parentheses in an RTL stack. These tests verify
-the supported token and elementary scope; they do not establish general RTL schema support.
+the supported token and elementary scope; separate `RTLSchemaTests` cover structural RTL layout.
 
 [Documentation index](../README.md#documentation)

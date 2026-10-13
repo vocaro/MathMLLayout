@@ -95,9 +95,10 @@ Ordinary RTL row breaks retain source order and place each line from right to le
 images retain their original drawing orientation. Indentation and column alignment continue
 to use physical left/right coordinates.
 
-This support is scoped to rows and tables. Scripts, radicals and other layout schemata retain
-their existing geometric policies; it does not implement full MathML 3 RTL schema mirroring.
-Elementary grid columns retain MathML 3's explicit LTR policy.
+Scripts, radicals and other layout schemata now honor structural direction too; see the
+[per-schema direction policies](directionality.md). Explicit marks move with their containing
+components, without reflecting the mark's local token coordinates or subdividing a schema into
+outer groups. Elementary grid columns retain MathML 3's explicit LTR policy.
 
 Metadata visits only the laid-out tree and is retained inside cells. Group measurements and
 column side-width scans are linear in event count; restoring source priority for deferred

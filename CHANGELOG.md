@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Honor inherited RTL geometry for scripts, multiscripts, radicals, bevelled fractions,
+  leading padding and directional enclosures, preserving mixed-direction child shaping and
+  explicit alignment marks ([#108](https://github.com/vocaro/MathMLLayout/issues/108)).
 - Wrap plain bidirectional `mtext` in logical order with per-line shaping and inherited text paragraph direction.
 
 ## 0.2.0
