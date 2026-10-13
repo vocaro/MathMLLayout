@@ -271,6 +271,7 @@ private struct ListMemo<Answer> {
 final class LayoutEngine {
     let font: MathFont
     let constants: MathConstants
+    let legacyGlyphFonts = LegacyGlyphFonts()
     private var nodeCount = 0
     var visitedNodes: Int { nodeCount }
     var alignmentSequence = 0
@@ -284,7 +285,7 @@ final class LayoutEngine {
     private var stackFloor: UInt = 0
     /// `MathStyle.imageProvider`, and what it has returned for each `src` it was asked for.
     var imageProvider: MathImageProvider? { didSet { if imageProvider != oldValue { imageCache = [:] } } }
-    var imageCache: [String: CGImage?] = [:]
+    var imageCache: [String: MathImage?] = [:]
 
     init(fontName: String?) {
         font = MathFont.named(fontName)
@@ -721,7 +722,7 @@ final class LayoutEngine {
         let context = inherit(node, outer)
         let wrapStart = wrapParts.count
         if node.name == "mglyph" {
-            return try token(MathMLNode(name: "mtext", children: [node]), outer)
+            return try token(MathMLNode(name: "mtext", children: [node]), outer, countingGlyphs: false)
         }
         let box = try makeBox(node, context, outer, embellishment, depth: depth)
         return finish(box, node, outer, context, embellishment, wrapStart: wrapStart)
@@ -741,7 +742,7 @@ final class LayoutEngine {
         // It is laid out as the `mtext` it would now be in, not as an element of its own: the
         // style it would hand down has no effect on an `mglyph` (MathML 3, 3.2.1.2.2). That
         // `mtext` is no node of the formula's, so it is not laid out as one, which would count it.
-        return try token(MathMLNode(name: "mtext", children: [node]), outer)
+        return try token(MathMLNode(name: "mtext", children: [node]), outer, countingGlyphs: false)
     }
 
     @inline(never)
@@ -828,7 +829,7 @@ final class LayoutEngine {
         }
         if box.op?.has(.fence) == true, case .vertical = embellishment.stretch,
            isStretchy(node, form: embellishment.form, horizontal: false) {
-            let isCoreGeometry = node.name == "mo" && !children.contains(where: { $0.name == "mglyph" })
+            let isCoreGeometry = node.name == "mo" && (!Self.hasGlyph(node) || node.attributes.flag("stretchy") == true)
                 || box.fenceLayout?.isCoreGeometry == true
             box.fenceLayout = FenceLayout(node: node, context: outer, form: embellishment.form, engine: self,
                                           lineWidth: lineWidth, wrapWidth: wrapWidth, wrapParts: wrapStart..<wrapParts.count,
@@ -1079,6 +1080,8 @@ final class LayoutEngine {
 
     private func isStretchy(_ node: MathMLNode, form: OperatorForm?, horizontal: Bool) -> Bool {
         guard let core = embellishedCore(node) else { return false }
+        // Dictionary geometry cannot override the author's image size; explicit true opts in.
+        if Self.hasGlyph(core), core.attributes.flag("stretchy") != true { return false }
         return operatorFlags(core, form: form).contains(.stretchy)
             && OperatorDictionary.isHorizontal(operatorText(core)) == horizontal
     }
@@ -1287,13 +1290,13 @@ final class LayoutEngine {
     /// `mi`, `mn`, `mtext` and `ms`. A single-character `mi` is italic unless a `mathvariant`
     /// says otherwise, and its width includes its italic correction (TeX's rule 17). An `mglyph`
     /// is not a character, so an `mi` of one stays upright even when its `alt` is drawn instead.
-    private func token(_ node: MathMLNode, _ context: LayoutContext) throws -> MathBox {
+    func token(_ node: MathMLNode, _ context: LayoutContext, countingGlyphs: Bool = true) throws -> MathBox {
         var context = context
         // MathML's numeric exception also applies to the single-character mn cells of a stack.
         // A surrounding RTL text paragraph must not mirror their physical parentheses.
         if node.name == "mn" { context.direction = .leftToRight }
         try countNodes(node.children.lazy.filter { $0.name == "malignmark" }.count)
-        var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", context)
+        var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", countingGlyphs: countingGlyphs, context)
         if node.name == "ms" {
             // The quotes are text, whatever they hold: only `mglyph`s have markers.
             text = Self.unmarked(node.attributes["lquote"] ?? "\"") + text + Self.unmarked(node.attributes["rquote"] ?? "\"")
@@ -1405,7 +1408,7 @@ final class LayoutEngine {
     private static let invisible: Set<String> = ["\u{2061}", "\u{2062}", "\u{2063}", "\u{2064}", ""]
 
     /// An `mo`: dictionary properties, the display size of large operators, and stretching.
-    /// One with an `mglyph` is drawn as its author sized it, neither enlarged nor stretched.
+    /// Image tokens preserve author sizing unless explicit attributes opt into whole-token geometry.
     private func operatorBox(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment) throws -> MathBox {
         try countNodes(node.children.lazy.filter { $0.name == "malignmark" }.count)
         var text = operatorText(node)
@@ -1413,7 +1416,8 @@ final class LayoutEngine {
         if Self.hasGlyph(node) {
             let content = try operatorGlyphContent(of: node, context)
             try countText(content.text)
-            var box = textBox(context.variant?.apply(to: content.text) ?? content.text, images: content.images, context)
+            let natural = textBox(context.variant?.apply(to: content.text) ?? content.text, images: content.images, context)
+            var box = imageOperator(node, natural: natural, properties: properties, context, embellishment)
             box.op = properties
             return box
         }

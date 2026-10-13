@@ -28,27 +28,68 @@ public struct MathMLNode: Equatable, Sendable {
     }
 }
 
+/// An `mglyph` image and its intrinsic size in points, independent of its pixel dimensions.
+/// `width` and `height` in the markup override this size; a single dimension preserves its
+/// aspect ratio. Percentages and unitless multiples refer to this size.
+public struct MathImage: Sendable {
+    public let image: CGImage
+    public let logicalSize: CGSize
+
+    /// Pixels per point. For example, a 40-by-20 image at scale 2 occupies 20-by-10 points.
+    /// A nonpositive or nonfinite scale, or a resulting size that is nonpositive or nonfinite,
+    /// falls back to one pixel per point.
+    public init(_ image: CGImage, scale: CGFloat = 1) {
+        let pixels = CGSize(width: image.width, height: image.height)
+        self.init(image, logicalSize: scale.isFinite && scale > 0
+                  ? CGSize(width: pixels.width / scale, height: pixels.height / scale) : pixels)
+    }
+
+    /// An explicit intrinsic size in points, which may have a different aspect ratio from the
+    /// pixels. If either dimension is nonpositive or nonfinite, both fall back to pixel dimensions.
+    public init(_ image: CGImage, logicalSize: CGSize) {
+        self.image = image
+        self.logicalSize = logicalSize.width.isFinite && logicalSize.width > 0
+            && logicalSize.height.isFinite && logicalSize.height > 0
+            ? logicalSize : CGSize(width: image.width, height: image.height)
+    }
+}
+
 /// Resolves an `mglyph`'s `src` to its image.
 ///
 /// Layout calls it on the thread that lays out, at most once for each distinct `src` in a
 /// formula, and passes `src` as written: resolving it against the document's base URL is left
 /// to the host, and so is refusing what the document may not read, since `src` is as untrusted
-/// as the markup. An image is one pixel to the point unless the `mglyph` gives a `width` or
-/// `height`. Returning nil draws the `mglyph`'s `alt` text instead.
+/// as the markup. Returning nil draws the `mglyph`'s `alt` text instead.
+///
+/// The original initializer uses one pixel per point. `resolving(_:)` also accepts intrinsic
+/// sizing metadata in a `MathImage`. The markup's `width` and `height` take precedence over
+/// that size, and one dimension preserves its aspect ratio. All images obey the extent bound.
 ///
 /// A closure has no value to compare, so two providers are equal only when one is a copy of the
 /// other: keep one and reuse it, so that equal styles stay equal.
 public struct MathImageProvider: Sendable, Equatable {
     /// Boxed, so that copies share an identity.
     private final class Storage: Sendable {
-        let image: @Sendable (String) -> CGImage?
-        init(_ image: @escaping @Sendable (String) -> CGImage?) { self.image = image }
+        let image: @Sendable (String) -> MathImage?
+        init(_ image: @escaping @Sendable (String) -> MathImage?) { self.image = image }
     }
     private let storage: Storage
 
-    public init(_ image: @escaping @Sendable (_ source: String) -> CGImage?) { storage = Storage(image) }
+    /// Supplies images at one pixel per point, preserving the original provider behavior.
+    public init(_ image: @escaping @Sendable (_ source: String) -> CGImage?) {
+        storage = Storage { image($0).map { MathImage($0) } }
+    }
 
-    func image(_ source: String) -> CGImage? { storage.image(source) }
+    private init(storage: Storage) { self.storage = storage }
+
+    /// Supplies images with scale or logical-size metadata. This factory keeps existing
+    /// initializer trailing closures, including `{ _ in nil }`, unambiguous.
+    public static func resolving(_ image: @escaping @Sendable (_ source: String) -> MathImage?) -> MathImageProvider {
+        MathImageProvider(storage: Storage(image))
+    }
+
+    func image(_ source: String) -> CGImage? { resolvedImage(source)?.image }
+    func resolvedImage(_ source: String) -> MathImage? { storage.image(source) }
 
     public static func == (lhs: MathImageProvider, rhs: MathImageProvider) -> Bool { lhs.storage === rhs.storage }
 }
@@ -62,7 +103,8 @@ public struct MathStyle: Equatable, Sendable {
     /// PostScript name of an OpenType MATH font. nil, or a font that is not installed, uses
     /// the platform's STIX Two Math.
     public var fontName: String?
-    /// The images of `mglyph` elements. nil draws each one's `alt` text.
+    /// Images for `mglyph` elements with `src`; nil uses their `alt` text. Legacy font/index
+    /// glyphs resolve independently of this provider.
     public var imageProvider: MathImageProvider?
     public init(fontSize: CGFloat, color: CGColor, isDisplay: Bool = false, fontName: String? = nil,
                 imageProvider: MathImageProvider? = nil) {

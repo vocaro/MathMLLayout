@@ -3,7 +3,8 @@ import CoreText
 import Foundation
 
 /// `mglyph`: an image that stands for a character no font has, among a token's text (MathML 3,
-/// 3.2.1.2). Its image comes from the host's `MathImageProvider`; without one it is its `alt` text.
+/// 3.2.1.2). Its image comes from the host's `MathImageProvider`; without `src`, the bounded
+/// MathML 2 font/index subset can supply a font glyph. Otherwise it is its `alt` text.
 ///
 /// It is styled by where it stands, as a character is, and not by itself: on an `mglyph`
 /// "mathcolor has no effect" (3.2.1.2.2), and the `mathvariant` and `mathsize` that MathML 2 let
@@ -31,36 +32,24 @@ extension LayoutEngine {
     ///
     /// The nth marker is the nth `mglyph`. A tree that a host built may lack markers, so
     /// `mglyph`s beyond them follow the text; a marker beyond the `mglyph`s is dropped.
-    func glyphContent(of token: MathMLNode, trimming: Bool = true,
+    func glyphContent(of token: MathMLNode, trimming: Bool = true, countingGlyphs: Bool = true,
                       _ context: LayoutContext) throws -> (text: String, images: [MathBox]) {
-        let glyphs = token.children.filter { $0.name == "mglyph" }
-        guard !glyphs.isEmpty || token.text.unicodeScalars.contains(Self.glyphMarker) else {
-            return (Self.normalized(token.text, trimming: trimming), [])
-        }
-        // Each glyph adds a marker or its `alt` to the text, which the caller bounds once it is whole.
-        guard glyphs.count <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
-        // Markers and glyphs are paired before whitespace collapses, so it collapses around
-        // what is drawn.
-        var paired = String.UnicodeScalarView()
-        var markers = 0
-        for scalar in token.text.unicodeScalars {
-            if scalar == Self.glyphMarker {
-                guard markers < glyphs.count else { continue }
-                markers += 1
-            }
-            paired.append(scalar)
-        }
-        paired.append(contentsOf: repeatElement(Self.glyphMarker, count: glyphs.count - markers))
+        let (paired, glyphs) = try Self.pairedGlyphText(of: token, trimming: trimming)
+        guard !glyphs.isEmpty else { return (paired, []) }
+        if countingGlyphs { try countNodes(glyphs.count) }
         var text = String.UnicodeScalarView(), images: [MathBox] = []
         var remaining = glyphs[...]
         // A host's tree may give every glyph the same long `alt`, so those are bounded as they are
         // added: whole, they could be `MathLimits.nodes` times the longest.
         var altLength = 0
-        for scalar in Self.normalized(String(paired), trimming: trimming).unicodeScalars {
+        for scalar in paired.unicodeScalars {
             guard scalar == Self.glyphMarker, let glyph = remaining.popFirst() else { text.append(scalar); continue }
             if let image = image(of: glyph) {
                 text.append(scalar)
                 images.append(imageBox(glyph, image, context))
+            } else if let legacy = legacyGlyphBox(glyph, context) {
+                text.append(scalar)
+                images.append(legacy)
             } else {
                 let alt = Self.normalized(Self.unmarked(glyph.attributes["alt"] ?? ""))
                 altLength += alt.utf16.count
@@ -78,6 +67,30 @@ extension LayoutEngine {
             }
         }
         return (String(text), images)
+    }
+
+    /// Pairs markers with glyph children before normalizing whitespace. Elementary-math
+    /// columns use the same order, but keep every glyph's image or fallback in one cell.
+    static func pairedGlyphText(of token: MathMLNode, trimming: Bool = true) throws
+        -> (text: String, glyphs: [MathMLNode]) {
+        let glyphs = token.children.filter { $0.name == "mglyph" }
+        guard !glyphs.isEmpty || token.text.unicodeScalars.contains(Self.glyphMarker) else {
+            return (Self.normalized(token.text, trimming: trimming), [])
+        }
+        guard glyphs.count <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
+        // Markers and glyphs are paired before whitespace collapses, so it collapses around
+        // what is drawn.
+        var paired = String.UnicodeScalarView()
+        var markers = 0
+        for scalar in token.text.unicodeScalars {
+            if scalar == Self.glyphMarker {
+                guard markers < glyphs.count else { continue }
+                markers += 1
+            }
+            paired.append(scalar)
+        }
+        paired.append(contentsOf: repeatElement(Self.glyphMarker, count: glyphs.count - markers))
+        return (Self.normalized(String(paired), trimming: trimming), glyphs)
     }
 
     /// `glyphContent` of an `mo`, with its text as `operatorText` draws it: a hyphen-minus is the
@@ -111,18 +124,53 @@ extension LayoutEngine {
     }
 
     /// The provider's image for an `mglyph`, asked once for each `src` however often a formula
-    /// repeats it. With no `src` there is none: MathML 2's `fontfamily` and `index`, a glyph of
-    /// a named font, are deprecated (3.2.1.2.4) and ignored.
-    private func image(of glyph: MathMLNode) -> CGImage? {
+    /// repeats it. Presence of `src` selects the image path, including an empty or unresolved
+    /// source: a conflicting legacy font/index pair never supplies the missing image.
+    private func image(of glyph: MathMLNode) -> MathImage? {
         guard let imageProvider, let source = glyph.attributes["src"], !source.isEmpty else { return nil }
         if let known = imageCache[source] { return known }
-        let image = imageProvider.image(source)
+        let image = imageProvider.resolvedImage(source)
         imageCache.updateValue(image, forKey: source)
         return image
     }
 
+    /// MathML 2, 3.2.9: an index is a glyph ID in the named font, never a Unicode scalar.
+    /// Image sizing attributes and variants without a font-trait counterpart are outside this
+    /// compatibility subset. Like image glyphs, size and colour come from the surrounding token.
+    private func legacyGlyphBox(_ node: MathMLNode, _ context: LayoutContext) -> MathBox? {
+        let attributes = node.attributes
+        guard attributes["src"] == nil,
+              attributes["width"] == nil, attributes["height"] == nil, attributes["valign"] == nil,
+              node.children.isEmpty, node.text.isEmpty,
+              let name = attributes["fontfamily"], let rawIndex = attributes["index"],
+              rawIndex.utf8.count <= 64 else { return nil }
+        var indexText = rawIndex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if indexText.hasPrefix("+") { indexText.removeFirst() }
+        guard !indexText.isEmpty, indexText.utf8.count <= 10,
+              indexText.utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }),
+              let index = UInt16(indexText), index > 0,
+              let selected = legacyGlyphFonts.font(name: name, variant: context.variant, size: context.fontSize),
+              Int(index) < CTFontGetGlyphCount(selected) else { return nil }
+        var glyph = CGGlyph(index), ink = CGRect.zero, advance = CGSize.zero
+        CTFontGetBoundingRectsForGlyphs(selected, .horizontal, &glyph, &ink, 1)
+        CTFontGetAdvancesForGlyphs(selected, .horizontal, &glyph, &advance, 1)
+        guard [ink.minX, ink.minY, ink.maxX, ink.maxY, advance.width].allSatisfy({
+            $0.isFinite && abs($0) <= MathLimits.extent
+        }), advance.width >= 0 else { return nil }
+        let shift = advance.width == 0 && !ink.isEmpty ? -ink.minX : 0
+        let placedInk = ink.isEmpty ? CGRect.null : ink.offsetBy(dx: shift, dy: 0)
+        var box = MathBox(width: advance.width == 0 ? ink.width : advance.width,
+                          ascent: ink.isEmpty ? 0 : ink.maxY, descent: ink.isEmpty ? 0 : -ink.minY)
+        if let background = attributes["mathbackground"].flatMap(MathColor.parse) {
+            box.items.append(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), background))
+        }
+        box.items.append(.glyphs(GlyphRun(font: selected, glyphs: [glyph], positions: [CGPoint(x: shift, y: 0)],
+                                         color: context.color, ink: placedInk)))
+        return box
+    }
+
     /// An image's box (3.2.1.2.2): `width` and `height` where given, the image's proportions
-    /// where one is missing, and its pixels as points where both are. `valign` raises the
+    /// where one is missing, and its intrinsic logical size where both are. `valign` raises the
     /// image's bottom edge above the baseline. A percentage or bare number is of the attribute's
     /// default (2.1.5.2): the image's own size, and for `valign` zero. `mathbackground` shows
     /// through a transparent image; `mathcolor` has no effect. An image mask, which is a shape and
@@ -130,15 +178,26 @@ extension LayoutEngine {
     /// foreground color to use when drawing ... the content for token elements" (3.1.10).
     ///
     /// No dimension exceeds `MathLimits.extent`, whatever the image or the lengths: a larger image
-    /// is scaled down whole, and keeps the shape that its lengths or its pixels gave it. An image
-    /// with a size that is not positive is empty.
-    private func imageBox(_ glyph: MathMLNode, _ image: CGImage, _ context: LayoutContext) -> MathBox {
-        let natural = CGSize(width: image.width, height: image.height)
+    /// is scaled down whole, and keeps the shape that its lengths or its intrinsic size gave it.
+    /// An image with a size that is not positive is empty.
+    private func imageBox(_ glyph: MathMLNode, _ resolved: MathImage, _ context: LayoutContext) -> MathBox {
+        let image = resolved.image
+        let natural = resolved.logicalSize
         guard natural.width > 0, natural.height > 0 else { return .empty() }
         let given = (width: length(glyph.attributes["width"], context, reference: natural.width),
                      height: length(glyph.attributes["height"], context, reference: natural.height))
-        var width = given.width ?? given.height.map { $0 * natural.width / natural.height } ?? natural.width
-        var height = given.height ?? given.width.map { $0 * natural.height / natural.width } ?? natural.height
+        var width = given.width ?? natural.width
+        var height = given.height ?? natural.height
+        if (given.width == nil) != (given.height == nil) {
+            // Normalize before deriving a missing dimension: finite metadata may still have
+            // an aspect ratio whose division or multiplication would overflow.
+            let longer = max(natural.width, natural.height)
+            let horizontal = natural.width / longer, vertical = natural.height / longer
+            let requested = given.width.map { $0 / horizontal } ?? given.height! / vertical
+            let bounded = min(requested, MathLimits.extent)
+            width = horizontal * bounded
+            height = vertical * bounded
+        }
         guard width > 0, height > 0 else { return .empty() }
         // Past the bound it is scaled down whole: each side bounded by itself would change its shape.
         // The longer side is the bound itself, not what rounding makes of it.

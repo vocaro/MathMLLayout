@@ -1,14 +1,15 @@
 # Testing
 
 ```sh
-swift test
+swift test --jobs 2
 ```
 
-Run the optimized build as well. A test that passes in a debug build can fail there, or end the
+Run configurations sequentially in the same checkout. Run the optimized build as well. A test
+that passes in a debug build can fail there, or end the
 test process: references are dropped sooner and the stack is used differently.
 
 ```sh
-swift test -c release -Xswiftc -enable-testing
+swift test --jobs 2 -c release -Xswiftc -enable-testing
 ```
 
 For iOS, run the same tests on a simulator, for example:
@@ -21,7 +22,7 @@ The suite runs the line-breaking fuzzer over seeds 0 to 119. A wider range takes
 in a release build:
 
 ```sh
-MATHML_FUZZ_SEEDS=0-40000 swift test -c release -Xswiftc -enable-testing \
+MATHML_FUZZ_SEEDS=0-40000 swift test --jobs 2 -c release -Xswiftc -enable-testing \
   --filter LineBreakingFuzzTests/testRandomFormulasBreakAsTheyMust
 ```
 
@@ -52,16 +53,16 @@ check the original upstream expectations directly. Any future reviewed discrepan
 retain its upstream expectation and issue-linked observed value.
 
 ```sh
-MATHML_EXTERNAL_REPORT=/tmp/external-debug.json swift test \
+MATHML_EXTERNAL_REPORT=/tmp/external-debug.json swift test --jobs 2 \
   --filter 'ExternalValidationTests|IndependentFontTests'
-MATHML_EXTERNAL_REPORT=/tmp/external-release.json swift test -c release \
+MATHML_EXTERNAL_REPORT=/tmp/external-release.json swift test --jobs 2 -c release \
   -Xswiftc -enable-testing --filter 'ExternalValidationTests|IndependentFontTests'
 ```
 
 To require every original standards expectation, including any future known discrepancy:
 
 ```sh
-MATHML_STRICT_EXTERNAL=1 swift test --filter ExternalValidationTests
+MATHML_STRICT_EXTERNAL=1 swift test --jobs 2 --filter ExternalValidationTests
 ```
 
 The batch renderer, Chromium/Firefox/WebKit adapter, gallery, corpus importer, fixture-update
@@ -78,7 +79,15 @@ actual size. This avoids Darwin's extra allocation for a requested `Thread.stack
 [limits.md](limits.md#worker-stack-coverage).
 
 The optional sweep reports the deepest successful pure chain in each fixture; it does not replace
-the assertions of the documented 64-level mixed-shape matrix.
+the assertions of the documented 64-level mixed-shape matrix. After integration changes, run it
+with each complete suite and retain the output for the actual compiler/platform:
+
+```sh
+MATHML_MEASURE_WORKER_DEPTH=1 swift test --jobs 2
+MATHML_MEASURE_WORKER_DEPTH=1 swift test --jobs 2 -c release -Xswiftc -enable-testing
+```
+
+For a focused worker-depth rerun:
 
 ```sh
 MATHML_MEASURE_WORKER_DEPTH=1 swift test --jobs 2 --filter WorkerDepthTests
