@@ -6,7 +6,13 @@
   `mover`, `munder`, `munderover`.
 - **Fractions and roots:** `mfrac` (including `linethickness` and `bevelled`), `msqrt`, `mroot`.
 - **Fences and enclosures:** `mfenced`, `menclose`.
-- **Tables:** `mtable`, `mtr`, `mtd`, `mlabeledtr`.
+- **Tables:** `mtable`, `mtr`, `mtd`, `mlabeledtr`, with `rowalign` (`top`, `bottom`,
+  `center`, `baseline`, `axis`) and `columnalign`. A table's `rowalign` list applies by row,
+  repeating its last value; a row's single value overrides it and a cell's overrides the row.
+  Labels inherit their row's vertical alignment and accept their own cell override. Alignment
+  uses each cell's final size after wrapping; `axis` accounts for the cell's font size.
+  Unspecified vertical alignment remains `baseline`
+  ([MathML 3 §3.5](https://www.w3.org/TR/MathML3/chapter3.html#presm.mtable)).
 - **Elementary math** (MathML 3 §3.6): `mstack`, `mlongdiv`, `msgroup`, `msrow`, `mscarries`,
   `mscarry`, `msline`: digit columns with `stackalign`, `charalign`, `charspacing`, `position` and
   `shift`; lines with their length, overhangs and thickness; carries with `location`, `crossout`

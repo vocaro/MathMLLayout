@@ -510,7 +510,7 @@ extension LayoutEngine {
 
     // MARK: Tables
 
-    /// `mtable`: a grid of baseline-aligned rows with `columnalign`, `rowspacing`,
+    /// `mtable`: a grid with `rowalign`, `columnalign`, `rowspacing`,
     /// `columnspacing`, lines and frame, centred on the math axis by default. `mlabeledtr`
     /// labels form a column at the side. Spanning cells occupy one cell.
     func table(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
@@ -525,9 +525,22 @@ extension LayoutEngine {
             (attributes[name] ?? "").split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
         }
         func pick(_ values: [String], _ index: Int) -> String? { values.isEmpty ? nil : values[min(index, values.count - 1)] }
+        func vertical(_ value: String?) -> String? {
+            guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                  ["top", "bottom", "center", "baseline", "axis"].contains(value) else { return nil }
+            return value
+        }
+        struct VerticalAlignment {
+            var name: String
+            var axis: CGFloat
+        }
         var cells: [[(box: MathBox, align: String?)]] = []
         var labels: [MathBox?] = []
-        for rowNode in node.children {
+        var verticalAlignments: [[VerticalAlignment]] = []
+        var labelAlignments: [VerticalAlignment] = []
+        var rowAxes: [CGFloat] = []
+        let tableRowAlign = list("rowalign", in: attributes)
+        for (rowIndex, rowNode) in node.children.enumerated() {
             let rowContext: LayoutContext
             var cellNodes: [MathMLNode]
             var label: MathMLNode?
@@ -543,14 +556,27 @@ extension LayoutEngine {
                 cellNodes = [rowNode]
             }
             let rowAlign = list("columnalign", in: rowNode.attributes)
+            let rowVertical = ((rowNode.name == "mtr" || rowNode.name == "mlabeledtr")
+                ? vertical(rowNode.attributes["rowalign"]) : nil)
+                ?? vertical(pick(tableRowAlign, rowIndex)) ?? "baseline"
+            func alignment(_ cell: MathMLNode) -> VerticalAlignment {
+                VerticalAlignment(name: vertical(cell.attributes["rowalign"]) ?? rowVertical,
+                                  axis: value(\.axisHeight, inherit(cell, rowContext)))
+            }
             var row: [(MathBox, String?)] = []
+            var rowVerticalAlignments: [VerticalAlignment] = []
             for (index, cell) in cellNodes.enumerated() {
                 let box = try layout(cell, rowContext, depth: depth + 2)
                 let align = cell.attributes["columnalign"]?.trimmingCharacters(in: .whitespaces).lowercased()
                     ?? pick(rowAlign, index)
                 row.append((box, align))
+                rowVerticalAlignments.append(alignment(cell))
             }
             cells.append(row)
+            verticalAlignments.append(rowVerticalAlignments)
+            let rowAxis = value(\.axisHeight, rowContext)
+            rowAxes.append(rowAxis)
+            labelAlignments.append(label.map(alignment) ?? VerticalAlignment(name: rowVertical, axis: rowAxis))
             labels.append(try label.map { try layout($0, rowContext, depth: depth + 2) })
         }
         let columns = cells.map(\.count).max() ?? 0
@@ -576,22 +602,35 @@ extension LayoutEngine {
         var widths = [CGFloat](repeating: 0, count: columns)
         var ascents = [CGFloat](repeating: 0, count: cells.count), descents = ascents
         for (rowIndex, row) in cells.enumerated() {
+            var tallest: CGFloat = 0
+            // Baseline/axis entries constrain both sides of the row's baseline. Edge/center
+            // entries constrain only its total height, using the final (possibly wrapped) box.
+            func measure(_ box: MathBox, _ alignment: VerticalAlignment) {
+                tallest = max(tallest, box.height)
+                guard alignment.name == "baseline" || alignment.name == "axis" else { return }
+                let shift = alignment.name == "axis" ? rowAxes[rowIndex] - alignment.axis : 0
+                ascents[rowIndex] = max(ascents[rowIndex], box.ascent + shift)
+                descents[rowIndex] = max(descents[rowIndex], box.descent - shift)
+            }
             for (column, cell) in row.enumerated() {
                 widths[column] = max(widths[column], cell.box.width)
-                ascents[rowIndex] = max(ascents[rowIndex], cell.box.ascent)
-                descents[rowIndex] = max(descents[rowIndex], cell.box.descent)
+                measure(cell.box, verticalAlignments[rowIndex][column])
             }
             if let label = labels[rowIndex] {
-                ascents[rowIndex] = max(ascents[rowIndex], label.ascent)
-                descents[rowIndex] = max(descents[rowIndex], label.descent)
+                measure(label, labelAlignments[rowIndex])
             }
+            let extra = max(0, tallest - ascents[rowIndex] - descents[rowIndex]) / 2
+            // Extra height is shared above/below the anchored cells. Without baseline/axis
+            // entries this puts the row's otherwise unspecified baseline at its midpoint.
+            ascents[rowIndex] += extra
+            descents[rowIndex] += extra
         }
 
         let gridWidth = widths.reduce(0, +) + columnGaps.reduce(0, +)
         let height = ascents.reduce(0, +) + descents.reduce(0, +) + rowGaps.reduce(0, +) + 2 * frameY
         // `align`: axis (default), center or baseline, top, bottom, for the whole table or for the row
         // whose number follows, counted from the bottom when it is negative. A row's axis is as far
-        // above its baseline as the surrounding one's, so `axis` with a row is `baseline` with it. A
+        // above its baseline as its row context's; `axis` with a row accounts for any size change. A
         // number that names no row is ignored (MathML 3, 3.5.1.2).
         let alignParts = list("align", in: attributes)
         var top: CGFloat
@@ -609,6 +648,7 @@ extension LayoutEngine {
             case "top": baselines[row] - ascents[row]
             case "bottom": baselines[row] + descents[row]
             case "center": baselines[row] + (descents[row] - ascents[row]) / 2
+            case "axis": baselines[row] - rowAxes[row] + axis
             default: baselines[row]
             }
         } else {
@@ -624,6 +664,15 @@ extension LayoutEngine {
         let gridX = labelsLeft ? labelWidth : 0
         for (rowIndex, row) in cells.enumerated() {
             let baseline = top - baselines[rowIndex]
+            func shift(_ box: MathBox, _ alignment: VerticalAlignment) -> CGFloat {
+                switch alignment.name {
+                case "top": ascents[rowIndex] - box.ascent
+                case "bottom": box.descent - descents[rowIndex]
+                case "center": (ascents[rowIndex] - descents[rowIndex] - box.ascent + box.descent) / 2
+                case "axis": rowAxes[rowIndex] - alignment.axis
+                default: 0
+                }
+            }
             var x = gridX + frameX
             for (column, cell) in row.enumerated() {
                 let align = cell.align ?? pick(tableAlign, column) ?? "center"
@@ -632,12 +681,12 @@ extension LayoutEngine {
                 case "right": widths[column] - cell.box.width
                 default: (widths[column] - cell.box.width) / 2
                 }
-                box.add(cell.box, at: CGPoint(x: x + offset, y: baseline))
+                box.add(cell.box, at: CGPoint(x: x + offset, y: baseline + shift(cell.box, verticalAlignments[rowIndex][column])))
                 x += widths[column] + (column < columnGaps.count ? columnGaps[column] : 0)
             }
             if let label = labels[rowIndex] {
                 let labelX = labelsLeft ? 0 : gridX + gridWidth + 2 * frameX + labelGap
-                box.add(label, at: CGPoint(x: labelX, y: baseline))
+                box.add(label, at: CGPoint(x: labelX, y: baseline + shift(label, labelAlignments[rowIndex])))
             }
         }
         // Lines, half-way through the gaps. A stroke reaches half its thickness to either side of its
