@@ -747,7 +747,7 @@ struct Paragraph {
     static let slop: CGFloat = 0.001
     /// How many stops back from the farthest a row can reach are tried as its end. Fuller rows cost
     /// less, so the best is among the nearest, and the search stays linear in the formula however
-    /// wide the line. Also how many rows up an `indenttarget` is looked for.
+    /// wide the line. Anchor lookup uses a separate logarithmic ancestor index.
     static let window = 48
     // Costs, in the units of a break's penalty. A row costs its break, how empty it is left (the
     // square of the unused share of the line, as TeX's badness grows) and a little for being a
@@ -763,8 +763,28 @@ struct Paragraph {
     private(set) var stops: [Stop] = []
     /// A duplicated operator, or an invisible times made visible, for the stops that have one.
     private var inserts: [(head: MathBox?, tail: MathBox?)] = []
-    /// The first unit of each element with an `id`.
-    private var ids: [String: Int] = [:]
+    /// A source element's left edge, retained independently of its first flattened unit. A
+    /// wrapper can start before that unit (for example, before an operator's leading space).
+    private struct Anchor { var unit: Int; var x: CGFloat; var trimsLeading: Bool }
+    private var ids: [String: Anchor] = [:]
+    /// Duplicate IDs are ambiguous, including a later duplicate: do not choose an invented target.
+    private var duplicateIDs: Set<String> = []
+
+    private mutating func anchor(_ id: String?, unit: Int, x: CGFloat, trimsLeading: Bool = false) {
+        guard let id, !id.isEmpty, !duplicateIDs.contains(id) else { return }
+        if ids[id] != nil { ids.removeValue(forKey: id); duplicateIDs.insert(id) }
+        else { ids[id] = Anchor(unit: unit, x: x, trimsLeading: trimsLeading) }
+    }
+
+    /// An opaque row (a background or phantom) still has placed children. Preserve their
+    /// anchors without introducing breaks inside it. The layout's depth/node bounds apply.
+    private mutating func anchors(_ row: BreakableRow, unit: Int, x: CGFloat, level: Int) {
+        guard level < MathLimits.depth else { return }
+        for child in row.children {
+            anchor(child.id, unit: unit, x: x + child.x)
+            if let inner = child.box.row { anchors(inner, unit: unit, x: x + child.x, level: level + 1) }
+        }
+    }
     /// Matching fence units, including pairs written flat among other children.
     private var pairs: [(open: Int, close: Int)] = []
     private var hasForced = false
@@ -898,7 +918,11 @@ struct Paragraph {
             let isAttached = child.isAttached || index == 0 && isAttached
             let fence = Self.fence(child)
             if fence?.closes == true { fences = max(fences - 1, 0) }
-            if let id = child.id, ids[id] == nil { ids[id] = units.count }
+            let firstUnit = units.count
+            let trimsLeading = child.box.row.map {
+                $0.itemCount == child.box.items.count && !$0.children.isEmpty && level < MathLimits.depth
+            } ?? false
+            anchor(child.id, unit: firstUnit, x: x + child.x, trimsLeading: trimsLeading)
             if let inner = child.box.row, inner.itemCount == child.box.items.count, !inner.children.isEmpty,
                level < MathLimits.depth {
                 // A row that only wraps another, or is one operator, is no deeper than what it holds.
@@ -914,6 +938,7 @@ struct Paragraph {
                 unitBox.isPhantom = unitBox.isPhantom || isPhantom
                 var visible = row.visible[index]
                 if unitBox.isPhantom { visible?.isPhantom = true }
+                if let inner = child.box.row { anchors(inner, unit: firstUnit, x: x + child.x, level: level + 1) }
                 if let point = child.point {
                     breaks.append((units.count, point, depth + fences, isUnary || child.isUnary, visible))
                 }
@@ -1154,7 +1179,9 @@ struct Paragraph {
     /// is a single stretch between two stops that is wider than the line; it then gives up its
     /// indentation and overflows. `auto` is what `indentalign="auto"` means here: the alignment,
     /// and the indentation of rows after the first. `tight` aligns centred and right-aligned
-    /// rows within the widest row rather than the line, as an infinite line does.
+    /// rows within the widest provisionally placed row rather than the line, as an infinite
+    /// line does. That common frame stays fixed when final ID placements extend its width:
+    /// a right-aligned target with a longer continuation need not have a finite shared frame.
     func rows(limit: CGFloat, first: CGFloat, auto: (align: IndentAlign, indent: CGFloat), tight: Bool = false) -> [Row] {
         let last = stops.count - 1
         var best = [CGFloat](repeating: .infinity, count: stops.count)
@@ -1164,25 +1191,36 @@ struct Paragraph {
         var lefts = origins
         var targets = [CGFloat?](repeating: nil, count: stops.count)
         var unitShifts: [Int: CGFloat] = [:]
+        // Binary lifting over the settled predecessor path: at most log2(stops.count) probes,
+        // even when each of thousands of forced lines names a different distant anchor.
+        let levels = ids.isEmpty ? 0 : max(1, Int.bitWidth - stops.count.leadingZeroBitCount)
+        var ancestors = [[Int]](repeating: [Int](repeating: 0, count: stops.count), count: levels)
+        func indexAncestors(_ end: Int) {
+            guard levels > 0 else { return }
+            ancestors[0][end] = previous[end]
+            if levels > 1 {
+                for level in 1..<levels { ancestors[level][end] = ancestors[level - 1][ancestors[level - 1][end]] }
+            }
+        }
 
         /// Where the element an `indenttarget` names has its left edge, when it is on a row above
         /// the one that starts at stop `i`. The rows above are those of the best way to `i`, which
         /// is settled by the time rows from `i` are tried.
         func target(_ i: Int, _ id: String?) -> CGFloat? {
-            guard let id, let unit = ids[id], unit < stops[i].at else { return nil }
+            guard let id, let anchor = ids[id], anchor.unit < stops[i].at else { return nil }
             if let known = targets[i] { return known }
             var end = i
-            var steps = 0
-            while stops[previous[end]].at > unit {
-                end = previous[end]
-                // A row above that aligned with the same element has found it already.
-                if stops[end].point.style.target == id, let known = targets[end] { targets[i] = known; return known }
-                steps += 1
-                guard steps < Self.window else { return nil }
+            for level in (0..<levels).reversed() {
+                let above = ancestors[level][end]
+                if stops[above].at > anchor.unit { end = above }
             }
             let start = previous[end]
-            let edge = origins[end] + lefts[end] + stops[start].headAdvance + units[unit].x - starts[start]
-                + (unitShifts[unit] ?? 0)
+            // A wrapper beginning at a broken line loses its first operator's leading space
+            // with that line. Its first fragment starts at the placed unit, not in spent space.
+            let x = anchor.trimsLeading && start > 0 && anchor.unit == stops[start].at
+                ? max(anchor.x, starts[start]) : anchor.x
+            let edge = origins[end] + lefts[end] + stops[start].headAdvance + x - starts[start]
+                + (unitShifts[anchor.unit] ?? 0)
             targets[i] = edge
             return edge
         }
@@ -1265,6 +1303,7 @@ struct Paragraph {
             }
             // Stops in order: the best way to each is known before rows from it are tried.
             for i in 0..<last where best[i].isFinite {
+                indexAncestors(i)
                 // The farthest stop the row from here can reach, its tail aside: the last before
                 // its advance or ink has run past the line. Both extremes persist as the row grows,
                 // wherever a negative space after that brings its end back to. Ignoring ink here
@@ -1305,6 +1344,7 @@ struct Paragraph {
             if units[pair.open].box.fenceLayout != nil { fences.insert(pair.open) }
             if units[pair.close].box.fenceLayout != nil { fences.insert(pair.close) }
         }
+        for end in ending.dropFirst() { indexAncestors(end) }
         targets = [CGFloat?](repeating: nil, count: stops.count)
         var rows: [Row] = []
         var pending: [IndentAlign] = []
@@ -1327,6 +1367,21 @@ struct Paragraph {
                 let free = frame - rows[index].box.width
                 rows[index].x = max(0, min(rows[index].x + (pending[index] == .center ? free / 2 : free), free))
             }
+        }
+        // Deferred center/right alignment above changes the anchors' actual coordinates. Resolve
+        // the selected path once more in source order, so ID chains see every earlier final origin.
+        // The common alignment frame is already chosen; no fixed-point retries are needed.
+        targets = [CGFloat?](repeating: nil, count: stops.count)
+        for (index, boundary) in zip(ending, ending.dropFirst()).enumerated() {
+            let (i, j) = boundary
+            let size = (rows[index].box.width, lefts[j])
+            let room = i == 0 ? first : limit
+            let placement = place(i, j, size, room: room)
+            if placement.align == .left {
+                rows[index].x = placement.indent + size.0 > room + Self.slop
+                    ? max(0, min(placement.x, room - size.0)) : placement.x
+            }
+            origins[j] = rows[index].x
         }
         return rows
     }

@@ -30,7 +30,22 @@ input text limit.
   `munder`/`mover`/`munderover` remain atomic so accents, braces and limits stay attached to
   their whole base; movable limits rendered as side scripts follow the existing side-script
   policy. No breaks inside script annotations, between adjacent identifiers or inside a number.
-  `indenttarget` must name a child of a row being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
+  `indenttarget` resolves unique IDs on earlier output lines of the same
+  broken paragraph, including descendants of nested `mrow`/`mstyle` wrappers and the placed
+  row content of a background or `mphantom`. A fragmented wrapper targets its original left
+  edge on its first fragment, discarding leading operator space when that fragment starts a
+  continuation line; indentation, ink coverage and fence resizing are included.
+  Targets across independently wrapped paragraphs (fraction parts, radical content, table
+  cells), script arguments outside the flattened base, unselected content, or outside the input formula have no shared coordinate
+  here. Absent, duplicate, same-line and later-line targets fall back to `auto`, as unavailable
+  targets do under [MathML 3, 3.2.5.2.3](https://www.w3.org/TR/MathML3/chapter3.html#presm.mo.indent).
+  Anchor indexing is bounded by the input node/depth limits, with logarithmic predecessor
+  lookup and one final placement pass; it adds no wrapping retries. For an unbounded line or
+  an internally wrapped paragraph, center/right alignment uses the common frame chosen before
+  final ID placement. An ID continuation may extend the returned width beyond that frame:
+  requiring a right-aligned target and a longer continuation to share the final right edge
+  can have no finite solution.
+  `malignmark` and `maligngroup` align nothing. A table inside
   a table cell does not narrow. Plain `mtext` wraps in logical text order with per-line
   shaping and bidirectional resolution; inherited `dir` selects its paragraph direction.
   Mathematical row geometry itself remains left to right.
