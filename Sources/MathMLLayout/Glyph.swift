@@ -104,16 +104,16 @@ extension LayoutEngine {
     /// The provider's image for an `mglyph`, asked once for each `src` however often a formula
     /// repeats it. With no `src` there is none: MathML 2's `fontfamily` and `index`, a glyph of
     /// a named font, are deprecated (3.2.1.2.4) and ignored.
-    private func image(of glyph: MathMLNode) -> CGImage? {
+    private func image(of glyph: MathMLNode) -> MathImage? {
         guard let imageProvider, let source = glyph.attributes["src"], !source.isEmpty else { return nil }
         if let known = imageCache[source] { return known }
-        let image = imageProvider.image(source)
+        let image = imageProvider.resolvedImage(source)
         imageCache.updateValue(image, forKey: source)
         return image
     }
 
     /// An image's box (3.2.1.2.2): `width` and `height` where given, the image's proportions
-    /// where one is missing, and its pixels as points where both are. `valign` raises the
+    /// where one is missing, and its intrinsic logical size where both are. `valign` raises the
     /// image's bottom edge above the baseline. A percentage or bare number is of the attribute's
     /// default (2.1.5.2): the image's own size, and for `valign` zero. `mathbackground` shows
     /// through a transparent image; `mathcolor` has no effect. An image mask, which is a shape and
@@ -121,15 +121,26 @@ extension LayoutEngine {
     /// foreground color to use when drawing ... the content for token elements" (3.1.10).
     ///
     /// No dimension exceeds `MathLimits.extent`, whatever the image or the lengths: a larger image
-    /// is scaled down whole, and keeps the shape that its lengths or its pixels gave it. An image
-    /// with a size that is not positive is empty.
-    private func imageBox(_ glyph: MathMLNode, _ image: CGImage, _ context: LayoutContext) -> MathBox {
-        let natural = CGSize(width: image.width, height: image.height)
+    /// is scaled down whole, and keeps the shape that its lengths or its intrinsic size gave it.
+    /// An image with a size that is not positive is empty.
+    private func imageBox(_ glyph: MathMLNode, _ resolved: MathImage, _ context: LayoutContext) -> MathBox {
+        let image = resolved.image
+        let natural = resolved.logicalSize
         guard natural.width > 0, natural.height > 0 else { return .empty() }
         let given = (width: length(glyph.attributes["width"], context, reference: natural.width),
                      height: length(glyph.attributes["height"], context, reference: natural.height))
-        var width = given.width ?? given.height.map { $0 * natural.width / natural.height } ?? natural.width
-        var height = given.height ?? given.width.map { $0 * natural.height / natural.width } ?? natural.height
+        var width = given.width ?? natural.width
+        var height = given.height ?? natural.height
+        if (given.width == nil) != (given.height == nil) {
+            // Normalize before deriving a missing dimension: finite metadata may still have
+            // an aspect ratio whose division or multiplication would overflow.
+            let longer = max(natural.width, natural.height)
+            let horizontal = natural.width / longer, vertical = natural.height / longer
+            let requested = given.width.map { $0 / horizontal } ?? given.height! / vertical
+            let bounded = min(requested, MathLimits.extent)
+            width = horizontal * bounded
+            height = vertical * bounded
+        }
         guard width > 0, height > 0 else { return .empty() }
         // Past the bound it is scaled down whole: each side bounded by itself would change its shape.
         // The longer side is the bound itself, not what rounding makes of it.

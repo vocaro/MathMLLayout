@@ -147,7 +147,7 @@ final class LayoutEngine {
     private var stackFloor: UInt = 0
     /// `MathStyle.imageProvider`, and what it has returned for each `src` it was asked for.
     var imageProvider: MathImageProvider? { didSet { if imageProvider != oldValue { imageCache = [:] } } }
-    var imageCache: [String: CGImage?] = [:]
+    var imageCache: [String: MathImage?] = [:]
 
     init(fontName: String?) {
         font = MathFont.named(fontName)

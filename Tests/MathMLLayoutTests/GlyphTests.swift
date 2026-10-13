@@ -257,6 +257,134 @@ final class GlyphTests: MathTestCase {
         XCTAssertTrue(imageRects(token).isEmpty)
     }
 
+    func testProviderIntrinsicScaleAndLogicalSize() throws {
+        let image = quarters(40, 20)
+        let providers = [
+            (MathImageProvider { _ in image }, CGSize(width: 40, height: 20)),
+            (MathImageProvider.resolving({ _ in MathImage(image, scale: 2) }), CGSize(width: 20, height: 10)),
+            (MathImageProvider.resolving({ _ in MathImage(image, logicalSize: CGSize(width: 12, height: 18)) }),
+             CGSize(width: 12, height: 18)),
+        ]
+        for (images, expected) in providers {
+            for body in [#"<mi><mglyph src="g"/></mi>"#, #"<mglyph src="g"/>"#,
+                         #"<msup><mi>x</mi><mi><mglyph src="g"/></mi></msup>"#] {
+                XCTAssertEqual(imageRects(try box(body, images: images)).first?.size, expected)
+            }
+            let result = try layout(#"<mi><mglyph src="g" valign="-3px"/></mi>"#, images: images)
+            XCTAssertEqual([result.width, result.ascent, result.descent], [expected.width, expected.height - 3, 3])
+        }
+    }
+
+    func testMarkupOverridesIntrinsicSizeAndUsesItsAspectRatio() throws {
+        let image = quarters(40, 20)
+        for (images, natural) in [
+            (MathImageProvider.resolving({ _ in MathImage(image, scale: 2) }), CGSize(width: 20, height: 10)),
+            (MathImageProvider.resolving({ _ in MathImage(image, logicalSize: CGSize(width: 10, height: 20)) }),
+             CGSize(width: 10, height: 20)),
+        ] {
+            let cases: [(String, CGSize)] = [
+                (#"width="30px""#, CGSize(width: 30, height: 30 * natural.height / natural.width)),
+                (#"height="15px""#, CGSize(width: 15 * natural.width / natural.height, height: 15)),
+                (#"width="30px" height="7px""#, CGSize(width: 30, height: 7)),
+                (#"width="50%""#, CGSize(width: natural.width / 2, height: natural.height / 2)),
+                (#"height="2""#, CGSize(width: natural.width * 2, height: natural.height * 2)),
+                (#"width="50%" height="200%""#, CGSize(width: natural.width / 2, height: natural.height * 2)),
+                (#"width="bogus" height="15px""#, CGSize(width: 15 * natural.width / natural.height, height: 15)),
+                (#"width="0px""#, .zero), (#"height="-1px""#, .zero),
+            ]
+            for (attributes, expected) in cases {
+                let result = try box("<mi><mglyph src=\"g\" \(attributes)/></mi>", images: images)
+                if expected == .zero { XCTAssertTrue(imageRects(result).isEmpty, attributes) }
+                else {
+                    assertRect(imageRects(result).first, CGRect(origin: .zero, size: expected))
+                }
+            }
+        }
+    }
+
+    func testInvalidIntrinsicMetadataFallsBackToPixelDimensions() throws {
+        let image = quarters(40, 20)
+        var resolved = [CGFloat(0), -1, .nan, .infinity, -.infinity, .leastNonzeroMagnitude]
+            .map { MathImage(image, scale: $0) }
+        for invalid: CGFloat in [0, -1, .nan, .infinity, -.infinity] {
+            resolved.append(MathImage(image, logicalSize: CGSize(width: invalid, height: 10)))
+            resolved.append(MathImage(image, logicalSize: CGSize(width: 10, height: invalid)))
+        }
+        for value in resolved {
+            XCTAssertEqual(value.logicalSize, CGSize(width: 40, height: 20))
+            let images = MathImageProvider.resolving({ _ in value })
+            XCTAssertEqual(imageRects(try box(#"<mi><mglyph src="g"/></mi>"#, images: images)).first?.size,
+                           CGSize(width: 40, height: 20))
+            XCTAssertEqual(imageRects(try box(#"<mi><mglyph src="g" width="12px" height="9px"/></mi>"#,
+                                             images: images)).first?.size, CGSize(width: 12, height: 9))
+        }
+    }
+
+    func testIntrinsicMetadataKeepsDimensionsFiniteAndBounded() throws {
+        let image = quarters(4, 2), extent = MathLimits.extent
+        for natural in [CGSize(width: 100_000, height: 50_000),
+                        CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude / 2),
+                        CGSize(width: CGFloat.leastNormalMagnitude, height: CGFloat.leastNormalMagnitude * 2)] {
+            let images = MathImageProvider.resolving({ _ in MathImage(image, logicalSize: natural) })
+            for attributes in ["", #"width="100px""#, #"height="100px""#, #"width="50%""#] {
+                let result = try box("<mi><mglyph src=\"g\" \(attributes)/></mi>", images: images)
+                let rect = try XCTUnwrap(imageRects(result).first)
+                XCTAssertTrue(rect.width.isFinite && rect.height.isFinite)
+                XCTAssertLessThanOrEqual(max(rect.width, rect.height), extent)
+                XCTAssertEqual(rect.width / rect.height, natural.width / natural.height, accuracy: 1e-9)
+            }
+        }
+        // An unrepresentably thin aspect ratio produces no nonfinite drawing commands.
+        let extreme = MathImageProvider.resolving({ _ in
+            MathImage(image, logicalSize: CGSize(width: CGFloat.leastNonzeroMagnitude,
+                                                height: CGFloat.greatestFiniteMagnitude))
+        })
+        for attributes in ["", #"width="10px""#, #"height="10px""#] {
+            let result = try layout("<mi><mglyph src=\"g\" \(attributes)/></mi>", images: extreme)
+            XCTAssertTrue(result.width.isFinite && result.ascent.isFinite && result.descent.isFinite)
+            XCTAssertLessThanOrEqual(max(result.width, result.ascent), extent)
+        }
+    }
+
+    func testIntrinsicMetadataPreservesPixelsMasksAndBackgrounds() throws {
+        let image = quarters(40, 20)
+        let images = MathImageProvider.resolving({ _ in MathImage(image, scale: 2) })
+        let result = try layout(#"<mi><mglyph src="g" valign="-2px"/></mi>"#, images: images)
+        assertRect(ink(result), CGRect(x: 0, y: -2, width: 20, height: 10), accuracy: 0.5)
+        let pixel = render(result)
+        assertColor(pixel(5, 5), red); assertColor(pixel(15, 5), green)
+        assertColor(pixel(5, 0), blue); assertColor(pixel(15, 0), opaqueBlack)
+
+        let stencil = mask(40, 20)
+        let masks = MathImageProvider.resolving({ _ in MathImage(stencil, logicalSize: CGSize(width: 20, height: 10)) })
+        let body = ##"<mi mathcolor="#ff0000"><mglyph src="m" mathcolor="blue" mathbackground="#0000ff"/></mi>"##
+        let drawn = try box(body, images: masks)
+        XCTAssertEqual(fills(drawn).first?.rect, CGRect(x: 0, y: 0, width: 20, height: 10))
+        let painted = render(try layout(body, images: masks))
+        assertColor(painted(5, 5), red); assertColor(painted(15, 5), blue)
+    }
+
+    func testMetadataProviderIsCachedPerSourceIncludingMissingImages() throws {
+        let image = quarters(40, 20), asked = Recorder()
+        let images = MathImageProvider.resolving({ source in
+            asked.add(source)
+            switch source {
+            case "a": return MathImage(image, scale: 2)
+            case "b": return MathImage(image, logicalSize: CGSize(width: 10, height: 20))
+            default: return nil
+            }
+        })
+        let body = #"<mtext><mglyph src="a"/><mglyph src="a" width="40px"/><mglyph src="b"/><mglyph src="missing" alt="z"/><mglyph src="missing" alt="z"/></mtext>"#
+        XCTAssertEqual(imageRects(try box(body, images: images)).map(\.size),
+                       [CGSize(width: 20, height: 10), CGSize(width: 40, height: 20), CGSize(width: 10, height: 20)])
+        XCTAssertEqual(asked.values.sorted(), ["a", "b", "missing"])
+        let fallback = MathImageProvider.resolving({ _ in nil })
+        XCTAssertEqual(try layout(#"<mtext><mglyph src="missing" alt="z"/></mtext>"#, images: fallback).width,
+                       try layout("<mtext>z</mtext>", images: nil).width)
+        XCTAssertEqual(images, images)
+        XCTAssertNotEqual(images, fallback)
+    }
+
     // MARK: Drawing
 
     func testImageIsDrawnUprightInItsBox() throws {
