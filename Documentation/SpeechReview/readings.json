@@ -1,0 +1,316 @@
+{
+  "C01" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: links eins Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: left one row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: a la izquierda uno fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: à gauche un ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: a sinistra uno riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C02" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: oben links eins Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: above left one row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: arriba a la izquierda uno fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: en haut à gauche un ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: in alto a sinistra uno riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C03" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: oben eins Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: above one row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: arriba uno fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: au-dessus un ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: sopra uno riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C04" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: oben rechts eins Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: above right one row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: arriba a la derecha uno fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: en haut à droite un ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: in alto a destra uno riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C05" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: rechts eins Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: right one row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: a la derecha uno fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: à droite un ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: a destra uno riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C06" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: unten rechts eins Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: below right one row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: abajo a la derecha uno fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: en bas à droite un ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: in basso a destra uno riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C07" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: unten eins Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: below one row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: abajo uno fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: en dessous un ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: sotto uno riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C08" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: unten links eins Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: below left one row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: abajo a la izquierda uno fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: en bas à gauche un ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: in basso a sinistra uno riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C09" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: oben rechts eins mit durchgestrichener Ziffer in dieser Spalte aufsteigender diagonaler Strich Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: above right one with the column's digit crossed out upward diagonal strike row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: arriba a la derecha uno con la cifra de la columna tachada tachado diagonal ascendente fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: en haut à droite un avec le chiffre de la colonne barré trait diagonal montant ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: in alto a destra uno con la cifra della colonna barrata barratura diagonale ascendente riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C10" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: oben rechts eins mit durchgestrichener Ziffer in dieser Spalte absteigender diagonaler Strich Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: above right one with the column's digit crossed out downward diagonal strike row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: arriba a la derecha uno con la cifra de la columna tachada tachado diagonal descendente fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: en haut à droite un avec le chiffre de la colonne barré trait diagonal descendant ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: in alto a destra uno con la cifra della colonna barrata barratura diagonale discendente riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C11" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: oben rechts eins mit durchgestrichener Ziffer in dieser Spalte senkrechter Strich Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: above right one with the column's digit crossed out vertical strike row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: arriba a la derecha uno con la cifra de la columna tachada tachado vertical fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: en haut à droite un avec le chiffre de la colonne barré trait vertical ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: in alto a destra uno con la cifra della colonna barrata barratura verticale riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C12" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: oben rechts eins mit durchgestrichener Ziffer in dieser Spalte waagerechter Strich Zeile 1: Spalte 0: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: above right one with the column's digit crossed out horizontal strike row 1: column 0: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: arriba a la derecha uno con la cifra de la columna tachada tachado horizontal fila 1: columna 0: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: en haut à droite un avec le chiffre de la colonne barré trait horizontal ligne 1 : colonne 0: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: in alto a destra uno con la cifra della colonna barrata barratura orizzontale riga 1: colonna 0: due fine dell'operazione"
+  },
+  "C13" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Überträge oder Entlehnungen: Spalte 0: unten rechts eins zwei mit durchgestrichener Ziffer in dieser Spalte aufsteigender diagonaler Strich absteigender diagonaler Strich senkrechter Strich waagerechter Strich Spalte 1: links drei Spalte 2: leer Zeile 1: Spalte 0: vier Spalte 1: fünf Spalte 2: sechs Ende der Rechnung",
+    "en" : "stack with 1 row alignment left carries or borrows: column 0: below right one two with the column's digit crossed out upward diagonal strike downward diagonal strike vertical strike horizontal strike column 1: left three column 2: blank row 1: column 0: four column 1: five column 2: six end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda acarreos o préstamos: columna 0: abajo a la derecha uno dos con la cifra de la columna tachada tachado diagonal ascendente tachado diagonal descendente tachado vertical tachado horizontal columna 1: a la izquierda tres columna 2: vacío fila 1: columna 0: cuatro columna 1: cinco columna 2: seis fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche retenues ou emprunts : colonne 0: en bas à droite un deux avec le chiffre de la colonne barré trait diagonal montant trait diagonal descendant trait vertical trait horizontal colonne 1: à gauche trois colonne 2: vide ligne 1 : colonne 0: quatre colonne 1: cinq colonne 2: six fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riporti o prestiti: colonna 0: in basso a destra uno due con la cifra della colonna barrata barratura diagonale ascendente barratura diagonale discendente barratura verticale barratura orizzontale colonna 1: a sinistra tre colonna 2: vuoto riga 1: colonna 0: quattro colonna 1: cinque colonna 2: sei fine dell'operazione"
+  },
+  "C14" : {
+    "de" : "schriftliche Rechnung mit 3 Zeilen Ausrichtung rechts Überträge oder Entlehnungen: Spalte minus 2: oben eins Spalte minus 1: leer Zeile 1: Spalte minus 2: eins Spalte minus 1: acht Zeile 2: Spalte minus 3: plus Spalte minus 2: zwei Spalte minus 1: sieben Strich über die gesamte Rechnung Zeile 3: Spalte minus 2: vier Spalte minus 1: fünf Ende der Rechnung",
+    "en" : "stack with 3 rows alignment right carries or borrows: column minus 2: above one column minus 1: blank row 1: column minus 2: one column minus 1: eight row 2: column minus 3: plus column minus 2: two column minus 1: seven line across the whole stack row 3: column minus 2: four column minus 1: five end stack",
+    "es" : "operación en columna de 3 filas alineación a la derecha acarreos o préstamos: columna menos 2: arriba uno columna menos 1: vacío fila 1: columna menos 2: uno columna menos 1: ocho fila 2: columna menos 3: más columna menos 2: dos columna menos 1: siete línea en todo el ancho de la operación fila 3: columna menos 2: cuatro columna menos 1: cinco fin de la operación",
+    "fr" : "opération posée de 3 lignes alignement à droite retenues ou emprunts : colonne moins 2: au-dessus un colonne moins 1: vide ligne 1 : colonne moins 2: un colonne moins 1: huit ligne 2 : colonne moins 3: plus colonne moins 2: deux colonne moins 1: sept trait sur toute la largeur de l’opération ligne 3 : colonne moins 2: quatre colonne moins 1: cinq fin de l'opération",
+    "it" : "operazione in colonna di 3 righe allineamento a destra riporti o prestiti: colonna meno 2: sopra uno colonna meno 1: vuoto riga 1: colonna meno 2: uno colonna meno 1: otto riga 2: colonna meno 3: più colonna meno 2: due colonna meno 1: sette linea su tutta la larghezza dell’operazione riga 3: colonna meno 2: quattro colonna meno 1: cinque fine dell'operazione"
+  },
+  "C15" : {
+    "de" : "schriftliche Rechnung mit 3 Zeilen Ausrichtung rechts Überträge oder Entlehnungen: Spalte minus 2: oben zwei mit durchgestrichener Ziffer in dieser Spalte aufsteigender diagonaler Strich Spalte minus 1: oben eins Zeile 1: Spalte minus 2: drei Spalte minus 1: zwei Zeile 2: Spalte minus 3: minus Spalte minus 2: eins Spalte minus 1: sieben Strich über die gesamte Rechnung Zeile 3: Spalte minus 2: eins Spalte minus 1: fünf Ende der Rechnung",
+    "en" : "stack with 3 rows alignment right carries or borrows: column minus 2: above two with the column's digit crossed out upward diagonal strike column minus 1: above one row 1: column minus 2: three column minus 1: two row 2: column minus 3: minus column minus 2: one column minus 1: seven line across the whole stack row 3: column minus 2: one column minus 1: five end stack",
+    "es" : "operación en columna de 3 filas alineación a la derecha acarreos o préstamos: columna menos 2: arriba dos con la cifra de la columna tachada tachado diagonal ascendente columna menos 1: arriba uno fila 1: columna menos 2: tres columna menos 1: dos fila 2: columna menos 3: menos columna menos 2: uno columna menos 1: siete línea en todo el ancho de la operación fila 3: columna menos 2: uno columna menos 1: cinco fin de la operación",
+    "fr" : "opération posée de 3 lignes alignement à droite retenues ou emprunts : colonne moins 2: au-dessus deux avec le chiffre de la colonne barré trait diagonal montant colonne moins 1: au-dessus un ligne 1 : colonne moins 2: trois colonne moins 1: deux ligne 2 : colonne moins 3: moins colonne moins 2: un colonne moins 1: sept trait sur toute la largeur de l’opération ligne 3 : colonne moins 2: un colonne moins 1: cinq fin de l'opération",
+    "it" : "operazione in colonna di 3 righe allineamento a destra riporti o prestiti: colonna meno 2: sopra due con la cifra della colonna barrata barratura diagonale ascendente colonna meno 1: sopra uno riga 1: colonna meno 2: tre colonna meno 1: due riga 2: colonna meno 3: meno colonna meno 2: uno colonna meno 1: sette linea su tutta la larghezza dell’operazione riga 3: colonna meno 2: uno colonna meno 1: cinque fine dell'operazione"
+  },
+  "D01" : {
+    "de" : "schriftliche Division Divisor links, Ergebnis oben Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 3: eins Spalte minus 2: zwei Spalte minus 1: drei Ergebnis: Spalte minus 2: vier Spalte minus 1: eins Ende der Division",
+    "en" : "long division divisor left, result above alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: column minus 2: four column minus 1: one end long division",
+    "es" : "división larga divisor a la izquierda, resultado arriba alineación en el separador decimal divisor: tres dividendo: columna menos 3: uno columna menos 2: dos columna menos 1: tres resultado: columna menos 2: cuatro columna menos 1: uno fin de la división",
+    "fr" : "division posée diviseur à gauche, résultat au-dessus alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois résultat : colonne moins 2: quatre colonne moins 1: un fin de la division",
+    "it" : "divisione in colonna divisore a sinistra, risultato sopra allineamento al separatore decimale divisore: tre dividendo: colonna meno 3: uno colonna meno 2: due colonna meno 1: tre risultato: colonna meno 2: quattro colonna meno 1: uno fine della divisione"
+  },
+  "D02" : {
+    "de" : "schriftliche Division Divisor und Ergebnis rechts, volle senkrechte Linie Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 3: eins Spalte minus 2: zwei Spalte minus 1: drei Ergebnis: vier eins Ende der Division",
+    "en" : "long division divisor and result stacked right, full vertical line alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: four one end long division",
+    "es" : "división larga divisor y resultado a la derecha, línea vertical completa alineación en el separador decimal divisor: tres dividendo: columna menos 3: uno columna menos 2: dos columna menos 1: tres resultado: cuatro uno fin de la división",
+    "fr" : "division posée diviseur et résultat à droite, trait vertical complet alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois résultat : quatre un fin de la division",
+    "it" : "divisione in colonna divisore e risultato a destra, linea verticale completa allineamento al separatore decimale divisore: tre dividendo: colonna meno 3: uno colonna meno 2: due colonna meno 1: tre risultato: quattro uno fine della divisione"
+  },
+  "D03" : {
+    "de" : "schriftliche Division Divisor und Ergebnis rechts, mittlere senkrechte Linie Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 3: eins Spalte minus 2: zwei Spalte minus 1: drei Ergebnis: vier eins Ende der Division",
+    "en" : "long division divisor and result stacked right, medium vertical line alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: four one end long division",
+    "es" : "división larga divisor y resultado a la derecha, línea vertical media alineación en el separador decimal divisor: tres dividendo: columna menos 3: uno columna menos 2: dos columna menos 1: tres resultado: cuatro uno fin de la división",
+    "fr" : "division posée diviseur et résultat à droite, trait vertical moyen alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois résultat : quatre un fin de la division",
+    "it" : "divisione in colonna divisore e risultato a destra, linea verticale media allineamento al separatore decimale divisore: tre dividendo: colonna meno 3: uno colonna meno 2: due colonna meno 1: tre risultato: quattro uno fine della divisione"
+  },
+  "D04" : {
+    "de" : "schriftliche Division Divisor und Ergebnis rechts, kurze senkrechte Linie Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 3: eins Spalte minus 2: zwei Spalte minus 1: drei Ergebnis: vier eins Ende der Division",
+    "en" : "long division divisor and result stacked right, short vertical line alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: four one end long division",
+    "es" : "división larga divisor y resultado a la derecha, línea vertical corta alineación en el separador decimal divisor: tres dividendo: columna menos 3: uno columna menos 2: dos columna menos 1: tres resultado: cuatro uno fin de la división",
+    "fr" : "division posée diviseur et résultat à droite, trait vertical court alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois résultat : quatre un fin de la division",
+    "it" : "divisione in colonna divisore e risultato a destra, linea verticale corta allineamento al separatore decimale divisore: tre dividendo: colonna meno 3: uno colonna meno 2: due colonna meno 1: tre risultato: quattro uno fine della divisione"
+  },
+  "D05" : {
+    "de" : "schriftliche Division Divisor rechts, Ergebnis oben Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 3: eins Spalte minus 2: zwei Spalte minus 1: drei Ergebnis: Spalte minus 2: vier Spalte minus 1: eins Ende der Division",
+    "en" : "long division divisor right, result above alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: column minus 2: four column minus 1: one end long division",
+    "es" : "división larga divisor a la derecha, resultado arriba alineación en el separador decimal divisor: tres dividendo: columna menos 3: uno columna menos 2: dos columna menos 1: tres resultado: columna menos 2: cuatro columna menos 1: uno fin de la división",
+    "fr" : "division posée diviseur à droite, résultat au-dessus alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois résultat : colonne moins 2: quatre colonne moins 1: un fin de la division",
+    "it" : "divisione in colonna divisore a destra, risultato sopra allineamento al separatore decimale divisore: tre dividendo: colonna meno 3: uno colonna meno 2: due colonna meno 1: tre risultato: colonna meno 2: quattro colonna meno 1: uno fine della divisione"
+  },
+  "D06" : {
+    "de" : "schriftliche Division Divisor links vom Schrägstrich, Ergebnis rechts vom umgekehrten Schrägstrich Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 3: eins Spalte minus 2: zwei Spalte minus 1: drei Ergebnis: vier eins Ende der Division",
+    "en" : "long division divisor left of slash, result right of backslash alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: four one end long division",
+    "es" : "división larga divisor a la izquierda de la barra, resultado a la derecha de la barra inversa alineación en el separador decimal divisor: tres dividendo: columna menos 3: uno columna menos 2: dos columna menos 1: tres resultado: cuatro uno fin de la división",
+    "fr" : "division posée diviseur à gauche d’une barre oblique, résultat à droite d’une barre oblique inverse alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois résultat : quatre un fin de la division",
+    "it" : "divisione in colonna divisore a sinistra della barra, risultato a destra della barra inversa allineamento al separatore decimale divisore: tre dividendo: colonna meno 3: uno colonna meno 2: due colonna meno 1: tre risultato: quattro uno fine della divisione"
+  },
+  "D07" : {
+    "de" : "schriftliche Division Divisor links von der schließenden Klammer, Ergebnis rechts von der öffnenden Klammer Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 3: eins Spalte minus 2: zwei Spalte minus 1: drei Ergebnis: vier eins Ende der Division",
+    "en" : "long division divisor left of closing parenthesis, result right of opening parenthesis alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: four one end long division",
+    "es" : "división larga divisor a la izquierda del paréntesis de cierre, resultado a la derecha del paréntesis de apertura alineación en el separador decimal divisor: tres dividendo: columna menos 3: uno columna menos 2: dos columna menos 1: tres resultado: cuatro uno fin de la división",
+    "fr" : "division posée diviseur à gauche d’une parenthèse fermante, résultat à droite d’une parenthèse ouvrante alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois résultat : quatre un fin de la division",
+    "it" : "divisione in colonna divisore a sinistra della parentesi chiusa, risultato a destra della parentesi aperta allineamento al separatore decimale divisore: tre dividendo: colonna meno 3: uno colonna meno 2: due colonna meno 1: tre risultato: quattro uno fine della divisione"
+  },
+  "D08" : {
+    "de" : "schriftliche Division Divisor rechts vom Doppelpunkt, Ergebnis rechts vom Gleichheitszeichen Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 3: eins Spalte minus 2: zwei Spalte minus 1: drei Ergebnis: vier eins Ende der Division",
+    "en" : "long division divisor right of colon, result right of equals alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: four one end long division",
+    "es" : "división larga divisor a la derecha de los dos puntos, resultado a la derecha del signo igual alineación en el separador decimal divisor: tres dividendo: columna menos 3: uno columna menos 2: dos columna menos 1: tres resultado: cuatro uno fin de la división",
+    "fr" : "division posée diviseur à droite des deux-points, résultat à droite du signe égal alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois résultat : quatre un fin de la division",
+    "it" : "divisione in colonna divisore a destra dei due punti, risultato a destra del segno uguale allineamento al separatore decimale divisore: tre dividendo: colonna meno 3: uno colonna meno 2: due colonna meno 1: tre risultato: quattro uno fine della divisione"
+  },
+  "D09" : {
+    "de" : "schriftliche Division mit 1 Rechenzeile Divisor und Ergebnis links Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 3: eins Spalte minus 2: zwei Spalte minus 1: drei Ergebnis: vier eins Zeile 1: Spalte minus 1: drei Strich Spalte minus 1: Spalte minus 1: Ende der Division",
+    "en" : "long division with 1 working row divisor and result stacked left alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: four one row 1: column minus 1: three line column minus 1: column minus 1: end long division",
+    "es" : "división larga con 1 fila de cálculo divisor y resultado a la izquierda alineación en el separador decimal divisor: tres dividendo: columna menos 3: uno columna menos 2: dos columna menos 1: tres resultado: cuatro uno fila 1: columna menos 1: tres línea columna menos 1: columna menos 1: fin de la división",
+    "fr" : "division posée avec 1 ligne de calcul diviseur et résultat à gauche alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois résultat : quatre un ligne 1 : colonne moins 1: trois trait colonne moins 1: colonne moins 1: fin de la division",
+    "it" : "divisione in colonna con 1 riga di calcolo divisore e risultato a sinistra allineamento al separatore decimale divisore: tre dividendo: colonna meno 3: uno colonna meno 2: due colonna meno 1: tre risultato: quattro uno riga 1: colonna meno 1: tre linea colonna meno 1: colonna meno 1: fine della divisione"
+  },
+  "D10" : {
+    "de" : "schriftliche Division mit 2 Rechenzeilen Divisor links, Ergebnis oben mit linker senkrechter Linie Ausrichtung am Dezimaltrennzeichen Divisor: drei Dividend: Spalte minus 3: eins Spalte minus 2: zwei Spalte minus 1: drei Ergebnis: Spalte minus 2: vier Spalte minus 1: eins Zeile 1: Spalte minus 1: drei Strich Spalte minus 1: Spalte minus 1: Zeile 2: Spalte 0: null Ende der Division",
+    "en" : "long division with 2 working rows divisor left, result above with left vertical line alignment decimal point divisor: three dividend: column minus 3: one column minus 2: two column minus 1: three result: column minus 2: four column minus 1: one row 1: column minus 1: three line column minus 1: column minus 1: row 2: column 0: zero end long division",
+    "es" : "división larga con 2 filas de cálculo divisor a la izquierda, resultado arriba con línea vertical izquierda alineación en el separador decimal divisor: tres dividendo: columna menos 3: uno columna menos 2: dos columna menos 1: tres resultado: columna menos 2: cuatro columna menos 1: uno fila 1: columna menos 1: tres línea columna menos 1: columna menos 1: fila 2: columna 0: cero fin de la división",
+    "fr" : "division posée avec 2 lignes de calcul diviseur à gauche, résultat au-dessus avec trait vertical à gauche alignement sur le séparateur décimal diviseur : trois dividende : colonne moins 3: un colonne moins 2: deux colonne moins 1: trois résultat : colonne moins 2: quatre colonne moins 1: un ligne 1 : colonne moins 1: trois trait colonne moins 1: colonne moins 1: ligne 2 : colonne 0: zéro fin de la division",
+    "it" : "divisione in colonna con 2 righe di calcolo divisore a sinistra, risultato sopra con linea verticale sinistra allineamento al separatore decimale divisore: tre dividendo: colonna meno 3: uno colonna meno 2: due colonna meno 1: tre risultato: colonna meno 2: quattro colonna meno 1: uno riga 1: colonna meno 1: tre linea colonna meno 1: colonna meno 1: riga 2: colonna 0: zero fine della divisione"
+  },
+  "F01" : {
+    "fr" : "racine carrée d'a"
+  },
+  "F02" : {
+    "fr" : "racine carrée d'e"
+  },
+  "F03" : {
+    "fr" : "racine carrée d'i"
+  },
+  "F04" : {
+    "fr" : "racine carrée d'o"
+  },
+  "F05" : {
+    "fr" : "racine carrée d'u"
+  },
+  "F06" : {
+    "fr" : "racine carrée de f"
+  },
+  "F07" : {
+    "fr" : "racine carrée de h"
+  },
+  "F08" : {
+    "fr" : "racine carrée de x"
+  },
+  "F09" : {
+    "fr" : "racine carrée de y"
+  },
+  "F10" : {
+    "fr" : "racine carrée d'É"
+  },
+  "F11" : {
+    "fr" : "racine carrée de homme"
+  },
+  "F12" : {
+    "fr" : "racine carrée de haricot"
+  },
+  "F13" : {
+    "fr" : "racine carrée d'energy"
+  },
+  "F14" : {
+    "fr" : "racine carrée de oui ; racine carrée de onze ; racine carrée de onzième"
+  },
+  "F15" : {
+    "fr" : "l'intégrale d'a plus 1 à b"
+  },
+  "F16" : {
+    "fr" : "racine quatrième d'e plus 1 fin de racine ; racine carrée d'Alpha"
+  },
+  "P01" : {
+    "de" : "T rechter unterer Index n plus 1 Ende Index rechter oberer Index n plus 1 Ende Index linker unterer Index n plus 1 Ende Index linker oberer Index n plus 1 Ende Index z",
+    "en" : "T right subscript n plus 1 end subscript right superscript n plus 1 end superscript left subscript n plus 1 end subscript left superscript n plus 1 end superscript z",
+    "es" : "T subíndice derecho n más 1 fin de subíndice superíndice derecho n más 1 fin de superíndice subíndice izquierdo n más 1 fin de subíndice superíndice izquierdo n más 1 fin de superíndice z",
+    "fr" : "T indice droite n plus 1 fin d'indice exposant droite n plus 1 fin d'exposant indice gauche n plus 1 fin d'indice exposant gauche n plus 1 fin d'exposant z",
+    "it" : "T pedice destro n più 1 fine pedice apice destro n più 1 fine apice pedice sinistro n più 1 fine pedice apice sinistro n più 1 fine apice z"
+  },
+  "P02" : {
+    "de" : "T rechter unterer Index U rechter oberer Index 2 linker unterer Index i Ende Index rechter oberer Index j z",
+    "en" : "T right subscript U right superscript 2 left subscript i end subscript right superscript j z",
+    "es" : "T subíndice derecho U superíndice derecho 2 subíndice izquierdo i fin de subíndice superíndice derecho j z",
+    "fr" : "T indice droite U exposant droite 2 indice gauche i fin d'indice exposant droite j z",
+    "it" : "T pedice destro U apice destro 2 pedice sinistro i fine pedice apice destro j z"
+  },
+  "P03" : {
+    "de" : "Wurzel mit Wurzelexponent n plus 1 aus x Ende Wurzel z",
+    "en" : "the root with index n plus 1 of x end root z",
+    "es" : "raíz de índice n más 1 de x fin de raíz z",
+    "fr" : "racine d'indice n plus 1 de x fin de racine z",
+    "it" : "radice di indice n più 1 di x fine radice z"
+  },
+  "P04" : {
+    "de" : "Wurzel mit Wurzelexponent Quadratwurzel aus n plus 1 aus a plus b Ende Wurzel z",
+    "en" : "the root with index the square root of n plus 1 of a plus b end root z",
+    "es" : "raíz de índice raíz cuadrada de n más 1 de a más b fin de raíz z",
+    "fr" : "racine d'indice racine carrée de n plus 1 d'a plus b fin de racine z",
+    "it" : "radice di indice radice quadrata di n più 1 di a più b fine radice z"
+  },
+  "P05" : {
+    "de" : "x Unterstrich Zirkumflex z",
+    "en" : "x underbar hat z",
+    "es" : "x subbarra circunflejo z",
+    "fr" : "x trait souscrit accent circonflexe z",
+    "it" : "x con barra sotto accento circonflesso z"
+  },
+  "P06" : {
+    "de" : "a plus b Untere geschweifte Klammer Obere geschweifte Klammer z",
+    "en" : "a plus b bottom brace top brace z",
+    "es" : "a más b corchete rizado inferior corchete rizado superior z",
+    "fr" : "a plus b accolade inférieure accolade supérieure z",
+    "it" : "a più b parentesi graffa inferiore parentesi graffa superiore z"
+  },
+  "P07" : {
+    "de" : "Vektor x darunter Punkt z",
+    "en" : "x under dot vector z",
+    "es" : "vector x y debajo punto z",
+    "fr" : "vecteur x avec en dessous point z",
+    "it" : "vettore x con sotto punto z"
+  },
+  "S01" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung links Zeile 1: Spalte 0: eins Spalte 1: zwei Ende der Rechnung",
+    "en" : "stack with 1 row alignment left row 1: column 0: one column 1: two end stack",
+    "es" : "operación en columna de 1 fila alineación a la izquierda fila 1: columna 0: uno columna 1: dos fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à gauche ligne 1 : colonne 0: un colonne 1: deux fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a sinistra riga 1: colonna 0: uno colonna 1: due fine dell'operazione"
+  },
+  "S02" : {
+    "de" : "schriftliche Rechnung mit 2 Zeilen Ausrichtung links Zeile 1: Spalte minus 2: eins Spalte minus 1: zwei Strich Spalte minus 3: Spalte minus 2: Zeile 2: Spalte minus 4: drei Spalte minus 3: vier Strich Spalte minus 4: Spalte minus 4: Ende der Rechnung",
+    "en" : "stack with 2 rows alignment left row 1: column minus 2: one column minus 1: two line column minus 3: column minus 2: row 2: column minus 4: three column minus 3: four line column minus 4: column minus 4: end stack",
+    "es" : "operación en columna de 2 filas alineación a la izquierda fila 1: columna menos 2: uno columna menos 1: dos línea columna menos 3: columna menos 2: fila 2: columna menos 4: tres columna menos 3: cuatro línea columna menos 4: columna menos 4: fin de la operación",
+    "fr" : "opération posée de 2 lignes alignement à gauche ligne 1 : colonne moins 2: un colonne moins 1: deux trait colonne moins 3: colonne moins 2: ligne 2 : colonne moins 4: trois colonne moins 3: quatre trait colonne moins 4: colonne moins 4: fin de l'opération",
+    "it" : "operazione in colonna di 2 righe allineamento a sinistra riga 1: colonna meno 2: uno colonna meno 1: due linea colonna meno 3: colonna meno 2: riga 2: colonna meno 4: tre colonna meno 3: quattro linea colonna meno 4: colonna meno 4: fine dell'operazione"
+  },
+  "S03" : {
+    "de" : "schriftliche Rechnung mit 1 Zeile Ausrichtung rechts Zeile 1: Spalte minus 7: eins Spalte minus 6: Leerzeichen Spalte minus 5: zwei Spalte minus 4: drei Spalte minus 3: vier Spalte minus 2: Punkt Spalte minus 1: fünf Ende der Rechnung",
+    "en" : "stack with 1 row alignment right row 1: column minus 7: one column minus 6: space column minus 5: two column minus 4: three column minus 3: four column minus 2: point column minus 1: five end stack",
+    "es" : "operación en columna de 1 fila alineación a la derecha fila 1: columna menos 7: uno columna menos 6: espacio columna menos 5: dos columna menos 4: tres columna menos 3: cuatro columna menos 2: punto columna menos 1: cinco fin de la operación",
+    "fr" : "opération posée de 1 ligne alignement à droite ligne 1 : colonne moins 7: un colonne moins 6: espace colonne moins 5: deux colonne moins 4: trois colonne moins 3: quatre colonne moins 2: point colonne moins 1: cinq fin de l'opération",
+    "it" : "operazione in colonna di 1 riga allineamento a destra riga 1: colonna meno 7: uno colonna meno 6: spazio colonna meno 5: due colonna meno 4: tre colonna meno 3: quattro colonna meno 2: punto colonna meno 1: cinque fine dell'operazione"
+  },
+  "S04" : {
+    "de" : "schriftliche Rechnung mit 2 Zeilen Ausrichtung mittig Zeile 1: Spalte minus 1: eins Spalte 0: zwei Strich über die gesamte Rechnung Zeile 2: Spalte minus 1: drei Spalte 0: vier Spalte 1: fünf Ende der Rechnung",
+    "en" : "stack with 2 rows alignment center row 1: column minus 1: one column 0: two line across the whole stack row 2: column minus 1: three column 0: four column 1: five end stack",
+    "es" : "operación en columna de 2 filas alineación en el centro fila 1: columna menos 1: uno columna 0: dos línea en todo el ancho de la operación fila 2: columna menos 1: tres columna 0: cuatro columna 1: cinco fin de la operación",
+    "fr" : "opération posée de 2 lignes alignement au centre ligne 1 : colonne moins 1: un colonne 0: deux trait sur toute la largeur de l’opération ligne 2 : colonne moins 1: trois colonne 0: quatre colonne 1: cinq fin de l'opération",
+    "it" : "operazione in colonna di 2 righe allineamento al centro riga 1: colonna meno 1: uno colonna 0: due linea su tutta la larghezza dell’operazione riga 2: colonna meno 1: tre colonna 0: quattro colonna 1: cinque fine dell'operazione"
+  },
+  "S05" : {
+    "de" : "schriftliche Rechnung mit 2 Zeilen Ausrichtung am Dezimaltrennzeichen Zeile 1: Spalte minus 3: plus Spalte minus 2: eins Spalte minus 1: zwei Spalte 0: Komma Spalte 1: drei Spalte 2: leer Zeile 2: Spalte minus 1: vier Ende der Rechnung",
+    "en" : "stack with 2 rows alignment decimal point row 1: column minus 3: plus column minus 2: one column minus 1: two column 0: comma column 1: three column 2: blank row 2: column minus 1: four end stack",
+    "es" : "operación en columna de 2 filas alineación en el separador decimal fila 1: columna menos 3: más columna menos 2: uno columna menos 1: dos columna 0: coma columna 1: tres columna 2: vacío fila 2: columna menos 1: cuatro fin de la operación",
+    "fr" : "opération posée de 2 lignes alignement sur le séparateur décimal ligne 1 : colonne moins 3: plus colonne moins 2: un colonne moins 1: deux colonne 0: virgule colonne 1: trois colonne 2: vide ligne 2 : colonne moins 1: quatre fin de l'opération",
+    "it" : "operazione in colonna di 2 righe allineamento al separatore decimale riga 1: colonna meno 3: più colonna meno 2: uno colonna meno 1: due colonna 0: virgola colonna 1: tre colonna 2: vuoto riga 2: colonna meno 1: quattro fine dell'operazione"
+  },
+  "S06" : {
+    "de" : "schriftliche Rechnung mit 2 Zeilen Ausrichtung am Dezimaltrennzeichen Zeile 1: Spalte minus 1: eins Spalte 0: Punkt Spalte 1: zwei Zeile 2: Spalte 0: drei Spalte 1: Punkt Spalte 2: vier Strich Spalte minus 2: Spalte 0: Ende der Rechnung",
+    "en" : "stack with 2 rows alignment decimal point row 1: column minus 1: one column 0: point column 1: two row 2: column 0: three column 1: point column 2: four line column minus 2: column 0: end stack",
+    "es" : "operación en columna de 2 filas alineación en el separador decimal fila 1: columna menos 1: uno columna 0: punto columna 1: dos fila 2: columna 0: tres columna 1: punto columna 2: cuatro línea columna menos 2: columna 0: fin de la operación",
+    "fr" : "opération posée de 2 lignes alignement sur le séparateur décimal ligne 1 : colonne moins 1: un colonne 0: point colonne 1: deux ligne 2 : colonne 0: trois colonne 1: point colonne 2: quatre trait colonne moins 2: colonne 0: fin de l'opération",
+    "it" : "operazione in colonna di 2 righe allineamento al separatore decimale riga 1: colonna meno 1: uno colonna 0: punto colonna 1: due riga 2: colonna 0: tre colonna 1: punto colonna 2: quattro linea colonna meno 2: colonna 0: fine dell'operazione"
+  }
+}

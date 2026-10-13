@@ -1,0 +1,964 @@
+[
+  {
+    "id": "S01",
+    "title": "One left-aligned row",
+    "group": "Stacks and logical columns",
+    "anchor": "stacks",
+    "focus": "Alignment, signed coordinates, row counts and lines.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mn>12</mn></mstack></math>",
+    "intent": "One row: digit 1 at column 0, digit 2 at column 1; left alignment.",
+    "question": "Can the listener distinguish row number, column number and digit value, and hear where the stack ends?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "One row: digit 1 at column 0, digit 2 at column 1; left alignment."
+  },
+  {
+    "id": "S02",
+    "title": "Nested shifts and finite lines",
+    "group": "Stacks and logical columns",
+    "anchor": "stacks",
+    "focus": "Alignment, signed coordinates, row counts and lines.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><msgroup position=\"2\" shift=\"1\"><mn>12</mn><msline length=\"2\"/><msgroup position=\"-1\"><msrow position=\"1\"><mn>34</mn></msrow></msgroup></msgroup><msline position=\"4\" length=\"1\"/></mstack></math>",
+    "intent": "Two rows at columns (-2,-1) then (-4,-3); a line spans -3 through -2, and a one-column line spans -4 through -4. Shifts advance past the first line.",
+    "question": "Are negative coordinates and inclusive line endpoints clear, including the repeated endpoint for a one-column line?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Two rows at columns (-2,-1) then (-4,-3); a line spans -3 through -2, and a one-column line spans -4 through -4. Shifts advance past the first line."
+  },
+  {
+    "id": "S03",
+    "title": "Right alignment and literal punctuation",
+    "group": "Stacks and logical columns",
+    "anchor": "stacks",
+    "focus": "Alignment, signed coordinates, row counts and lines.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"right\"><mn>1 234.5</mn></mstack></math>",
+    "intent": "One row at columns -7 through -1: digits, a grouping space and a literal point. Column 0 is the boundary after the last cell.",
+    "question": "Does the alignment and coordinate phrasing remain natural with literal punctuation, without claiming a decimal/grouping interpretation?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "One row at columns -7 through -1: digits, a grouping space and a literal point. Column 0 is the boundary after the last cell."
+  },
+  {
+    "id": "S04",
+    "title": "Center alignment and a full-width line",
+    "group": "Stacks and logical columns",
+    "anchor": "stacks",
+    "focus": "Alignment, signed coordinates, row counts and lines.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"center\"><mn>12</mn><msline/><mn>345</mn></mstack></math>",
+    "intent": "Two center-aligned rows: 12 occupies -1,0; 345 occupies -1,0,1. A line covers the whole stack width.",
+    "question": "Can listeners distinguish a full-width line from numbered endpoints and recover the two row boundaries?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Two center-aligned rows: 12 occupies -1,0; 345 occupies -1,0,1. A line covers the whole stack width."
+  },
+  {
+    "id": "S05",
+    "title": "Comma alignment and a blank cell",
+    "group": "Stacks and logical columns",
+    "anchor": "stacks",
+    "focus": "Alignment, signed coordinates, row counts and lines.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstyle decimalpoint=\",\"><mstack><msrow><mo>+</mo><mn>12,3</mn><none/></msrow><mn>4</mn></mstack></mstyle></math>",
+    "intent": "Two rows aligned on a comma: plus at -3, digits at -2,-1 and 1, comma at 0, blank at 2; second-row 4 at -1.",
+    "question": "Does the reading distinguish the blank column from omitted content and the alignment reference from digit zero?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Two rows aligned on a comma: plus at -3, digits at -2,-1 and 1, comma at 0, blank at 2; second-row 4 at -1."
+  },
+  {
+    "id": "S06",
+    "title": "Shifted decimal row and positive columns",
+    "group": "Stacks and logical columns",
+    "anchor": "stacks",
+    "focus": "Alignment, signed coordinates, row counts and lines.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack><mn>1.2</mn><msrow position=\"-1\"><mn>3.4</mn></msrow><msline position=\"-1\" length=\"3\"/></mstack></math>",
+    "intent": "First row occupies -1,0,1; the second row shifts right to 0,1,2. The finite line spans -2 through 0.",
+    "question": "Are negative, zero and positive column references unambiguous when the point itself moves away from column zero?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "First row occupies -1,0,1; the second row shifts right to 0,1,2. The finite line spans -1 through 1."
+  },
+  {
+    "id": "C01",
+    "title": "Annotation left",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"w\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 is left of digit 2 in column 0; there is no crossout.",
+    "question": "Does the complete carry/borrow label and location identify the annotation relative to the digit, without selecting an arithmetic operation?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 is left of digit 2 in column 0; there is no crossout."
+  },
+  {
+    "id": "C02",
+    "title": "Annotation above left",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"nw\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 is above left of digit 2 in column 0; there is no crossout.",
+    "question": "Does the complete carry/borrow label and location identify the annotation relative to the digit, without selecting an arithmetic operation?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 is above left of digit 2 in column 0; there is no crossout."
+  },
+  {
+    "id": "C03",
+    "title": "Annotation above",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"n\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 is above of digit 2 in column 0; there is no crossout.",
+    "question": "Does the complete carry/borrow label and location identify the annotation relative to the digit, without selecting an arithmetic operation?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 is above of digit 2 in column 0; there is no crossout."
+  },
+  {
+    "id": "C04",
+    "title": "Annotation above right",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"ne\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 is above right of digit 2 in column 0; there is no crossout.",
+    "question": "Does the complete carry/borrow label and location identify the annotation relative to the digit, without selecting an arithmetic operation?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 is above right of digit 2 in column 0; there is no crossout."
+  },
+  {
+    "id": "C05",
+    "title": "Annotation right",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"e\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 is right of digit 2 in column 0; there is no crossout.",
+    "question": "Does the complete carry/borrow label and location identify the annotation relative to the digit, without selecting an arithmetic operation?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 is right of digit 2 in column 0; there is no crossout."
+  },
+  {
+    "id": "C06",
+    "title": "Annotation below right",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"se\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 is below right of digit 2 in column 0; there is no crossout.",
+    "question": "Does the complete carry/borrow label and location identify the annotation relative to the digit, without selecting an arithmetic operation?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 is below right of digit 2 in column 0; there is no crossout."
+  },
+  {
+    "id": "C07",
+    "title": "Annotation below",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"s\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 is below of digit 2 in column 0; there is no crossout.",
+    "question": "Does the complete carry/borrow label and location identify the annotation relative to the digit, without selecting an arithmetic operation?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 is below of digit 2 in column 0; there is no crossout."
+  },
+  {
+    "id": "C08",
+    "title": "Annotation below left",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"sw\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 is below left of digit 2 in column 0; there is no crossout.",
+    "question": "Does the complete carry/borrow label and location identify the annotation relative to the digit, without selecting an arithmetic operation?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 is below left of digit 2 in column 0; there is no crossout."
+  },
+  {
+    "id": "C09",
+    "title": "Upward diagonal (bottom left to top right) crossout",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"ne\" crossout=\"updiagonalstrike\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 sits above right of digit 2 at column 0; digit 2 has a upward diagonal (bottom left to top right) strike. Annotation 1 is not the struck target.",
+    "question": "Can the listener identify both the strike direction and the struck column digit? German: does this sound distinct from a prime?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 sits above right of digit 2 at column 0; digit 2 has a upward diagonal (bottom left to top right) strike. Annotation 1 is not the struck target."
+  },
+  {
+    "id": "C10",
+    "title": "Downward diagonal (top left to bottom right) crossout",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"ne\" crossout=\"downdiagonalstrike\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 sits above right of digit 2 at column 0; digit 2 has a downward diagonal (top left to bottom right) strike. Annotation 1 is not the struck target.",
+    "question": "Can the listener identify both the strike direction and the struck column digit? German: does this sound distinct from a prime?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 sits above right of digit 2 at column 0; digit 2 has a downward diagonal (top left to bottom right) strike. Annotation 1 is not the struck target."
+  },
+  {
+    "id": "C11",
+    "title": "Vertical crossout",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"ne\" crossout=\"verticalstrike\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 sits above right of digit 2 at column 0; digit 2 has a vertical strike. Annotation 1 is not the struck target.",
+    "question": "Can the listener identify both the strike direction and the struck column digit? German: does this sound distinct from a prime?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 sits above right of digit 2 at column 0; digit 2 has a vertical strike. Annotation 1 is not the struck target."
+  },
+  {
+    "id": "C12",
+    "title": "Horizontal crossout",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"ne\" crossout=\"horizontalstrike\"><mn>1</mn></mscarries><mn>2</mn></mstack></math>",
+    "intent": "Annotation 1 sits above right of digit 2 at column 0; digit 2 has a horizontal strike. Annotation 1 is not the struck target.",
+    "question": "Can the listener identify both the strike direction and the struck column digit? German: does this sound distinct from a prime?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Annotation 1 sits above right of digit 2 at column 0; digit 2 has a horizontal strike. Annotation 1 is not the struck target."
+  },
+  {
+    "id": "C13",
+    "title": "Combined strikes, an override and a blank",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"left\"><mscarries location=\"se\" crossout=\"updiagonalstrike downdiagonalstrike verticalstrike horizontalstrike\"><mn>12</mn><mscarry location=\"w\" crossout=\"none\"><mn>3</mn></mscarry><none/></mscarries><mn>456</mn></mstack></math>",
+    "intent": "Column 0: annotation 12 below right, digit 4 struck in all four directions. Column 1: annotation 3 left of unstruck digit 5. Column 2: blank annotation over digit 6.",
+    "question": "Does the ordering keep each location, annotation and crossout associated with its own column? Is the combined wording natural?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Column 0: annotation 12 below right, digit 4 struck in all four directions. Column 1: annotation 3 left of unstruck digit 5. Column 2: blank annotation over digit 6."
+  },
+  {
+    "id": "C14",
+    "title": "Carry terminology in an addition context",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"right\"><mscarries><mn>1</mn><none/></mscarries><mn>18</mn><msrow><mo>+</mo><mn>27</mn></msrow><msline/><mn>45</mn></mstack></math>",
+    "intent": "Written addition 18 + 27 = 45 with annotation 1 above the tens column (-2); no crossout. The category still says carries or borrows.",
+    "question": "Is the combined category acceptable in addition? State regional classroom terminology and a full replacement if the label is confusing.",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Written addition 18 + 27 = 45 with annotation 1 above the tens column (-2); no crossout. The category still says carries or borrows."
+  },
+  {
+    "id": "C15",
+    "title": "Borrow terminology in a subtraction context",
+    "group": "Carries, borrows and crossouts",
+    "anchor": "carries",
+    "focus": "Relative locations, strike targets and regional terminology.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mstack stackalign=\"right\"><mscarries><mscarry crossout=\"updiagonalstrike\"><mn>2</mn></mscarry><mn>1</mn></mscarries><mn>32</mn><msrow><mo>−</mo><mn>17</mn></msrow><msline/><mn>15</mn></mstack></math>",
+    "intent": "Written subtraction 32 − 17 = 15. Annotation 2 is above tens column (-2) with digit 3 struck upward; annotation 1 is above units column (-1). The combined category is unchanged.",
+    "question": "Is the same category acceptable for borrowing? Assess regional alternatives in context, including Spanish terminology; do not request an arithmetic-guessing heuristic.",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Written subtraction 32 − 17 = 15. Annotation 2 is above tens column (-2) with digit 3 struck upward; annotation 1 is above units column (-1). The combined category is unchanged."
+  },
+  {
+    "id": "D01",
+    "title": "Frame lefttop",
+    "group": "Long-division frames and working rows",
+    "anchor": "division",
+    "focus": "All ten frames and zero/one/multiple working rows.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mlongdiv longdivstyle=\"lefttop\"><mn>3</mn><mn>41</mn><mn>123</mn></mlongdiv></math>",
+    "intent": "Divisor left; result above the dividend. Divisor 3, result 41, dividend 123.",
+    "question": "Does the frame description match the image, distinguish the other frames, and preserve divisor/dividend/result and working-row boundaries?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Divisor left; result above the dividend. Divisor 3, result 41, dividend 123."
+  },
+  {
+    "id": "D02",
+    "title": "Frame stackedrightright",
+    "group": "Long-division frames and working rows",
+    "anchor": "division",
+    "focus": "All ten frames and zero/one/multiple working rows.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mlongdiv longdivstyle=\"stackedrightright\"><mn>3</mn><mn>41</mn><mn>123</mn></mlongdiv></math>",
+    "intent": "Divisor and result stacked on the right; full vertical line. Divisor 3, result 41, dividend 123.",
+    "question": "Does the frame description match the image, distinguish the other frames, and preserve divisor/dividend/result and working-row boundaries?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Divisor and result stacked on the right; full vertical line. Divisor 3, result 41, dividend 123."
+  },
+  {
+    "id": "D03",
+    "title": "Frame mediumstackedrightright",
+    "group": "Long-division frames and working rows",
+    "anchor": "division",
+    "focus": "All ten frames and zero/one/multiple working rows.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mlongdiv longdivstyle=\"mediumstackedrightright\"><mn>3</mn><mn>41</mn><mn>123</mn></mlongdiv></math>",
+    "intent": "Divisor and result stacked on the right; medium vertical line. Divisor 3, result 41, dividend 123.",
+    "question": "Does the frame description match the image, distinguish the other frames, and preserve divisor/dividend/result and working-row boundaries?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Divisor and result stacked on the right; medium vertical line. Divisor 3, result 41, dividend 123."
+  },
+  {
+    "id": "D04",
+    "title": "Frame shortstackedrightright",
+    "group": "Long-division frames and working rows",
+    "anchor": "division",
+    "focus": "All ten frames and zero/one/multiple working rows.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mlongdiv longdivstyle=\"shortstackedrightright\"><mn>3</mn><mn>41</mn><mn>123</mn></mlongdiv></math>",
+    "intent": "Divisor and result stacked on the right; short vertical line. Divisor 3, result 41, dividend 123.",
+    "question": "Does the frame description match the image, distinguish the other frames, and preserve divisor/dividend/result and working-row boundaries?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Divisor and result stacked on the right; short vertical line. Divisor 3, result 41, dividend 123."
+  },
+  {
+    "id": "D05",
+    "title": "Frame righttop",
+    "group": "Long-division frames and working rows",
+    "anchor": "division",
+    "focus": "All ten frames and zero/one/multiple working rows.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mlongdiv longdivstyle=\"righttop\"><mn>3</mn><mn>41</mn><mn>123</mn></mlongdiv></math>",
+    "intent": "Divisor right; result above the dividend. Divisor 3, result 41, dividend 123.",
+    "question": "Does the frame description match the image, distinguish the other frames, and preserve divisor/dividend/result and working-row boundaries?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Divisor right; result above the dividend. Divisor 3, result 41, dividend 123."
+  },
+  {
+    "id": "D06",
+    "title": "Frame left/\\right",
+    "group": "Long-division frames and working rows",
+    "anchor": "division",
+    "focus": "All ten frames and zero/one/multiple working rows.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mlongdiv longdivstyle=\"left/\\right\"><mn>3</mn><mn>41</mn><mn>123</mn></mlongdiv></math>",
+    "intent": "Divisor left of a slash; result right of a backslash. Divisor 3, result 41, dividend 123.",
+    "question": "Does the frame description match the image, distinguish the other frames, and preserve divisor/dividend/result and working-row boundaries?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Divisor left of a slash; result right of a backslash. Divisor 3, result 41, dividend 123."
+  },
+  {
+    "id": "D07",
+    "title": "Frame left)(right",
+    "group": "Long-division frames and working rows",
+    "anchor": "division",
+    "focus": "All ten frames and zero/one/multiple working rows.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mlongdiv longdivstyle=\"left)(right\"><mn>3</mn><mn>41</mn><mn>123</mn></mlongdiv></math>",
+    "intent": "Divisor left of a closing parenthesis; result right of an opening parenthesis. Divisor 3, result 41, dividend 123.",
+    "question": "Does the frame description match the image, distinguish the other frames, and preserve divisor/dividend/result and working-row boundaries?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Divisor left of a closing parenthesis; result right of an opening parenthesis. Divisor 3, result 41, dividend 123."
+  },
+  {
+    "id": "D08",
+    "title": "Frame :right=right",
+    "group": "Long-division frames and working rows",
+    "anchor": "division",
+    "focus": "All ten frames and zero/one/multiple working rows.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mlongdiv longdivstyle=\":right=right\"><mn>3</mn><mn>41</mn><mn>123</mn></mlongdiv></math>",
+    "intent": "Divisor right of a colon; result right of an equals sign. Divisor 3, result 41, dividend 123.",
+    "question": "Does the frame description match the image, distinguish the other frames, and preserve divisor/dividend/result and working-row boundaries?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Divisor right of a colon; result right of an equals sign. Divisor 3, result 41, dividend 123."
+  },
+  {
+    "id": "D09",
+    "title": "Frame stackedleftleft",
+    "group": "Long-division frames and working rows",
+    "anchor": "division",
+    "focus": "All ten frames and zero/one/multiple working rows.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mlongdiv longdivstyle=\"stackedleftleft\"><mn>3</mn><mn>41</mn><mn>123</mn><mn>3</mn><msline length=\"1\"/></mlongdiv></math>",
+    "intent": "Divisor and result stacked on the left. Divisor 3, result 41, dividend 123. One working row (3) and a finite line follow the dividend.",
+    "question": "Does the frame description match the image, distinguish the other frames, and preserve divisor/dividend/result and working-row boundaries?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Divisor and result stacked on the left. Divisor 3, result 41, dividend 123. One working row (3) and a finite line follow the dividend."
+  },
+  {
+    "id": "D10",
+    "title": "Frame stackedleftlinetop",
+    "group": "Long-division frames and working rows",
+    "anchor": "division",
+    "focus": "All ten frames and zero/one/multiple working rows.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mlongdiv longdivstyle=\"stackedleftlinetop\"><mn>3</mn><mn>41</mn><mn>123</mn><mn>3</mn><msline length=\"1\"/><msrow position=\"-1\"><mn>0</mn></msrow></mlongdiv></math>",
+    "intent": "Divisor left; result above the dividend with a left vertical line. Divisor 3, result 41, dividend 123. Two working rows (3, then shifted 0) and a finite line follow the dividend.",
+    "question": "Does the frame description match the image, distinguish the other frames, and preserve divisor/dividend/result and working-row boundaries?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Divisor left; result above the dividend with a left vertical line. Divisor 3, result 41, dividend 123. Two working rows (3, then shifted 0) and a finite line follow the dividend."
+  },
+  {
+    "id": "P01",
+    "title": "Compound scripts at all four corners",
+    "group": "Compound expression boundaries",
+    "anchor": "scope",
+    "focus": "Script closures, compound indices and combined accents.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mmultiscripts><mi>T</mi><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow><mprescripts/><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow></mmultiscripts><mi>z</mi></math>",
+    "intent": "T has n+1 at each corner (right subscript, right superscript, left subscript, left superscript); z follows outside every script.",
+    "question": "Can a listener delimit all four expressions and tell that z is outside? Review closing phrases in combination, retaining the sourced positional labels.",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "T has n+1 at each corner (right subscript, right superscript, left subscript, left superscript); z follows outside every script."
+  },
+  {
+    "id": "P02",
+    "title": "Nested script before an outer partner",
+    "group": "Compound expression boundaries",
+    "anchor": "scope",
+    "focus": "Script closures, compound indices and combined accents.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mmultiscripts><mi>T</mi><mmultiscripts><mi>U</mi><none/><mn>2</mn><mprescripts/><mi>i</mi><none/></mmultiscripts><mi>j</mi></mmultiscripts><mi>z</mi></math>",
+    "intent": "The right subscript of T is U with right superscript 2 and left subscript i; the right superscript of T is j. z is outside T.",
+    "question": "Does the closing phrase clearly return from the compound subscript to the outer superscript j? German: can the shared Ende Index ending be followed?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "The right subscript of T is U with right superscript 2 and left subscript i; the right superscript of T is j. z is outside T."
+  },
+  {
+    "id": "P03",
+    "title": "Compound root index",
+    "group": "Compound expression boundaries",
+    "anchor": "scope",
+    "focus": "Script closures, compound indices and combined accents.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mroot><mi>x</mi><mrow><mi>n</mi><mo>+</mo><mn>1</mn></mrow></mroot><mi>z</mi></math>",
+    "intent": "Root of x with index n+1, followed by z outside the radical.",
+    "question": "Can a listener separate the entire index n+1, radicand x and following z? Suggest a complete utterance if additional scope wording is needed.",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Root of x with index n+1, followed by z outside the radical."
+  },
+  {
+    "id": "P04",
+    "title": "Nested root in a compound index",
+    "group": "Compound expression boundaries",
+    "anchor": "scope",
+    "focus": "Script closures, compound indices and combined accents.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mroot><mrow><mi>a</mi><mo>+</mo><mi>b</mi></mrow><mrow><msqrt><mi>n</mi></msqrt><mo>+</mo><mn>1</mn></mrow></mroot><mi>z</mi></math>",
+    "intent": "Root of a+b with index sqrt(n)+1; z follows outside the outer radical.",
+    "question": "Are the index, inner radical, outer radicand and final boundary recoverable without the visual?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "Root of a+b with index sqrt(n)+1; z follows outside the outer radical."
+  },
+  {
+    "id": "P05",
+    "title": "Lower bar and upper hat",
+    "group": "Compound expression boundaries",
+    "anchor": "scope",
+    "focus": "Script closures, compound indices and combined accents.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><munderover><mi>x</mi><mo>_</mo><mo>^</mo></munderover><mi>z</mi></math>",
+    "intent": "x has a bar below and a hat above; z follows undecorated. The lower accent is spoken first.",
+    "question": "Does the composed lower-then-upper utterance attach both accents to x without suggesting that one decorates the other?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "x has a bar below and a hat above; z follows undecorated. The lower accent is spoken first."
+  },
+  {
+    "id": "P06",
+    "title": "Braces around a compound base",
+    "group": "Compound expression boundaries",
+    "anchor": "scope",
+    "focus": "Script closures, compound indices and combined accents.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><munderover><mrow><mi>a</mi><mo>+</mo><mi>b</mi></mrow><mo>⏟</mo><mo>⏞</mo></munderover><mi>z</mi></math>",
+    "intent": "The whole a+b expression has a brace below and a brace above; z is outside both.",
+    "question": "Can the listener tell that both braces span a+b, rather than only b or the preceding brace? Review composition, not the sourced brace names alone.",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "The whole a+b expression has a brace below and a brace above; z is outside both."
+  },
+  {
+    "id": "P07",
+    "title": "Lower dot and upper vector",
+    "group": "Compound expression boundaries",
+    "anchor": "scope",
+    "focus": "Script closures, compound indices and combined accents.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><munderover><mi>x</mi><mo>˙</mo><mo>→</mo></munderover><mi>z</mi></math>",
+    "intent": "x has a dot below and a vector arrow above; z is undecorated. The lower dot uses an explicit below description and some languages place the vector noun before the base.",
+    "question": "Does the complete before/after composition preserve both accent positions on x and keep z outside?",
+    "languages": [
+      "en",
+      "fr",
+      "de",
+      "es",
+      "it"
+    ],
+    "image": true,
+    "alt": "x with a dot below and a vector arrow above, followed by undecorated z."
+  },
+  {
+    "id": "F01",
+    "title": "Square root of letter a",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mi>a</mi></msqrt></math>",
+    "intent": "A square root with a single letter variable a, not an ordinary word. The current joining decision uses the written first character.",
+    "question": "When naming this mathematical letter in your region, is the complete joining natural? Give the preferred spoken letter name and de/d’ wording.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "A square root with a single letter variable a, not an ordinary word. The current joining decision uses the written first character."
+  },
+  {
+    "id": "F02",
+    "title": "Square root of letter e",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mi>e</mi></msqrt></math>",
+    "intent": "A square root with a single letter variable e, not an ordinary word. The current joining decision uses the written first character.",
+    "question": "When naming this mathematical letter in your region, is the complete joining natural? Give the preferred spoken letter name and de/d’ wording.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "A square root with a single letter variable e, not an ordinary word. The current joining decision uses the written first character."
+  },
+  {
+    "id": "F03",
+    "title": "Square root of letter i",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mi>i</mi></msqrt></math>",
+    "intent": "A square root with a single letter variable i, not an ordinary word. The current joining decision uses the written first character.",
+    "question": "When naming this mathematical letter in your region, is the complete joining natural? Give the preferred spoken letter name and de/d’ wording.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "A square root with a single letter variable i, not an ordinary word. The current joining decision uses the written first character."
+  },
+  {
+    "id": "F04",
+    "title": "Square root of letter o",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mi>o</mi></msqrt></math>",
+    "intent": "A square root with a single letter variable o, not an ordinary word. The current joining decision uses the written first character.",
+    "question": "When naming this mathematical letter in your region, is the complete joining natural? Give the preferred spoken letter name and de/d’ wording.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "A square root with a single letter variable o, not an ordinary word. The current joining decision uses the written first character."
+  },
+  {
+    "id": "F05",
+    "title": "Square root of letter u",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mi>u</mi></msqrt></math>",
+    "intent": "A square root with a single letter variable u, not an ordinary word. The current joining decision uses the written first character.",
+    "question": "When naming this mathematical letter in your region, is the complete joining natural? Give the preferred spoken letter name and de/d’ wording.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "A square root with a single letter variable u, not an ordinary word. The current joining decision uses the written first character."
+  },
+  {
+    "id": "F06",
+    "title": "Square root of letter f",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mi>f</mi></msqrt></math>",
+    "intent": "A square root with a single letter variable f, not an ordinary word. The current joining decision uses the written first character.",
+    "question": "When naming this mathematical letter in your region, is the complete joining natural? Give the preferred spoken letter name and de/d’ wording.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "A square root with a single letter variable f, not an ordinary word. The current joining decision uses the written first character."
+  },
+  {
+    "id": "F07",
+    "title": "Square root of letter h",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mi>h</mi></msqrt></math>",
+    "intent": "A square root with a single letter variable h, not an ordinary word. The current joining decision uses the written first character.",
+    "question": "When naming this mathematical letter in your region, is the complete joining natural? Give the preferred spoken letter name and de/d’ wording.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "A square root with a single letter variable h, not an ordinary word. The current joining decision uses the written first character."
+  },
+  {
+    "id": "F08",
+    "title": "Square root of letter x",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mi>x</mi></msqrt></math>",
+    "intent": "A square root with a single letter variable x, not an ordinary word. The current joining decision uses the written first character.",
+    "question": "When naming this mathematical letter in your region, is the complete joining natural? Give the preferred spoken letter name and de/d’ wording.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "A square root with a single letter variable x, not an ordinary word. The current joining decision uses the written first character."
+  },
+  {
+    "id": "F09",
+    "title": "Square root of letter y",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mi>y</mi></msqrt></math>",
+    "intent": "A square root with a single letter variable y, not an ordinary word. The current joining decision uses the written first character.",
+    "question": "When naming this mathematical letter in your region, is the complete joining natural? Give the preferred spoken letter name and de/d’ wording.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "A square root with a single letter variable y, not an ordinary word. The current joining decision uses the written first character."
+  },
+  {
+    "id": "F10",
+    "title": "Square root of letter É",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mi>É</mi></msqrt></math>",
+    "intent": "A square root with a single letter variable É, not an ordinary word. The current joining decision uses the written first character.",
+    "question": "When naming this mathematical letter in your region, is the complete joining natural? Give the preferred spoken letter name and de/d’ wording.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "A square root with a single letter variable É, not an ordinary word. The current joining decision uses the written first character."
+  },
+  {
+    "id": "F11",
+    "title": "Author text homme",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mtext>homme</mtext></msqrt></math>",
+    "intent": "The radicand is literal author text “homme”. It is not translated; written h or a vowel does not establish how arbitrary author text is pronounced.",
+    "question": "Is this reading appropriate for the intended pronunciation? State whether explicit author pronunciation or a different joining policy is needed.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "The radicand is literal author text “homme”. It is not translated; written h or a vowel does not establish how arbitrary author text is pronounced."
+  },
+  {
+    "id": "F12",
+    "title": "Author text haricot",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mtext>haricot</mtext></msqrt></math>",
+    "intent": "The radicand is literal author text “haricot”. It is not translated; written h or a vowel does not establish how arbitrary author text is pronounced.",
+    "question": "Is this reading appropriate for the intended pronunciation? State whether explicit author pronunciation or a different joining policy is needed.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "The radicand is literal author text “haricot”. It is not translated; written h or a vowel does not establish how arbitrary author text is pronounced."
+  },
+  {
+    "id": "F13",
+    "title": "Author text energy",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mtext>energy</mtext></msqrt></math>",
+    "intent": "The radicand is literal author text “energy”. It is not translated; written h or a vowel does not establish how arbitrary author text is pronounced.",
+    "question": "Is this reading appropriate for the intended pronunciation? State whether explicit author pronunciation or a different joining policy is needed.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "The radicand is literal author text “energy”. It is not translated; written h or a vowel does not establish how arbitrary author text is pronounced."
+  },
+  {
+    "id": "F14",
+    "title": "Disjunctive-word controls",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msqrt><mtext>oui</mtext></msqrt><mo>;</mo><msqrt><mtext>onze</mtext></msqrt><mo>;</mo><msqrt><mtext>onzième</mtext></msqrt></math>",
+    "intent": "Three square roots with author words oui, onze and onzième, separated by literal semicolons. These are sourced ordinary-word exceptions, included only as joining controls.",
+    "question": "Check that a proposed formula-joining policy preserves the normal-word exceptions; do not treat these controls as novel vocabulary needing retranslation.",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "Three square roots with author words oui, onze and onzième, separated by literal semicolons. These are sourced ordinary-word exceptions, included only as joining controls."
+  },
+  {
+    "id": "F15",
+    "title": "Limit beginning with a vowel-letter expression",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><msubsup><mo>∫</mo><mrow><mi>a</mi><mo>+</mo><mn>1</mn></mrow><mi>b</mi></msubsup></math>",
+    "intent": "An integral whose lower bound is a+1 and upper bound b. The joining applies to the first spoken token of the complete lower bound.",
+    "question": "Is the complete from/to utterance natural for letter names, and can listeners recover the compound lower bound?",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "An integral whose lower bound is a+1 and upper bound b. The joining applies to the first spoken token of the complete lower bound."
+  },
+  {
+    "id": "F16",
+    "title": "Compound root and capitalized author text",
+    "group": "French formula joining",
+    "anchor": "french",
+    "focus": "Letter pronunciation, arbitrary author text and regional joining.",
+    "markup": "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mroot><mrow><mi>e</mi><mo>+</mo><mn>1</mn></mrow><mn>4</mn></mroot><mo>;</mo><msqrt><mtext>Alpha</mtext></msqrt></math>",
+    "intent": "A fourth root of e+1 followed by a square root of literal author text Alpha. Capitalization and formula composition do not establish pronunciation metadata.",
+    "question": "Assess joining in both complete utterances while retaining the sourced ordinal-root wording. Does the policy need to distinguish letter variables from author text?",
+    "languages": [
+      "fr"
+    ],
+    "image": false,
+    "alt": "A fourth root of e+1 followed by a square root of literal author text Alpha. Capitalization and formula composition do not establish pronunciation metadata."
+  }
+]

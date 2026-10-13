@@ -248,6 +248,11 @@ vocabularies. [Structural speech cases](../Tests/MathMLLayoutTests/SpeechStructu
 provide parsed examples for checking how their labels combine. Review these complete descriptions
 in context; a terminology change alone does not validate their sequence or scope.
 
+The [native-speaker review packet](SpeechReview/README.md) supplies stable example IDs,
+exact readings in each language, MathML inputs, rendered context and a response checklist
+for issue #63. It records no human approval; reviewers should state language/region and
+case coverage before any description is marked reviewed.
+
 Listening with host voices and screen-reader users remains useful usability QA, especially
 for these descriptions. It is not a blanket prerequisite for accepting every upstream word.
 No new native-speaker approval or voice certification is claimed by this audit.

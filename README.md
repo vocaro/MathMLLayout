@@ -97,6 +97,7 @@ are included; see [how to regenerate the images](doc/usage.md#regenerating-the-r
 - [Images](doc/images.md): supplying images for `mglyph`.
 - [Spoken readings](doc/speech.md): accessibility and language selection.
 - [Speech wording audit](Documentation/SpeechWordingAudit.md): source evidence for #31 and remaining human review in [#63](https://github.com/vocaro/MathMLLayout/issues/63).
+- [Native-speaker review packet](Documentation/SpeechReview/README.md): current readings, rendered examples and a checklist for #63.
 - [Supported markup](doc/markup.md): elements, attributes and layout rules.
 - [Fonts](doc/fonts.md): font selection and fallbacks.
 - [Bounds and limitations](doc/limits.md): input limits and unsupported behavior.
