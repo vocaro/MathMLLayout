@@ -18,6 +18,8 @@ struct MathBox {
     var row: BreakableRow?
     /// The source of a vertically stretched fence, for a pair that later stays on one output row.
     var fenceLayout: FenceLayout?
+    /// Hidden drawing still retains its geometry and row structure for line breaking.
+    var isPhantom = false
     var items: [MathItem] = []
 
     var height: CGFloat { ascent + descent }
@@ -30,7 +32,7 @@ struct MathBox {
     /// their own metrics.
     mutating func add(_ box: MathBox, at point: CGPoint) {
         guard !box.items.isEmpty else { return }
-        if point == .zero, box.fenceLayout == nil, box.items.count == 1, case .box = box.items[0] {
+        if point == .zero, !box.isPhantom, box.fenceLayout == nil, box.items.count == 1, case .box = box.items[0] {
             items.append(box.items[0]); return
         }
         // What is drawn keeps no row structure: that is for whoever may still break the row.
@@ -40,7 +42,13 @@ struct MathBox {
     }
 
     /// The union of everything drawn, relative to the baseline origin; nil when nothing is.
-    var inkBounds: CGRect? {
+    var inkBounds: CGRect? { bounds(includingPhantoms: false) }
+
+    /// Invisible content participates in spacing exactly as its visible counterpart does.
+    var spacingInkBounds: CGRect? { bounds(includingPhantoms: true) }
+
+    private func bounds(includingPhantoms: Bool) -> CGRect? {
+        if isPhantom && !includingPhantoms { return nil }
         var result: CGRect?
         func merge(_ rect: CGRect) { result = result.map { $0.union(rect) } ?? rect }
         for item in items {
@@ -50,7 +58,7 @@ struct MathBox {
             case .path(let path, let lineWidth, _, _), .dashes(let path, let lineWidth, _, _):
                 merge(path.boundingBoxOfPath.insetBy(dx: -lineWidth / 2, dy: -lineWidth / 2))
             case .box(let box, let point):
-                if let ink = box.inkBounds { merge(ink.offsetBy(dx: point.x, dy: point.y)) }
+                if let ink = box.bounds(includingPhantoms: includingPhantoms) { merge(ink.offsetBy(dx: point.x, dy: point.y)) }
             }
         }
         return result
@@ -64,6 +72,7 @@ struct MathBox {
     }
 
     func draw(in context: CGContext, at origin: CGPoint) {
+        guard !isPhantom else { return }
         for item in items {
             switch item {
             case .glyphs(let run):

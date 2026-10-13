@@ -384,6 +384,12 @@ extension LayoutEngine {
     func padded(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment,
                 depth: Int) throws -> MathBox {
         let content = try row(node.children, context, embellishment, depth: depth)
+        // Default padding is an inferred row, including its spacing and break opportunities.
+        // Explicit dimensions/offsets remain atomic: their interaction with fragmentation is
+        // unspecified by MathML 3, 3.3.6.3.
+        if !["width", "height", "depth", "lspace", "voffset"].contains(where: { node.attributes[$0] != nil }) {
+            return content
+        }
         let dimensions = (width: content.width, height: content.ascent, depth: content.descent)
         func resolve(_ name: String, _ current: CGFloat, reference: CGFloat, nonNegative: Bool = false) -> CGFloat {
             guard let attribute = node.attributes[name], let length = MathLength(attribute),
@@ -498,8 +504,10 @@ extension LayoutEngine {
 
     /// `merror`: its content in a red frame.
     func errorBox(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
-        let content = try row(node.children, context, depth: depth)
+        var content = try row(node.children, context, depth: depth)
         let stroke = max(value(\.overbarRuleThickness, context), 0.5), pad = context.fontSize * 0.1
+        // Keep one frame around the whole stack rather than dropping error decoration.
+        content = wrapped(content, beside: 2 * pad, align: .left) ?? content
         var box = MathBox(width: content.width + 2 * pad, ascent: content.ascent + pad, descent: content.descent + pad)
         box.add(content, at: CGPoint(x: pad, y: 0))
         let frame = CGRect(x: stroke / 2, y: -box.descent + stroke / 2, width: box.width - stroke, height: box.height - stroke)

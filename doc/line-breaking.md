@@ -13,7 +13,11 @@ See [LineBreaking.swift](examples/LineBreaking.swift) for the complete Swift exa
   bracket pair split across rows keeps one size; a pair wholly on one row shrinks to that row's
   content after the breaks are chosen. Long `mtext` wraps at its spaces. A table wider
   than the line narrows its columns and wraps its cells; fraction parts, radicands and
-  `menclose` contents wrap the same way.
+  `menclose` contents wrap the same way. Default `mpadded` and `mphantom` also flow across
+  rows; phantoms keep the visible content's spacing while drawing nothing. `merror` contents
+  stack inside one frame; background-bearing rows stack inside one filled rectangle.
+  Explicit padding geometry and under/over annotations stay atomic; see the precise
+  [wrapper policies](limits.md#limitations).
 - **Attributes** (MathML 3 §3.1.7): `linebreak`, `linebreakstyle`, `linebreakmultchar`,
   `lineleading`, `indentalign`, `indentshift`, `indenttarget` and their `first`/`last` forms, on
   `mo` and `mspace` or inherited from `mstyle` and `math`. Unless they say otherwise rows align
