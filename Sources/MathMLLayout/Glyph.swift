@@ -33,22 +33,30 @@ extension LayoutEngine {
     /// The nth marker is the nth `mglyph`. A tree that a host built may lack markers, so
     /// `mglyph`s beyond them follow the text; a marker beyond the `mglyph`s is dropped.
     func glyphContent(of token: MathMLNode, trimming: Bool = true, countingGlyphs: Bool = true,
-                      _ context: LayoutContext) throws -> (text: String, images: [MathBox]) {
+                      _ context: LayoutContext) throws -> (text: String, images: [MathBox], markOffset: Int?) {
         let (paired, glyphs) = try Self.pairedGlyphText(of: token, trimming: trimming)
-        guard !glyphs.isEmpty else { return (paired, []) }
+        let pairedMark = context.trackAlignment && !context.alignmentRTL
+            ? Self.pairedTokenMarkOffset(token, text: paired, trimming: trimming) : nil
+        guard !glyphs.isEmpty else { return (paired, [], pairedMark) }
         if countingGlyphs { try countNodes(glyphs.count) }
         var text = String.UnicodeScalarView(), images: [MathBox] = []
         var remaining = glyphs[...]
         // A host's tree may give every glyph the same long `alt`, so those are bounded as they are
         // added: whole, they could be `MathLimits.nodes` times the longest.
-        var altLength = 0
+        var altLength = 0, pairedOffset = 0, drawnOffset = 0
+        var markOffset: Int?
         for scalar in paired.unicodeScalars {
-            guard scalar == Self.glyphMarker, let glyph = remaining.popFirst() else { text.append(scalar); continue }
+            if let pairedMark, pairedMark <= pairedOffset, markOffset == nil { markOffset = drawnOffset }
+            pairedOffset += scalar.utf16.count
+            guard scalar == Self.glyphMarker, let glyph = remaining.popFirst() else {
+                text.append(scalar); drawnOffset += scalar.utf16.count
+                continue
+            }
             if let image = image(of: glyph) {
-                text.append(scalar)
+                text.append(scalar); drawnOffset += 1
                 images.append(imageBox(glyph, image, context))
             } else if let legacy = legacyGlyphBox(glyph, context) {
-                text.append(scalar)
+                text.append(scalar); drawnOffset += 1
                 images.append(legacy)
             } else {
                 let alt = Self.normalized(Self.unmarked(glyph.attributes["alt"] ?? ""))
@@ -59,14 +67,38 @@ extension LayoutEngine {
                 if let background = glyph.attributes["mathbackground"].flatMap(MathColor.parse), background.alpha > 0 {
                     // It leaves the text the caller bounds, and is shaped here: so it is counted here.
                     try countText(shown)
-                    text.append(scalar)
+                    text.append(scalar); drawnOffset += 1
                     images.append(altBox(shown, on: background, context))
                 } else {
-                    text.append(contentsOf: shown.unicodeScalars)
+                    text.append(contentsOf: shown.unicodeScalars); drawnOffset += shown.utf16.count
                 }
             }
         }
-        return (String(text), images)
+        if pairedMark != nil, markOffset == nil { markOffset = drawnOffset }
+        return (String(text), images, markOffset)
+    }
+
+    /// Map the first source mark into the paired, normalized token before resolving glyphs.
+    /// This scans the source once; it never lays out a prefix or asks the image provider again.
+    /// A host offset inside a surrogate pair rounds down to the scalar's boundary.
+    private static func pairedTokenMarkOffset(_ token: MathMLNode, text: String, trimming: Bool) -> Int? {
+        guard let mark = token.children.first(where: { $0.name == "malignmark" }) else { return nil }
+        guard let given = mark.tokenTextOffset else { return text.utf16.count }
+        let limit = min(max(0, given), token.text.utf16.count)
+        let glyphCount = token.children.lazy.filter { $0.name == "mglyph" }.count
+        var prefix = String.UnicodeScalarView(), rawOffset = 0, markers = 0
+        for scalar in token.text.unicodeScalars {
+            rawOffset += scalar.utf16.count
+            guard rawOffset <= limit else { break }
+            if scalar == glyphMarker {
+                guard markers < glyphCount else { continue }
+                markers += 1
+            }
+            prefix.append(scalar)
+        }
+        var normalizedPrefix = normalized(String(prefix), trimming: false)
+        if trimming, normalizedPrefix.hasPrefix(" ") { normalizedPrefix.removeFirst() }
+        return min(normalizedPrefix.utf16.count, text.utf16.count)
     }
 
     /// Pairs markers with glyph children before normalizing whitespace. Elementary-math
@@ -97,7 +129,7 @@ extension LayoutEngine {
     /// minus sign and an apostrophe the prime, beside an `mglyph` as alone. Either is all the text
     /// the `mo` has apart from markers and white space, so it is the only one of its kind there.
     /// An `alt` is left as written: it describes an image, and names no operator.
-    func operatorGlyphContent(of node: MathMLNode, _ context: LayoutContext) throws -> (text: String, images: [MathBox]) {
+    func operatorGlyphContent(of node: MathMLNode, _ context: LayoutContext) throws -> (text: String, images: [MathBox], markOffset: Int?) {
         let typed = Self.normalized(Self.unmarked(node.text)), drawn = operatorText(node)
         guard typed != drawn else { return try glyphContent(of: node, context) }
         var shown = node

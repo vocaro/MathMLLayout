@@ -94,8 +94,8 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   table/column widths and stretching cell operators to neighboring cells remain unsupported;
   overlap label sides reserve the same space as non-overlap forms. LTR alignment groups and
   marks are supported, but aligned cells stay indivisible under automatic wrapping. Forced
-  breaks and non-default spans opt out. RTL alignment and token marks mixed with `mglyph`
-  remain staged. See [Alignment groups](alignment-groups.md).
+  breaks and non-default spans opt out. Token marks also align beside inline images, legacy glyphs, and fallbacks. RTL
+  alignment remains staged. See [Alignment groups](alignment-groups.md).
 - **Images and legacy glyphs.** Intrinsic image scale/logical size is supplied by the host;
   markup can override image dimensions. An `mo` containing `mglyph` preserves author sizing
   and baseline by default; explicit `stretchy="true"`/`largeop="true"` opts into whole-token

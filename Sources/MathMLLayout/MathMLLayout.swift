@@ -21,7 +21,9 @@ public struct MathMLNode: Equatable, Sendable {
     public var children: [MathMLNode]
     public var text: String
     /// An embedded `malignmark`'s position in its parent token's raw UTF-16 text.
-    /// nil places a programmatically constructed marker at the end of the token.
+    /// Positions are clamped to raw text bounds and rounded down inside a surrogate pair.
+    /// nil places a programmatically constructed marker after the displayed token content,
+    /// including appended `mglyph` children, before an `ms` token's closing quote.
     public var tokenTextOffset: Int?
     public init(name: String, attributes: [String: String] = [:], children: [MathMLNode] = [], text: String = "", tokenTextOffset: Int? = nil) {
         self.name = name; self.attributes = attributes; self.children = children; self.text = text; self.tokenTextOffset = tokenTextOffset

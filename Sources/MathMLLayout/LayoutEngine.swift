@@ -842,7 +842,7 @@ final class LayoutEngine {
                         _ context: LayoutContext, _ embellishment: Embellishment, wrapStart: Int) -> MathBox {
         var box = result
         let children = node.children
-        finishAlignment(&box, node: node, context: context)
+        finishAlignment(&box, node: node, outer: outer, context: context)
         if node.name != "maligngroup", node.name != "malignmark",
            node.attributes["mathbackground"].flatMap(MathColor.parse) != nil {
             // A background encloses one stack, including gaps between its lines. It is never
@@ -1327,16 +1327,27 @@ final class LayoutEngine {
         // A surrounding RTL text paragraph must not mirror their physical parentheses.
         if node.name == "mn" { context.direction = .leftToRight }
         try countNodes(node.children.lazy.filter { $0.name == "malignmark" }.count)
-        var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", countingGlyphs: countingGlyphs, context)
+        var (text, images, markOffset) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", countingGlyphs: countingGlyphs, context)
         if node.name == "ms" {
             // The quotes are text, whatever they hold: only `mglyph`s have markers.
-            text = Self.unmarked(node.attributes["lquote"] ?? "\"") + text + Self.unmarked(node.attributes["rquote"] ?? "\"")
+            let quote = Self.unmarked(node.attributes["lquote"] ?? "\"")
+            if let offset = markOffset { markOffset = offset + quote.utf16.count }
+            text = quote + text + Self.unmarked(node.attributes["rquote"] ?? "\"")
         }
         try countText(text)
         var variant = context.variant
         if node.name == "mi", variant == nil, text.unicodeScalars.count == 1, !Self.hasGlyph(node) { variant = .italic }
-        if let variant { text = variant.apply(to: text) }
-        guard images.isEmpty else { return textBox(text, images: images, context, retainSegments: node.name == "mtext") }
+        if let variant {
+            if let offset = markOffset {
+                markOffset = variant.apply(to: String(decoding: text.utf16.prefix(offset), as: UTF16.self)).utf16.count
+            }
+            text = variant.apply(to: text)
+        }
+        if !images.isEmpty {
+            var box = textBox(text, images: images, context, retainSegments: node.name == "mtext")
+            try tokenAlignment(&box, node: node, text: text, images: images, markOffset: markOffset, context: context)
+            return box
+        }
         let canSegment = node.name == "mtext" && context.lines.linebreak != .nobreak && text.contains(" ")
             && Self.hasSimpleLTRWordBoundaries(text, direction: context.direction)
         var box = textBox(text, context, retainSegments: canSegment, requireSeparatedSpaces: canSegment)
@@ -1354,7 +1365,7 @@ final class LayoutEngine {
             }
             box.topAccentAttachment = table.topAccentAttachment(glyph).map { font.points($0, size: size) }
         }
-        try tokenAlignment(&box, node: node, text: text, context: context)
+        try tokenAlignment(&box, node: node, text: text, markOffset: markOffset, context: context)
         return box
     }
 
@@ -1464,7 +1475,12 @@ final class LayoutEngine {
         if Self.hasGlyph(node) {
             let content = try operatorGlyphContent(of: node, context)
             try countText(content.text)
-            let natural = textBox(context.variant?.apply(to: content.text) ?? content.text, images: content.images, context)
+            let text = context.variant?.apply(to: content.text) ?? content.text
+            let markOffset = content.markOffset.map { offset in
+                context.variant?.apply(to: String(decoding: content.text.utf16.prefix(offset), as: UTF16.self)).utf16.count ?? offset
+            }
+            var natural = textBox(text, images: content.images, context)
+            try tokenAlignment(&natural, node: node, text: text, images: content.images, markOffset: markOffset, context: context)
             var box = imageOperator(node, natural: natural, properties: properties, context, embellishment)
             box.op = properties
             return box

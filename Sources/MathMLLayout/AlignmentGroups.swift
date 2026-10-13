@@ -231,14 +231,20 @@ extension LayoutEngine {
         }
     }
 
-    func finishAlignment(_ box: inout MathBox, node: MathMLNode, context: LayoutContext) {
-        guard context.trackAlignment && !context.alignmentRTL else {
+    func finishAlignment(_ box: inout MathBox, node: MathMLNode, outer: LayoutContext, context: LayoutContext) {
+        guard context.trackAlignment else {
             if !box.alignment.isEmpty { box.alignment = [] }
             return
         }
+        if context.alignmentRTL {
+            box.alignment = []
+            // A direction-changing child remains one atomic element of the outer LTR group.
+            // Suppress its internal events, but retain its full ink/advance extent below.
+            guard outer.trackAlignment && !outer.alignmentRTL else { return }
+        }
         guard node.name != "maligngroup", node.name != "malignmark" else { return }
         let groupContainers: Set<String> = ["math", "mrow", "mstyle", "mtd", "mphantom", "mfenced", "maction", "semantics"]
-        if !groupContainers.contains(node.name) || (node.name == "mrow" || node.name == "mstyle") && node.attributes["dir"] != nil {
+        if !groupContainers.contains(node.name) || (node.name == "mrow" || node.name == "mstyle") && context.alignmentRTL != outer.alignmentRTL {
             box.alignment.removeAll { if case .group = $0.kind { return true }; return false }
         }
         let numberContainers: Set<String> = ["math", "mrow", "mstyle", "mtd", "mpadded", "mphantom", "menclose", "mfenced", "msqrt",
@@ -248,34 +254,68 @@ extension LayoutEngine {
         }
         guard !box.alignment.contains(where: { if case .group = $0.kind { return true }; return false }) else { return }
         var edges = box.alignmentEdges
-        if node.name == "mn" || node.name == "mspace" || node.name == "mtext" { edges = (min(0, edges.left), max(box.width, edges.right)) }
+        if node.name == "mn" || node.name == "mspace" || node.name == "mtext" || context.alignmentRTL {
+            edges = (min(0, edges.left), max(box.width, edges.right))
+        }
         box.alignment.removeAll { if case .extent = $0.kind { return true }; return false }
         box.alignment.append(AlignmentEvent(kind: .extent(edges.right - edges.left), x: edges.left))
     }
 
-    /// One CoreText line supplies all offsets, preserving kerning and fallback-font shaping.
-    /// Token marks use advances, including constant-width decimal digits in the math font.
-    func tokenAlignment(_ box: inout MathBox, node: MathMLNode, text: String, context: LayoutContext) throws {
+    /// One CoreText line per textual part supplies offsets using the same attributes as
+    /// drawing. Inline images, legacy glyphs and decorated fallbacks contribute their advances.
+    func tokenAlignment(_ box: inout MathBox, node: MathMLNode, text: String,
+                        images: [MathBox] = [], markOffset: Int? = nil, context: LayoutContext) throws {
         guard context.trackAlignment && !context.alignmentRTL else { return }
-        let marks = node.children.filter { $0.name == "malignmark" }
-        guard node.name == "mn" || !marks.isEmpty else { return }
-        guard !Self.hasGlyph(node) else { return } // image-token offsets are a documented staged case
-        let attributes = [kCTFontAttributeName: ctFont(context)] as CFDictionary
-        let line = CTLineCreateWithAttributedString(CFAttributedStringCreate(nil, text as CFString, attributes))
-        func offset(_ count: Int) -> CGFloat {
-            // Single-glyph operators may have been enlarged or assembled after shaping.
-            if node.name == "mo", text.unicodeScalars.count == 1, count >= text.utf16.count { return box.width }
-            return CTLineGetOffsetForStringIndex(line, min(max(0, count), text.utf16.count), nil)
+        let mark = node.children.first { $0.name == "malignmark" }
+        guard node.name == "mn" || mark != nil else { return }
+        struct Part {
+            let start: Int
+            let end: Int
+            let x: CGFloat
+            let line: CTLine
         }
-        if let mark = marks.first {
-            let raw = node.text.utf16
-            let index = min(max(0, mark.tokenTextOffset ?? raw.count), raw.count)
-            var prefix = Self.normalized(String(decoding: raw.prefix(index), as: UTF16.self), trimming: false)
-            if node.name != "mtext" && node.name != "ms", prefix.hasPrefix(" ") { prefix.removeFirst() }
-            if let variant = context.variant { prefix = variant.apply(to: prefix) }
-            if node.name == "ms" { prefix = Self.unmarked(node.attributes["lquote"] ?? "\"") + prefix }
+        var parts: [Part] = [], index = 0, x: CGFloat = 0, image = 0
+        let pieces = images.isEmpty ? [text] : text.unicodeScalars
+            .split(separator: Self.glyphMarker, omittingEmptySubsequences: false).map(String.init)
+        for (number, piece) in pieces.enumerated() {
+            if number > 0 {
+                x += images[image].width
+                image += 1; index += 1
+            }
+            let line = CTLineCreateWithAttributedString(attributedText(piece, context))
+            let end = index + piece.utf16.count
+            parts.append(Part(start: index, end: end, x: x, line: line))
+            x += CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+            index = end
+        }
+        func offset(_ count: Int) -> CGFloat {
+            let count = min(max(0, count), text.utf16.count)
+            // Single-glyph operators may have been enlarged or assembled after shaping.
+            if node.name == "mo", images.isEmpty, text.unicodeScalars.count == 1,
+               count >= text.utf16.count { return box.width }
+            guard let part = parts.first(where: { count <= $0.end }) else { return x }
+            return part.x + CTLineGetOffsetForStringIndex(part.line, max(0, count - part.start), nil)
+        }
+        if let mark {
+            let position: Int
+            if let markOffset {
+                position = markOffset
+            } else {
+                // Plain operators still normalize their authored text separately from token content.
+                let index = min(max(0, mark.tokenTextOffset ?? node.text.utf16.count), node.text.utf16.count)
+                var raw = String.UnicodeScalarView(), consumed = 0
+                for scalar in node.text.unicodeScalars {
+                    consumed += scalar.utf16.count
+                    guard consumed <= index else { break }
+                    raw.append(scalar)
+                }
+                var prefix = Self.normalized(String(raw), trimming: false)
+                if node.name != "mtext" && node.name != "ms", prefix.hasPrefix(" ") { prefix.removeFirst() }
+                if let variant = context.variant { prefix = variant.apply(to: prefix) }
+                position = prefix.utf16.count
+            }
             alignmentSequence += 1
-            box.alignment.append(AlignmentEvent(kind: .mark, x: offset(prefix.utf16.count), order: alignmentSequence))
+            box.alignment.append(AlignmentEvent(kind: .mark, x: offset(position), order: alignmentSequence))
         }
         if node.name == "mn", context.alignmentBaseline {
             let decimal = context.decimalPoint ?? "."

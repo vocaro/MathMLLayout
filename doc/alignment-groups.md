@@ -21,7 +21,8 @@ baseline, its first inherited `decimalpoint` character, or the number's end when
 is present. With no reachable number, it uses the group's right edge. Numbers in scripts and
 fractions do not capture decimal alignment. Explicit marks may appear within these structures.
 
-Groups can cross nested rows and styles and pass through phantoms, expanded fences, selected
+Groups can cross nested rows and styles, including redundant `dir="ltr"` declarations,
+and pass through phantoms, expanded fences, selected
 actions and semantics. Groups inside other layout schemata do not subdivide the outer cell.
 A nested table consumes marks in its own alignment scopes. Its `alignmentscope="false"`
 columns instead expose their explicit marks to the enclosing scope. Boolean scope lists
@@ -29,9 +30,14 @@ repeat their last value. Labeled-row labels do not participate in column alignme
 
 Embedded token marks preserve their raw UTF-16 position in the marker child's
 `MathMLNode.tokenTextOffset`. The XML parser sets this field without changing token text.
-A host building a tree may set the field directly; nil means the token's end. Positions are
-clamped to the text's bounds and measured after whitespace normalization and variant mapping.
-Token marks mixed with `mglyph` remain ignored pending a unified image/text offset mapping.
+A host building a tree may set the field directly; nil means the displayed token content's end,
+including glyphs appended by the host-marker convention and excluding a string's closing quote.
+Explicit positions are clamped to the raw text's bounds; positions inside a surrogate pair round
+down to that scalar's start. Positions are mapped through whitespace normalization, glyph
+fallback expansion, string quotes, and variant mapping. Inline images, legacy font glyphs, and
+decorated fallbacks contribute their rendered box advances. Undecorated fallbacks retain
+full-token shaping. Explicitly enlarged or stretched image operators scale their alignment
+points with their drawing. Mapping never resolves a glyph or lays out a prefix again.
 
 ## Staged interactions
 
@@ -42,16 +48,20 @@ MathML 3 leaves line-breaking and span interactions unspecified, so these polici
 predictable content geometry until a fuller table grid implementation is available.
 
 RTL layout is not implemented by the surrounding layout engine. Alignment events are therefore
-ignored under inherited `dir="rtl"`; an explicit `dir` on a nested row or style prevents its
-groups from propagating into an outer scope. This avoids claiming aligned RTL geometry from an
-LTR rendering. Implementing overall RTL layout and direction-boundary scopes remains follow-up
-work for issue #76.
+ignored under inherited `dir="rtl"`. A nested row or style that changes effective direction
+prevents its groups from propagating into an outer scope, as MathML 3 section 3.5.5.2 requires;
+a declaration that preserves LTR direction retains them. An RTL child inside an LTR group
+retains one atomic extent, including its advances, ink overhang and background, while suppressing its
+internal marks, numbers and groups. General RTL row/table geometry and
+RTL alignment groups remain follow-up work for issue #76. The staged line-break and span
+policies above also remain unchanged.
 
 Metadata visits only the laid-out tree and is retained inside cells. Group measurements and
 column side-width scans are linear in event count; restoring source priority for deferred
 children sorts marker events, bounded by the node limit. Drawing paths and background prefix ranges
 add a factor bounded by the existing depth limit. The ordinary node, text, drawing-item,
 stack, extent, and layout-retry bounds continue to apply. No new unrestricted subtree search
-or layout retry is introduced.
+or layout retry is introduced. Token offset mapping scans bounded source and resolved text;
+only the first mark is measured, using one shaping line per existing textual part.
 
 [Documentation index](../README.md#documentation)
