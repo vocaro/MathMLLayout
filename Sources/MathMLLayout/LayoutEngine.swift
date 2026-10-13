@@ -141,6 +141,7 @@ private struct ListMemo<Answer> {
 final class LayoutEngine {
     let font: MathFont
     let constants: MathConstants
+    let legacyGlyphFonts = LegacyGlyphFonts()
     private var nodeCount = 0
     private var textLength = 0
     /// `MathLimits.stackFloor` of the thread that lays out, found as the root starts.
@@ -326,7 +327,7 @@ final class LayoutEngine {
             // It is laid out as the `mtext` it would now be in, not as an element of its own: the
             // style it would hand down has no effect on an `mglyph` (MathML 3, 3.2.1.2.2). That
             // `mtext` is no node of the formula's, so it is not laid out as one, which would count it.
-            return try token(MathMLNode(name: "mtext", children: [node]), outer)
+            return try token(MathMLNode(name: "mtext", children: [node]), outer, countingGlyphs: false)
         case "mo":
             box = try operatorBox(node, context, embellishment)
         case "mspace":
@@ -802,8 +803,8 @@ final class LayoutEngine {
     /// `mi`, `mn`, `mtext` and `ms`. A single-character `mi` is italic unless a `mathvariant`
     /// says otherwise, and its width includes its italic correction (TeX's rule 17). An `mglyph`
     /// is not a character, so an `mi` of one stays upright even when its `alt` is drawn instead.
-    private func token(_ node: MathMLNode, _ context: LayoutContext) throws -> MathBox {
-        var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", context)
+    private func token(_ node: MathMLNode, _ context: LayoutContext, countingGlyphs: Bool = true) throws -> MathBox {
+        var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", countingGlyphs: countingGlyphs, context)
         if node.name == "ms" {
             // The quotes are text, whatever they hold: only `mglyph`s have markers.
             text = Self.unmarked(node.attributes["lquote"] ?? "\"") + text + Self.unmarked(node.attributes["rquote"] ?? "\"")

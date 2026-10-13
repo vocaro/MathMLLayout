@@ -654,7 +654,7 @@ final class GlyphTests: MathTestCase {
         XCTAssertEqual(try width(#"<mi mathvariant="italic"><mglyph src="s" alt="x"/></mi>"#), try width("<mi>x</mi>"))
         // The alt is normalized like token text.
         XCTAssertEqual(try width("<mi><mglyph src=\"s\" alt=\"  2 \t 3  \"/></mi>"), try width("<mtext>2 3</mtext>"))
-        // MathML 2's glyph of a named font has no image even with a provider.
+        // An unavailable MathML 2 font uses alt even with an image provider.
         let some = provider(["s": quarters(4, 4)])
         XCTAssertEqual(try layout(#"<mi><mglyph fontfamily="my-braid-font" index="2" alt="23braid"/></mi>"#, images: some).width,
                        try width("<mtext>23braid</mtext>"))
@@ -993,8 +993,11 @@ final class GlyphTests: MathTestCase {
         let text = MathMLNode(name: "mtext", children: [glyph])
         for provider in [images, nil] {
             for child in [glyph, text] {
-                XCTAssertNoThrow(try box(row(MathLimits.nodes, of: child), images: provider, size: 1), child.name)
-                XCTAssertThrowsError(try box(row(MathLimits.nodes + 1, of: child), images: provider, size: 1), child.name) {
+                // A real mtext and its mglyph are two source nodes; the standalone glyph's
+                // synthetic mtext is not a source node and must not be counted twice.
+                let maximum = child.name == "mglyph" ? MathLimits.nodes : (MathLimits.nodes + 1) / 2
+                XCTAssertNoThrow(try box(row(maximum, of: child), images: provider, size: 1), child.name)
+                XCTAssertThrowsError(try box(row(maximum + 1, of: child), images: provider, size: 1), child.name) {
                     XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
                 }
             }

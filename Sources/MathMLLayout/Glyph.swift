@@ -1,8 +1,10 @@
 import CoreGraphics
+import CoreText
 import Foundation
 
 /// `mglyph`: an image that stands for a character no font has, among a token's text (MathML 3,
-/// 3.2.1.2). Its image comes from the host's `MathImageProvider`; without one it is its `alt` text.
+/// 3.2.1.2). Its image comes from the host's `MathImageProvider`; without `src`, the bounded
+/// MathML 2 font/index subset can supply a font glyph. Otherwise it is its `alt` text.
 ///
 /// It is styled by where it stands, as a character is, and not by itself: on an `mglyph`
 /// "mathcolor has no effect" (3.2.1.2.2), and the `mathvariant` and `mathsize` that MathML 2 let
@@ -30,10 +32,11 @@ extension LayoutEngine {
     ///
     /// The nth marker is the nth `mglyph`. A tree that a host built may lack markers, so
     /// `mglyph`s beyond them follow the text; a marker beyond the `mglyph`s is dropped.
-    func glyphContent(of token: MathMLNode, trimming: Bool = true,
+    func glyphContent(of token: MathMLNode, trimming: Bool = true, countingGlyphs: Bool = true,
                       _ context: LayoutContext) throws -> (text: String, images: [MathBox]) {
         let (paired, glyphs) = try Self.pairedGlyphText(of: token, trimming: trimming)
         guard !glyphs.isEmpty else { return (paired, []) }
+        if countingGlyphs { try countNodes(glyphs.count) }
         var text = String.UnicodeScalarView(), images: [MathBox] = []
         var remaining = glyphs[...]
         // A host's tree may give every glyph the same long `alt`, so those are bounded as they are
@@ -44,6 +47,9 @@ extension LayoutEngine {
             if let image = image(of: glyph) {
                 text.append(scalar)
                 images.append(imageBox(glyph, image, context))
+            } else if let legacy = legacyGlyphBox(glyph, context) {
+                text.append(scalar)
+                images.append(legacy)
             } else {
                 let alt = Self.normalized(Self.unmarked(glyph.attributes["alt"] ?? ""))
                 altLength += alt.utf16.count
@@ -110,14 +116,49 @@ extension LayoutEngine {
     }
 
     /// The provider's image for an `mglyph`, asked once for each `src` however often a formula
-    /// repeats it. With no `src` there is none: MathML 2's `fontfamily` and `index`, a glyph of
-    /// a named font, are deprecated (3.2.1.2.4) and ignored.
+    /// repeats it. Presence of `src` selects the image path, including an empty or unresolved
+    /// source: a conflicting legacy font/index pair never supplies the missing image.
     private func image(of glyph: MathMLNode) -> MathImage? {
         guard let imageProvider, let source = glyph.attributes["src"], !source.isEmpty else { return nil }
         if let known = imageCache[source] { return known }
         let image = imageProvider.resolvedImage(source)
         imageCache.updateValue(image, forKey: source)
         return image
+    }
+
+    /// MathML 2, 3.2.9: an index is a glyph ID in the named font, never a Unicode scalar.
+    /// Image sizing attributes and variants without a font-trait counterpart are outside this
+    /// compatibility subset. Like image glyphs, size and colour come from the surrounding token.
+    private func legacyGlyphBox(_ node: MathMLNode, _ context: LayoutContext) -> MathBox? {
+        let attributes = node.attributes
+        guard attributes["src"] == nil,
+              attributes["width"] == nil, attributes["height"] == nil, attributes["valign"] == nil,
+              node.children.isEmpty, node.text.isEmpty,
+              let name = attributes["fontfamily"], let rawIndex = attributes["index"],
+              rawIndex.utf8.count <= 64 else { return nil }
+        var indexText = rawIndex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if indexText.hasPrefix("+") { indexText.removeFirst() }
+        guard !indexText.isEmpty, indexText.utf8.count <= 10,
+              indexText.utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }),
+              let index = UInt16(indexText), index > 0,
+              let selected = legacyGlyphFonts.font(name: name, variant: context.variant, size: context.fontSize),
+              Int(index) < CTFontGetGlyphCount(selected) else { return nil }
+        var glyph = CGGlyph(index), ink = CGRect.zero, advance = CGSize.zero
+        CTFontGetBoundingRectsForGlyphs(selected, .horizontal, &glyph, &ink, 1)
+        CTFontGetAdvancesForGlyphs(selected, .horizontal, &glyph, &advance, 1)
+        guard [ink.minX, ink.minY, ink.maxX, ink.maxY, advance.width].allSatisfy({
+            $0.isFinite && abs($0) <= MathLimits.extent
+        }), advance.width >= 0 else { return nil }
+        let shift = advance.width == 0 && !ink.isEmpty ? -ink.minX : 0
+        let placedInk = ink.isEmpty ? CGRect.null : ink.offsetBy(dx: shift, dy: 0)
+        var box = MathBox(width: advance.width == 0 ? ink.width : advance.width,
+                          ascent: ink.isEmpty ? 0 : ink.maxY, descent: ink.isEmpty ? 0 : -ink.minY)
+        if let background = attributes["mathbackground"].flatMap(MathColor.parse) {
+            box.items.append(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), background))
+        }
+        box.items.append(.glyphs(GlyphRun(font: selected, glyphs: [glyph], positions: [CGPoint(x: shift, y: 0)],
+                                         color: context.color, ink: placedInk)))
+        return box
     }
 
     /// An image's box (3.2.1.2.2): `width` and `height` where given, the image's proportions
