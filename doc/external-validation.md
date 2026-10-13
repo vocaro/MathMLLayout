@@ -75,11 +75,11 @@ The reference adapter uses pinned Playwright **1.62.1**, including its pinned br
 Install Node 20+ and pnpm, then:
 
 ```sh
-cd Tools/ExternalValidation
+cd tools/externalvalidation
 pnpm install --frozen-lockfile
 pnpm exec playwright install chromium
 cd ../..
-node Tools/ExternalValidation/references.cjs \
+node tools/externalvalidation/references.cjs \
   Tests/MathMLLayoutTests/ExternalFixtures/manifest.json external-validation-output chromium
 ```
 
@@ -97,8 +97,8 @@ Install the Python tool dependencies in a virtual environment:
 
 ```sh
 python3 -m venv /tmp/mathml-validation-venv
-/tmp/mathml-validation-venv/bin/pip install -r Tools/ExternalValidation/requirements.txt
-/tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/gallery.py \
+/tmp/mathml-validation-venv/bin/pip install -r tools/externalvalidation/requirements.txt
+/tmp/mathml-validation-venv/bin/python tools/externalvalidation/gallery.py \
   Tests/MathMLLayoutTests/ExternalFixtures/manifest.json external-validation-output
 ```
 
@@ -134,7 +134,7 @@ substitution of another font's metrics. To run against an updated installed font
 decode it into a temporary oracle (review changes before updating the pinned JSON):
 
 ```sh
-/tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/font_oracle.py \
+/tmp/mathml-validation-venv/bin/python tools/externalvalidation/font_oracle.py \
   /System/Library/Fonts/Supplemental/STIXTwoMath.otf /tmp/stix-oracle.json
 MATHML_FONT_ORACLE=/tmp/stix-oracle.json MATHML_REQUIRE_FONT_ORACLE=1 \
   swift test --filter IndependentFontTests
@@ -167,21 +167,21 @@ python3 - <<'PY'
 import json
 import urllib.request
 from pathlib import Path
-pins = json.loads(Path('Tools/ExternalValidation/openstax-pins.json').read_text())
+pins = json.loads(Path('tools/externalvalidation/openstax-pins.json').read_text())
 root = Path('/tmp/mathml-openstax-input'); root.mkdir(exist_ok=True)
 base = f'https://raw.githubusercontent.com/{pins["repository"]}/{pins["revision"]}/'
 for source in pins['sources'] + [{'file': 'LICENSE', 'path': 'LICENSE'}]:
     raw = urllib.request.urlopen(base + source['path'], timeout=30).read()
     (root / source['file']).write_bytes(raw)
 PY
-/tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/import_openstax.py \
+/tmp/mathml-validation-venv/bin/python tools/externalvalidation/import_openstax.py \
   /tmp/mathml-openstax-input /tmp/mathml-openstax-corpus
 MATHML_CORPUS_MANIFEST=/tmp/mathml-openstax-corpus/manifest.json \
   MATHML_CORPUS_REPORT=/tmp/openstax-results.json swift test --filter ExternalCorpusTests
 swift run MathMLExternalRender /tmp/mathml-openstax-corpus/manifest.json /tmp/openstax-gallery
-node Tools/ExternalValidation/references.cjs \
+node tools/externalvalidation/references.cjs \
   /tmp/mathml-openstax-corpus/manifest.json /tmp/openstax-gallery chromium
-/tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/gallery.py \
+/tmp/mathml-validation-venv/bin/python tools/externalvalidation/gallery.py \
   /tmp/mathml-openstax-corpus/manifest.json /tmp/openstax-gallery
 ```
 
@@ -199,7 +199,7 @@ subset of its `no_problem` HTML files, or another appropriately licensed HTML+pr
 MathML corpus. The importer does not accept agreements or download data. It expects UTF-8 HTML; other encodings are excluded.
 
 ```sh
-/tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/sample_corpus.py \
+/tmp/mathml-validation-venv/bin/python tools/externalvalidation/sample_corpus.py \
   /path/to/licensed/html /tmp/mathml-corpus --count 1000 --seed 52 \
   --release ar5iv-04-2024-no_problem --license C-UDA-1.0 \
   --source-url https://sigmathling.kwarc.info/resources/ar5iv-dataset-2024/
@@ -232,14 +232,14 @@ and `fonts/math` files. The importer is deliberately restricted to reviewed arit
 and rectangle assertions; it never executes upstream JavaScript.
 
 ```sh
-/tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/import_wpt.py \
+/tmp/mathml-validation-venv/bin/python tools/externalvalidation/import_wpt.py \
   /path/to/pinned/wpt Tests/MathMLLayoutTests/ExternalFixtures
-/tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/convert_fonts.py \
+/tmp/mathml-validation-venv/bin/python tools/externalvalidation/convert_fonts.py \
   /path/to/pinned/wpt Tests/MathMLLayoutTests/ExternalFixtures
-/tmp/mathml-validation-venv/bin/python Tools/ExternalValidation/import_wpt_supplement.py \
+/tmp/mathml-validation-venv/bin/python tools/externalvalidation/import_wpt_supplement.py \
   /path/to/pinned/wpt Tests/MathMLLayoutTests/ExternalFixtures
 /tmp/mathml-validation-venv/bin/python -m unittest discover \
-  -s Tools/ExternalValidation -p test_tools.py
+  -s tools/externalvalidation -p test_tools.py
 ```
 
 The importer and converter reject source/font hash mismatches using `wpt-pins.json`.
@@ -258,7 +258,7 @@ swift build --product MathMLExternalRender
 MATHML_NATIVE_RENDERER="$(swift build --show-bin-path)/MathMLExternalRender" \
   MATHML_BROWSER_NODE="$(command -v node)" \
   /tmp/mathml-validation-venv/bin/python -m unittest discover \
-  -s Tools/ExternalValidation -p test_tools.py
+  -s tools/externalvalidation -p test_tools.py
 ```
 
 The optional CI workflow targets a configured **macOS 27/Xcode 27** runner. It runs the pinned

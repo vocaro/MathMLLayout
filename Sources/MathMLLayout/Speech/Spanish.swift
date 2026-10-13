@@ -1,5 +1,5 @@
 // Selected wording adapted from MathCAT (MIT) and Speech Rule Engine (Apache-2.0).
-// Modified for MathMLLayout's phrase templates; see THIRD_PARTY_NOTICES.md and
+// Modified for MathMLLayout's phrase templates; see doc/licenses/THIRD_PARTY_NOTICES.md and
 // doc/speech-wording-audit.md for sources, decisions and remaining uncertainty.
 /// Spanish formula readings; regional terminology has not been verified.
 enum SpanishVocabulary: MathVocabulary {

@@ -1,5 +1,5 @@
 // Selected wording adapted from MathCAT (MIT) and Speech Rule Engine (Apache-2.0).
-// Modified for MathMLLayout; see THIRD_PARTY_NOTICES.md and doc/speech-wording-audit.md.
+// Modified for MathMLLayout; see doc/licenses/THIRD_PARTY_NOTICES.md and doc/speech-wording-audit.md.
 /// Digit and punctuation names are source-backed; elementary-math geometry phrases
 /// are MathMLLayout compositions. Human review is limited to those novel descriptions
 /// and joining policies; see doc/speech-wording-audit.md.

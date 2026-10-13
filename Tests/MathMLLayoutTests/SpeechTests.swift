@@ -1,5 +1,5 @@
 // Selected localized expectations adapted from MathCAT (MIT) and Speech Rule Engine
-// (Apache-2.0), modified for MathMLLayout; see THIRD_PARTY_NOTICES.md and
+// (Apache-2.0), modified for MathMLLayout; see doc/licenses/THIRD_PARTY_NOTICES.md and
 // doc/speech-wording-audit.md for attribution and pinned sources.
 import Foundation
 @testable import MathMLLayout

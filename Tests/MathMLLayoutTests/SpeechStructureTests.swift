@@ -1,5 +1,5 @@
 // Selected wording adapted from MathCAT (MIT) and Speech Rule Engine (Apache-2.0).
-// Modified for MathMLLayout; see THIRD_PARTY_NOTICES.md and doc/speech-wording-audit.md.
+// Modified for MathMLLayout; see doc/licenses/THIRD_PARTY_NOTICES.md and doc/speech-wording-audit.md.
 import Foundation
 @testable import MathMLLayout
 import XCTest
