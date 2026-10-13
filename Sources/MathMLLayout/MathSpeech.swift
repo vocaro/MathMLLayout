@@ -51,7 +51,8 @@ private struct Speaker {
     init(words: any MathVocabulary.Type) { self.words = words }
 
     /// A row of a stack, and the depth it is read at.
-    private typealias StackRow = (node: MathMLNode, depth: Int)
+    private typealias StackRow = (node: MathMLNode, depth: Int, position: Int)
+    private var decimalPoint: String?
 
     /// Past the bound on text none of the markup's is read, or looked at: a host's tree may hold
     /// one long string in every node, and be read at many times its size.
@@ -98,6 +99,58 @@ private struct Speaker {
 
     private func symbol(_ text: String) -> String { words.symbols[text] ?? text }
 
+    /// Only transparent single-child wrappers and the selected presentation child may
+    /// participate in semantic shortcuts. A compound base is not a limit operator.
+    private func simpleToken(_ node: MathMLNode) -> MathMLNode? {
+        var current = node
+        for _ in 0..<MathLimits.depth {
+            if LayoutEngine.tokens.contains(current.name), !LayoutEngine.hasGlyph(current) { return current }
+            if ["mrow", "mstyle"].contains(current.name), current.children.count == 1 {
+                current = current.children[0]
+            } else if let shown = LayoutEngine.shownChild(current) { current = shown }
+            else { return nil }
+        }
+        return nil
+    }
+
+    private func isLimitOperator(_ node: MathMLNode) -> Bool {
+        guard let token = simpleToken(node), token.name == "mo" else { return false }
+        let text = LayoutEngine.normalized(token.text)
+        return token.attributes.flag("largeop")
+            ?? OperatorDictionary.entry(text, form: .prefix).flags.contains(.largeop)
+    }
+
+    private func primeCount(_ text: String) -> Int? {
+        let value = LayoutEngine.normalized(text)
+        guard !value.isEmpty else { return nil }
+        var count = 0
+        for character in value {
+            switch character {
+            case "′", "'": count += 1
+            case "″": count += 2
+            case "‴": count += 3
+            case "⁗": count += 4
+            default: return nil
+            }
+        }
+        // The already-read exponent has consumed its source-text budget, so even
+        // a long prime sequence has a bounded expansion (at most four per character).
+        return count
+    }
+
+    private func accent(_ node: MathMLNode, under: Bool, explicit: Bool?) -> MathAccent? {
+        guard let token = simpleToken(node), token.name == "mo" else { return nil }
+        guard explicit ?? token.attributes.flag("accent") ?? true else { return nil }
+        let text = LayoutEngine.normalized(token.text)
+        guard let value = words.accents[text] else { return nil }
+        if !under { return value }
+        switch text {
+        case "_", "¯", "‾", "\u{0305}", "\u{0332}": return words.accents.underbar
+        case "⏟": return words.accents.underbrace
+        default: return .after(words.under("", value.reading(on: "")))
+        }
+    }
+
     /// An `mfenced`'s fence, which is an attribute but text all the same.
     private mutating func fence(_ text: String) -> String { isTextSpent ? "" : symbol(said(text)) }
 
@@ -136,12 +189,21 @@ private struct Speaker {
     mutating func reading(of node: MathMLNode, depth: Int) -> String {
         count += 1
         guard depth < MathLimits.depth, count <= MathLimits.nodes, !MathLimits.isStackSpent(stackFloor) else { return "" }
+        guard !isTextSpent else { return "" }
+        let previousPoint = decimalPoint
+        if ["math", "mstyle", "mstack", "mlongdiv"].contains(node.name),
+           let point = node.attributes["decimalpoint"]?.trimmingCharacters(in: .whitespaces), !point.isEmpty {
+            decimalPoint = point
+        }
+        defer { decimalPoint = previousPoint }
         let children = node.children
         func child(_ index: Int) -> String {
             children.indices.contains(index) ? reading(of: children[index], depth: depth + 1) : ""
         }
         switch node.name {
-        case "mi", "mn", "mtext", "ms":
+        case "mi":
+            return symbol(said(text(of: node)))
+        case "mn", "mtext", "ms":
             return said(text(of: node))
         case "mo":
             let value = said(text(of: node))
@@ -153,38 +215,68 @@ private struct Speaker {
             return words.fraction(child(0), child(1), simple: simple)
         case "msup":
             let base = child(0), power = children.count > 1 ? children[1] : MathMLNode(name: "none")
-            switch (power.name, text(of: power)) {
+            let exponent = child(1)
+            guard !exponent.isEmpty else { return base }
+            switch (power.name, exponent) {
             case ("mn", "2"): return words.squared(base)
             case ("mn", "3"): return words.cubed(base)
-            case ("mo", "′"), ("mo", "'"): return words.primed(base)
-            default: return words.power(base, child(1), simple: isSimple(power))
+            default:
+                if let token = simpleToken(power), token.name == "mo", let primes = primeCount(token.text) {
+                    return words.phrase([base] + Array(repeating: words.symbols.prime, count: primes))
+                }
+                return words.power(base, exponent, simple: isSimple(power))
             }
         case "msub":
             return words.subscripted(child(0), child(1))
         case "msubsup":
-            return words.power(words.subscripted(child(0), child(1)), child(2), simple: true)
+            let base = child(0), lower = child(1), upper = child(2)
+            if children.first.map(isLimitOperator) == true {
+                return words.limits(base, from: lower, to: upper)
+            }
+            return words.power(words.subscripted(base, lower), upper,
+                               simple: children.count < 3 || isSimple(children[2]))
         case "msqrt":
             let closed = children.count != 1 || !isSimple(children[0])
             return words.squareRoot(row(children, depth: depth + 1), closed: closed)
         case "mroot":
-            switch children.count > 1 ? text(of: children[1]) : "" {
-            case "2": return words.squareRoot(child(0), closed: true)
-            case "3": return words.cubeRoot(child(0))
+            let radicand = child(0), index = child(1)
+            guard !radicand.isEmpty else { return "" }
+            guard !index.isEmpty else { return radicand }
+            let token = children.count > 1 ? simpleToken(children[1]) : nil
+            switch token?.name == "mn" ? index : "" {
+            case "2": return words.squareRoot(radicand, closed: true)
+            case "3": return words.cubeRoot(radicand)
             default:
-                let index = child(1)
-                return words.root(child(0), index: index)
+                if let token,
+                   ["mi", "mn"].contains(token.name), let ordinal = words.ordinalRoots[index] {
+                    return words.ordinalRoot(radicand, ordinal: ordinal)
+                }
+                return words.root(radicand, index: index)
             }
         case "munder", "mover", "munderover":
-            let base = child(0), over = node.name == "munder" ? nil : children.last
-            if node.name == "mover", let over, let accent = words.accents[text(of: over)] {
-                return accent.reading(on: base)
-            }
+            let base = child(0)
             switch node.name {
-            case "munder": return words.under(base, child(1))
-            case "mover": return over.map { words.over(base, reading(of: $0, depth: depth + 1)) } ?? base
+            case "munder", "mover":
+                let script = child(1), under = node.name == "munder"
+                guard !script.isEmpty else { return base }
+                if children.count > 1, let accent = accent(children[1], under: under,
+                   explicit: node.attributes.flag(under ? "accentunder" : "accent")) {
+                    return accent.reading(on: base)
+                }
+                return under ? words.under(base, script) : words.over(base, script)
             default:
-                let lower = child(1)
-                return words.limits(base, from: lower, to: over.map { reading(of: $0, depth: depth + 1) } ?? "")
+                let lower = child(1), upper = child(2)
+                var result = base
+                let lowerAccent = children.count > 1
+                    ? accent(children[1], under: true, explicit: node.attributes.flag("accentunder")) : nil
+                let upperAccent = children.count > 2
+                    ? accent(children[2], under: false, explicit: node.attributes.flag("accent")) : nil
+                if lowerAccent == nil && upperAccent == nil {
+                    return words.limits(base, from: lower, to: upper)
+                }
+                if !lower.isEmpty { result = lowerAccent?.reading(on: result) ?? words.under(result, lower) }
+                if !upper.isEmpty { result = upperAccent?.reading(on: result) ?? words.over(result, upper) }
+                return result
             }
         case "mmultiscripts":
             // Base, right pairs, then left pairs, each in source order. In the LTR
@@ -223,28 +315,50 @@ private struct Speaker {
             }
             return words.phrase(parts)
         case "mfenced":
-            let open = fence(node.attributes["open"] ?? "("), close = fence(node.attributes["close"] ?? ")")
-            return words.phrase(open, list(children, depth: depth + 1), close)
+            let open = fence(node.attributes["open"] ?? "(")
+            let raw = said(node.attributes["separators"] ?? ",")
+            let separators = Array(raw.filter { !$0.isWhitespace })
+            var parts = [open]
+            for (index, item) in children.enumerated() where count < MathLimits.nodes {
+                let value = reading(of: item, depth: depth + 1)
+                guard !value.isEmpty else { continue }
+                if index > 0, !separators.isEmpty {
+                    parts.append(symbol(String(separators[min(index - 1, separators.count - 1)])))
+                }
+                parts.append(value)
+            }
+            parts.append(fence(node.attributes["close"] ?? ")"))
+            return words.phrase(parts)
         case "mstack":
             var rows: [StackRow] = []
             gather(children, depth: depth + 1, into: &rows)
+            let alignment = MathStackAlignment(attribute: node.attributes["stackalign"])
             let opening = words.stack(rows: rows.count { isDigits($0.node) })
-            return words.phrase([opening] + read(rows[...]) + [words.endStack])
+            return words.phrase([opening, words.alignment(alignment)] + read(rows[...], alignment: alignment) + [words.endStack])
         case "mlongdiv":
             // MathML 3 §3.6.2: the divisor, the result, then a stack whose first row of digits is the
             // dividend. The result is named after the dividend, the order a division is said in.
-            let divisor = child(0), result = child(1)
+            let alignment = MathStackAlignment(attribute: node.attributes["stackalign"])
+            let frame = LongDivision(attribute: node.attributes["longdivstyle"])
+            let divisor = children.indices.contains(0) ? divisionOperand(children[0], depth: depth + 1, alignment: alignment) : ""
+            let result: String
+            if children.indices.contains(1), children[1].name == "mn", frame.hasResultOnTop {
+                result = digits((children[1], depth + 1, 0), alignment: alignment)
+            } else {
+                result = children.indices.contains(1) ? divisionOperand(children[1], depth: depth + 1, alignment: alignment) : ""
+            }
             var rows: [StackRow] = []
             gather(children.dropFirst(2), depth: depth + 1, into: &rows)
             let dividend = rows.firstIndex { isDigits($0.node) } ?? rows.endIndex
-            let working = rows.dropFirst(dividend + 1)
-            var parts = [words.longDivision(rows: working.count { isDigits($0.node) })]
+            let working = rows.dropFirst(min(dividend + 1, rows.count))
+            var parts = [words.longDivision(rows: working.count { isDigits($0.node) }),
+                         words.spatial.frames[frame] ?? "", words.alignment(alignment)]
             if !divisor.isEmpty { parts.append(words.divisor(divisor)) }
             // Borrows may be marked above the dividend; they are read before it, as they are written.
-            parts += read(rows[..<dividend])
-            if dividend < rows.endIndex { parts.append(words.dividend(digits(rows[dividend]))) }
+            parts += read(rows[..<dividend], alignment: alignment)
+            if dividend < rows.endIndex { parts.append(words.dividend(digits(rows[dividend], alignment: alignment))) }
             if !result.isEmpty { parts.append(words.result(result)) }
-            return words.phrase(parts + read(working) + [words.endLongDivision])
+            return words.phrase(parts + read(working, alignment: alignment) + [words.endLongDivision])
         case "semantics", "maction":
             // The child layout draws, which need not be the first: an annotation may come before
             // it, and `selection` may name another.
@@ -262,72 +376,162 @@ private struct Speaker {
 
     // MARK: Elementary math
 
-    /// Collects the rows under `nodes` in reading order. An `msgroup` only shifts the rows it
-    /// holds, so they are read where it stands.
-    private mutating func gather(_ nodes: some Sequence<MathMLNode>, depth: Int, into rows: inout [StackRow]) {
-        for node in nodes where rows.count < MathLimits.nodes {
-            guard node.name == "msgroup" else { rows.append((node, depth)); continue }
-            count += 1
-            guard depth < MathLimits.depth, count <= MathLimits.nodes, !MathLimits.isStackSpent(stackFloor) else { continue }
-            gather(node.children, depth: depth + 1, into: &rows)
+    /// Flatten groups while accumulating exactly the same positions as layout.
+    /// Pending rows and visited groups share a finite collection budget.
+    private mutating func gather(_ nodes: some Sequence<MathMLNode>, depth: Int, position: Int = 0,
+                                 shift: Int = 0, into rows: inout [StackRow]) {
+        for (index, node) in nodes.enumerated() {
+            guard rows.count + count < MathLimits.nodes, depth < MathLimits.depth,
+                  !MathLimits.isStackSpent(stackFloor), !isTextSpent else { break }
+            let inherited = position + index * shift
+            let own = ["msgroup", "msrow", "mscarries", "msline"].contains(node.name)
+                ? MathStackAlignment.columns(node, "position") : 0
+            if node.name == "msgroup" {
+                count += 1
+                gather(node.children, depth: depth + 1, position: inherited + own,
+                       shift: MathStackAlignment.columns(node, "shift"), into: &rows)
+            } else { rows.append((node, depth, inherited + own)) }
         }
     }
 
-    /// Whether a row holds digits, rather than being a line or the carries of the row after it.
     private func isDigits(_ node: MathMLNode) -> Bool { node.name != "msline" && node.name != "mscarries" }
 
-    /// Whether a row or a carry is nothing but empty columns.
-    private func isBlank(_ node: MathMLNode) -> Bool {
-        if node.name == "none" { return true }
-        return ["msrow", "mscarry"].contains(node.name) && node.children.allSatisfy { $0.name == "none" }
+    private struct SpokenCell {
+        var text: String
+        var isNumber = false
+        var isPoint = false
     }
 
-    /// A row of digits and operators. A number is read whole, as it is anywhere else, and so in
-    /// the voice's own way with decimal points and digit grouping.
-    private mutating func digits(_ row: StackRow) -> String {
-        let text = reading(of: row.node, depth: row.depth)
-        return isBlank(row.node) ? words.blank : text
+    /// mstyle is transparent to the grid; mn characters each occupy a column;
+    /// everything else, including a compound formula, occupies one column.
+    private mutating func cells(_ nodes: [MathMLNode], depth: Int, point: String?, into cells: inout [SpokenCell]) {
+        for node in nodes {
+            guard count < MathLimits.nodes, depth < MathLimits.depth, !isTextSpent,
+                  !MathLimits.isStackSpent(stackFloor) else { break }
+            if node.name == "mstyle" {
+                count += 1
+                let ownPoint = node.attributes["decimalpoint"]?.trimmingCharacters(in: .whitespaces)
+                self.cells(node.children, depth: depth + 1, point: ownPoint?.isEmpty == false ? ownPoint : point, into: &cells)
+            } else if node.name == "mn" {
+                count += 1
+                let text = said(LayoutEngine.normalized(node.text.replacingOccurrences(of: "\u{FFFC}", with: "")))
+                for character in text {
+                    let value = String(character)
+                    cells.append(SpokenCell(text: words.spatial.character(character), isNumber: true,
+                                            isPoint: point.map { value == $0 } ?? (value == "." || value == "\u{066B}")))
+                }
+            } else {
+                let text = reading(of: node, depth: depth)
+                let value = LayoutEngine.normalized(node.text)
+                cells.append(SpokenCell(text: node.name == "none" ? words.blank : text,
+                                        isPoint: LayoutEngine.tokens.contains(node.name) &&
+                                        (point.map { value == $0 } ?? (value == "." || value == "\u{066B}"))))
+            }
+        }
     }
 
-    /// Reads `rows` in order, numbering the rows of digits from 1. Lines and carries are announced
-    /// where they fall but not numbered: a sighted reader sees them between the rows, not as rows.
-    private mutating func read(_ rows: ArraySlice<StackRow>) -> [String] {
+    private mutating func digits(_ row: StackRow, alignment: MathStackAlignment) -> String {
+        var cells: [SpokenCell] = []
+        if row.node.name == "msrow" {
+            count += 1
+            guard row.depth + 1 < MathLimits.depth else { return "" }
+            self.cells(row.node.children, depth: row.depth + 1, point: decimalPoint, into: &cells)
+        } else { self.cells([row.node], depth: row.depth, point: decimalPoint, into: &cells) }
+        guard !cells.isEmpty else {
+            return isTextSpent || count > MathLimits.nodes || row.depth >= MathLimits.depth ? "" : words.blank
+        }
+        var point = cells.firstIndex { $0.isPoint }
+        if point == nil, let first = cells.firstIndex(where: { $0.isNumber }) {
+            var end = first
+            while end < cells.count && cells[end].isNumber { end += 1 }
+            point = end
+        }
+        let start = alignment.firstColumn(count: cells.count, decimalPoint: point, position: row.position)
+        return words.phrase(cells.enumerated().compactMap { cell in
+            cell.element.text.isEmpty ? nil : words.phrase(words.column(start + cell.offset), cell.element.text)
+        })
+    }
+
+    /// The separate divisor and result are mathematical operands; simple numbers
+    /// are spelled out without inventing columns shared with the dividend.
+    private mutating func divisionOperand(_ node: MathMLNode, depth: Int,
+                                         alignment: MathStackAlignment = .decimalPoint) -> String {
+        if ["msrow", "msgroup", "msline", "mscarries", "mstyle"].contains(node.name) {
+            var rows: [StackRow] = []
+            gather([node], depth: depth, into: &rows)
+            return words.phrase(read(rows[...], alignment: alignment))
+        }
+        if node.name == "mn" {
+            count += 1
+            guard depth < MathLimits.depth, count <= MathLimits.nodes, !isTextSpent,
+                  !MathLimits.isStackSpent(stackFloor) else { return "" }
+            return words.phrase(said(text(of: node)).map { words.spatial.character($0) })
+        }
+        if node.name == "mscarry" {
+            count += 1
+            guard depth < MathLimits.depth, count <= MathLimits.nodes, !isTextSpent,
+                  !MathLimits.isStackSpent(stackFloor) else { return "" }
+            var parts: [String] = []
+            for child in node.children where count < MathLimits.nodes {
+                parts.append(divisionOperand(child, depth: depth + 1, alignment: alignment))
+            }
+            return words.phrase(parts)
+        }
+        return reading(of: node, depth: depth)
+    }
+
+    private mutating func read(_ rows: ArraySlice<StackRow>, alignment: MathStackAlignment) -> [String] {
         var parts: [String] = [], number = 0
-        for row in rows where row.depth < MathLimits.depth && count < MathLimits.nodes {
+        for row in rows {
+            guard row.depth < MathLimits.depth, count < MathLimits.nodes, !isTextSpent else { break }
             switch row.node.name {
             case "msline":
                 count += 1
-                parts.append(words.line)
-            case "mscarries":
-                parts.append(carries(row.node, depth: row.depth))
+                let length = max(MathStackAlignment.columns(row.node, "length"), 0)
+                if length == 0 { parts.append(words.phrase(words.line, words.spatial.fullWidth)) }
+                else {
+                    let start = alignment.firstColumn(count: length, decimalPoint: nil, position: row.position)
+                    // Announce endpoints, never allocate an attribute-sized list of columns.
+                    parts.append(words.phrase(words.line, words.column(start), words.column(start + length - 1)))
+                }
+            case "mscarries": parts.append(carries(row, alignment: alignment))
             default:
                 number += 1
-                parts += [words.row(number), digits(row)]
+                let text = digits(row, alignment: alignment)
+                if !text.isEmpty { parts += [words.row(number), text] }
             }
         }
         return parts
     }
 
-    private static let strikes: Set<String> = ["updiagonalstrike", "downdiagonalstrike", "verticalstrike", "horizontalstrike"]
+    private static let strikes: [(Crossout, String)] = [
+        (.up, "updiagonalstrike"), (.down, "downdiagonalstrike"),
+        (.vertical, "verticalstrike"), (.horizontal, "horizontalstrike"),
+    ]
 
-    /// An `mscarries` row: its carries in order, a column without one said as blank so the
-    /// listener can count along the row below. `crossout` strikes the digit under a carry, not
-    /// the carry itself (MathML 3 §3.6.5), which is how a borrow replaces the digit it changes.
-    private mutating func carries(_ node: MathMLNode, depth: Int) -> String {
+    /// MathML does not encode whether an annotation is a carry or a borrow.
+    /// Describe both possibilities and the geometry, without guessing the operation.
+    private mutating func carries(_ row: StackRow, alignment: MathStackAlignment) -> String {
+        let node = row.node
         count += 1
-        guard depth + 1 < MathLimits.depth else { return "" }
+        guard row.depth + 1 < MathLimits.depth else { return "" }
+        let start = alignment.firstColumn(count: node.children.count, decimalPoint: nil, position: row.position)
+        let inheritedLocation = CarryLocation(attribute: node.attributes["location"]) ?? .n
         var parts: [String] = []
-        for (index, carry) in node.children.enumerated() where count < MathLimits.nodes {
-            if index > 0 { parts.append(",") }
-            let text = reading(of: carry, depth: depth + 1), entry = isBlank(carry) ? words.blank : text
-            // An `mscarry` may override the row's crossout, with "none" to spare its digit. A bare
-            // `none` is no carry, and the row's crossout is for the columns that have one (3.6.5.2).
-            // Only the strikes layout draws are said, so the reading and the drawing agree.
+        for (index, carry) in node.children.enumerated() {
+            guard count < MathLimits.nodes, !isTextSpent else { break }
+            let text = divisionOperand(carry, depth: row.depth + 1)
+            let blank = carry.name == "none" || (carry.name == "mscarry" && carry.children.allSatisfy { $0.name == "none" })
+            guard !text.isEmpty || blank else { continue }
             let own = carry.name == "mscarry" ? carry.attributes["crossout"] : nil
             let crossout = carry.name == "none" ? "" : own ?? node.attributes["crossout"] ?? ""
-            let isStruck = crossout.split(whereSeparator: \.isWhitespace).contains { Self.strikes.contains($0.lowercased()) }
-            parts.append(isStruck ? words.crossedOut(entry) : entry)
+            let strikes = Crossout(attribute: crossout) ?? []
+            let styles = Self.strikes.filter { strikes.contains($0.0) }.compactMap { words.spatial.strikes[$0.1] }
+            let location = CarryLocation(attribute: carry.name == "mscarry" ? carry.attributes["location"] : nil) ?? inheritedLocation
+            var entry = blank ? words.blank : text
+            if !styles.isEmpty { entry = words.phrase(words.crossedOut(entry), words.phrase(styles)) }
+            parts.append(words.phrase(words.column(start + index), blank && carry.name == "none" ? "" : words.spatial.locations[location] ?? "", entry))
         }
-        return words.carries(words.phrase(parts))
+        return parts.isEmpty ? "" : words.phrase(words.spatial.carriesOrBorrows, words.phrase(parts))
     }
 }

@@ -534,7 +534,7 @@ final class FuzzTests: MathTestCase {
             return paths(try LayoutEngine(fontName: nil).layout(try node(body), context, depth: 0))
         }
         func read(_ body: String) throws -> Int {
-            try node(body).accessibilityDescription.components(separatedBy: "with the digit below crossed out").count - 1
+            try node(body).accessibilityDescription.components(separatedBy: "with the column's digit crossed out").count - 1
         }
         let rows = [
             ("<mscarries crossout='updiagonalstrike'><mn>4</mn><none/></mscarries>", 1),

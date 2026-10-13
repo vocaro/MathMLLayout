@@ -389,27 +389,27 @@ final class AcceptanceTests: MathTestCase {
             let compact = text.replacingOccurrences(of: " ", with: "")
             var found: [Int] = []
             for part in parts {
-                guard let range = compact.range(of: part) else { return nil }
+                guard let range = compact.range(of: part.replacingOccurrences(of: " ", with: "")) else { return nil }
                 found.append(compact.distance(from: compact.startIndex, to: range.lowerBound))
             }
             return found
         }
         let sum = try node(addition).accessibilityDescription
-        let rows = try XCTUnwrap(positions(of: ["424", "338", "762"], in: sum), sum)
+        let rows = try XCTUnwrap(positions(of: ["row 1: column minus 3: four column minus 2: two column minus 1: four", "row 2: column minus 4: plus column minus 3: three column minus 2: three column minus 1: eight", "row 3: column minus 3: seven column minus 2: six column minus 1: two"], in: sum), sum)
         XCTAssertEqual(rows, rows.sorted(), sum)
         XCTAssertTrue(sum.contains("plus"), sum)
         XCTAssertGreaterThan(sum.split(separator: " ").count, 8, "rows, the carry and the line are announced: \(sum)")
 
         let quotient = try node(division("lefttop")).accessibilityDescription
-        let parts = try XCTUnwrap(positions(of: ["3", "1306", "12", "10", "9", "16", "15"], in: quotient), quotient)
-        XCTAssertFalse(parts.isEmpty)
-        XCTAssertTrue(quotient.contains("435.3") || quotient.replacingOccurrences(of: " ", with: "").contains("435.3"), quotient)
+        let parts = try XCTUnwrap(positions(of: ["divisor: three", "dividend: column minus 4: one column minus 3: three column minus 2: zero column minus 1: six", "row 1:", "row 2:", "row 3:", "row 4:", "row 5:"], in: quotient), quotient)
+        XCTAssertEqual(parts, parts.sorted(), quotient)
+        XCTAssertTrue(quotient.contains("result: column minus 3: four column minus 2: three column minus 1: five column 0: point column 1: three"), quotient)
         // Localized like everything else.
         let french = try node(addition).accessibilityDescription(locale: Locale(identifier: "fr"))
         XCTAssertEqual(french.language, "fr")
         XCTAssertNotEqual(french.text, sum)
         XCTAssertFalse(french.text.contains("row"), french.text)
-        let frenchRows = try XCTUnwrap(positions(of: ["424", "338", "762"], in: french.text), french.text)
+        let frenchRows = try XCTUnwrap(positions(of: ["ligne 1 : colonne moins 3: quatre colonne moins 2: deux colonne moins 1: quatre", "ligne 2 : colonne moins 4: plus colonne moins 3: trois colonne moins 2: trois colonne moins 1: huit", "ligne 3 : colonne moins 3: sept colonne moins 2: six colonne moins 1: deux"], in: french.text), french.text)
         XCTAssertEqual(frenchRows, frenchRows.sorted(), french.text)
     }
 

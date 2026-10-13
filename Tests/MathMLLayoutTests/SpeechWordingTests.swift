@@ -35,12 +35,41 @@ final class SpeechWordingTests: MathTestCase {
         }
     }
 
-    /// The check names supported by MathCAT's fr/de tests and es unicode map.
-    /// Italian caron remains unverified and is deliberately not an audited expectation.
+    /// MathCAT supplies fr/de/es names; SRE's Italian U+010D name supplies con caron.
     func testSupportedCheckAccentNames() throws {
-        for (language, expected) in [("fr", "x caron"), ("de", "x Caron"), ("es", "x carón")] {
+        for (language, expected) in [("fr", "x caron"), ("de", "x Caron"), ("es", "x carón"), ("it", "x con caron")] {
             try assertReading("<mover><mi>x</mi><mo>ˇ</mo></mover>", language: language, expected: expected)
         }
+    }
+
+    /// Exact postfix underbar actions (or the French enclosure label) and U+23DF names.
+    func testSourceBackedUnderbarAndUnderbraceNames() throws {
+        let readings = [
+            ("en", "x underbar", "x bottom brace"),
+            ("fr", "x trait souscrit", "x accolade inférieure"),
+            ("de", "x Unterstrich", "x Untere geschweifte Klammer"),
+            ("es", "x subbarra", "x corchete rizado inferior"),
+            ("it", "x con barra sotto", "x parentesi graffa inferiore"),
+        ]
+        for (language, bar, brace) in readings {
+            try assertReading("<munder><mi>x</mi><mo>_</mo></munder>", language: language, expected: bar)
+            try assertReading("<munder><mi>x</mi><mo>⏟</mo></munder>", language: language, expected: brace)
+        }
+    }
+
+    /// SRE HighRoot012/015 and MathCAT ordinal_root/simple_mi_root supply these cores.
+    /// MathMLLayout keeps its existing closure policy and MathCAT French root order.
+    func testSourceBackedRootFixturesAndSpanishVariableFallback() throws {
+        for (language, expected) in [
+            ("fr", "racine quatrième de n fin de racine"),
+            ("de", "vierte Wurzel aus n Ende Wurzel"),
+            ("es", "cuarta raíz de n fin de raíz"),
+            ("it", "radice quarta di n fine radice"),
+        ] {
+            try assertReading("<mroot><mi>n</mi><mn>4</mn></mroot>", language: language, expected: expected)
+        }
+        try assertReading("<mroot><mi>d</mi><mi>n</mi></mroot>", language: "it", expected: "radice n-esima di d fine radice")
+        try assertReading("<mroot><mi>d</mi><mi>n</mi></mroot>", language: "es", expected: "raíz de índice n de d fin de raíz")
     }
 
     /// SRE's greekSmall alphabet entries and MathCAT's non-terse ∂ rules agree for
