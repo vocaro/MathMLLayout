@@ -1337,8 +1337,10 @@ final class LayoutEngine {
         if node.name == "mi", variant == nil, text.unicodeScalars.count == 1, !Self.hasGlyph(node) { variant = .italic }
         if let variant { text = variant.apply(to: text) }
         guard images.isEmpty else { return textBox(text, images: images, context, retainSegments: node.name == "mtext") }
-        var box = textBox(text, context)
-        if node.name == "mtext", context.lines.linebreak != .nobreak, text.contains(" ") {
+        let canSegment = node.name == "mtext" && context.lines.linebreak != .nobreak && text.contains(" ")
+            && Self.hasSimpleLTRWordBoundaries(text, direction: context.direction)
+        var box = textBox(text, context, retainSegments: canSegment, requireSeparatedSpaces: canSegment)
+        if node.name == "mtext", context.lines.linebreak != .nobreak, text.contains(" "), box.textSegments == nil {
             let source = LogicalTextSource(attributedText(text, context), color: context.color, work: textWork)
             if source.words.count > 1 {
                 box.textSlice = LogicalTextSlice(source: source, range: 0..<text.utf16.count)
@@ -1356,13 +1358,28 @@ final class LayoutEngine {
         return box
     }
 
+    /// ASCII letters, digits and spaces have no bidi controls, mirrored punctuation or RTL
+    /// runs under an LTR/natural paragraph direction. Their full-token glyphs can be split in
+    /// one pass at spaces, retaining ligatures and fallback fonts within each word. Everything
+    /// else uses logical ranges of the original paragraph typesetter for per-line shaping.
+    static func hasSimpleLTRWordBoundaries(_ text: String, direction: CTWritingDirection) -> Bool {
+        direction != .rightToLeft && text.utf16.allSatisfy {
+            $0 == 0x20 || (0x30...0x39).contains($0) || (0x41...0x5A).contains($0) || (0x61...0x7A).contains($0)
+        }
+    }
+
     /// Text shaped by CoreText with the math font; characters it lacks come from the
     /// system's fallback fonts.
-    func textBox(_ text: String, _ context: LayoutContext, retainSegments: Bool = false) -> MathBox {
+    func textBox(_ text: String, _ context: LayoutContext, retainSegments: Bool = false,
+                 requireSeparatedSpaces: Bool = false) -> MathBox {
         guard !text.isEmpty else { return .empty() }
+        textWork.requestedLine()
         let line = CTLineCreateWithAttributedString(attributedText(text, context))
         var box = Self.shapedTextBox(line, color: context.color)
-        if retainSegments { box.textSegments = textSegments(text, line: line, box: box) }
+        if retainSegments {
+            box.textSegments = textSegments(text, line: line, box: box,
+                requireSeparatedSpaces: requireSeparatedSpaces)
+        }
         return box
     }
 

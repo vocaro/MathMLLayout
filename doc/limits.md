@@ -18,7 +18,11 @@ at the last source row. Cell rebuilds share separate limits of 1,280,000 node vi
 visits per pass; cached tables charge their original descendant count and measured grid work.
 Logical text range requests and row assembly share 2,000,000 units per pass: requested UTF-16
 range lengths (including cache hits) plus row units visited. This counter does not measure
-elapsed time or CoreText's internal paragraph resolution and shaping cost; long paragraphs can
+elapsed time or CoreText's internal paragraph resolution and shaping cost. Plain ASCII letters,
+digits and U+0020 spaces under LTR/natural direction reuse their full-token glyphs and word
+metrics in one pass, provided CoreText preserves separate space clusters. Other plain text
+retains full-paragraph bidi context and per-line shaping. Formula-only candidate spans use
+constant-time ink summaries even in paragraphs containing logical text. Long logical paragraphs can
 still take substantial time. Narrow paragraphs can exhaust the budget before the input limit.
 
 ### Worker stack coverage

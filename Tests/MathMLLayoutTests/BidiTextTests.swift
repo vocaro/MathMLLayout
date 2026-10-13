@@ -176,6 +176,52 @@ final class BidiTextTests: MathTestCase {
         }
     }
 
+    func testSimpleLTRFallbackFontsAndInheritedRTLContext() throws {
+        let text = "AB office CD"
+        let style = MathStyle(fontSize: 20, color: black, fontName: fontName)
+        func measure(_ direction: String?) throws -> (MathBox, TextShapingWork) {
+            let root = MathMLNode(name: "math", attributes: direction.map { ["dir": $0] } ?? [:],
+                                  children: [MathMLNode(name: "mtext", text: text)])
+            let engine = LayoutEngine(fontName: fontName)
+            return (try engine.layoutRoot(root, style: style), engine.textWork)
+        }
+        let fast = try measure(nil), rtl = try measure("rtl")
+        XCTAssertEqual(fast.1.lineRequests, 1)
+        XCTAssertGreaterThan(rtl.1.lineRequests, 1, "Inherited RTL must retain the contextual paragraph source")
+        XCTAssertTrue(Paragraph(rtl.0).units.contains { $0.box.logicalTextSlice != nil })
+        var fonts: Set<String> = []
+        func collect(_ box: MathBox) {
+            for item in box.items {
+                if case .glyphs(let run) = item { fonts.insert(CTFontCopyPostScriptName(run.font) as String) }
+                if case .box(let child, _) = item { collect(child) }
+            }
+        }
+        for width: CGFloat in [0, 45, 100] {
+            let fastRows = Paragraph(fast.0).rows(limit: width, first: width, auto: (.left, 0))
+            let rtlRows = Paragraph(rtl.0).rows(limit: width, first: width, auto: (.left, 0))
+            XCTAssertEqual(fastRows.map { $0.box.width }, rtlRows.map { $0.box.width })
+            for row in fastRows { collect(row.box) }
+        }
+        XCTAssertTrue(fonts.contains(fontName))
+        XCTAssertGreaterThan(fonts.count, 1, "ASCII fast-path fragments must retain the fallback font for office")
+    }
+
+    func testLogicalRangeCacheHitsKeepWorkAccountingAndExhaustionStopsLineRequests() throws {
+        let root = MathMLNode(name: "math", children: [MathMLNode(name: "mtext", text: "אב גד")])
+        let engine = LayoutEngine(fontName: fontName)
+        let box = try engine.layoutRoot(root, style: MathStyle(fontSize: 20, color: black, fontName: fontName))
+        let source = try XCTUnwrap(Paragraph(box).units.first?.box.logicalTextSlice?.source)
+        let work = engine.textWork
+        let requests = work.lineRequests, spent = work.spent
+        _ = source.box(source.words[0])
+        XCTAssertEqual(work.lineRequests, requests, "A cache hit must not request another CoreText line")
+        XCTAssertEqual(work.spent, spent + source.words[0].count, "Cached glyph assembly still consumes the shared work budget")
+        XCTAssertTrue(work.consume(TextShapingWork.limit - work.spent))
+        _ = source.box(0..<5)
+        XCTAssertTrue(work.exhausted)
+        XCTAssertEqual(work.lineRequests, requests, "Exhaustion must be checked before a new range is shaped")
+    }
+
     func testTextWorkBudgetIsSharedAndStopsBeforeShaping() {
         let work = TextShapingWork()
         XCTAssertTrue(work.consume(TextShapingWork.limit))

@@ -222,7 +222,7 @@ extension LayoutEngine {
     /// Slice an already-shaped line at logical ordinary spaces. Glyph identity is not a word
     /// boundary: a font may use the same glyph for a no-break space. String indices also keep
     /// ligatures and combining marks with their source word, without reshaping its text.
-    func textSegments(_ text: String, line: CTLine, box: MathBox) -> [TextSegment]? {
+    func textSegments(_ text: String, line: CTLine, box: MathBox, requireSeparatedSpaces: Bool = false) -> [TextSegment]? {
         let runs = (CTLineGetGlyphRuns(line) as? [CTRun] ?? []).filter { CTRunGetGlyphCount($0) > 0 }
         // Visual RTL runs need per-line shaping before they can wrap in source order.
         guard !runs.contains(where: { CTRunGetStatus($0).contains(.rightToLeft) }) else { return nil }
@@ -241,6 +241,9 @@ extension LayoutEngine {
         // the source-order boundaries in one pass, using each piece's first visual glyph origin.
         var offsets = [CGFloat](repeating: .infinity, count: starts.count) + [box.width]
         var edge = -CGFloat.infinity, previousOwner = 0
+        // A font may ligate across a space. Such a cluster cannot be split into words using
+        // the original glyphs: keep the paragraph typesetter path for the plain LTR fast path.
+        var representedSpaces: Set<Int> = []
         var indexedRuns: [(GlyphRun, [CFIndex])] = []
         for (run, item) in zip(runs, box.items) {
             guard case .glyphs(let drawing) = item else { return nil }
@@ -248,6 +251,7 @@ extension LayoutEngine {
             CTRunGetStringIndices(run, CFRange(), &indices)
             for index in indices.indices {
                 guard indices[index] >= 0, indices[index] < owners.count else { return nil }
+                if requireSeparatedSpaces, units[indices[index]] == 0x20 { representedSpaces.insert(indices[index]) }
                 let owner = owners[indices[index]]
                 let x = drawing.positions[index].x
                 // Keep the legacy conservative policy for visually reordered drawing origins.
@@ -257,6 +261,8 @@ extension LayoutEngine {
             }
             indexedRuns.append((drawing, indices))
         }
+        if requireSeparatedSpaces,
+           units.indices.contains(where: { units[$0] == 0x20 && !representedSpaces.contains($0) }) { return nil }
         // A wholly invisible piece has no advance and shares the next boundary.
         for index in starts.indices.reversed() where !offsets[index].isFinite { offsets[index] = offsets[index + 1] }
         offsets[0] = 0

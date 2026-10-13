@@ -8,6 +8,12 @@ final class TextShapingWork {
     static let limit = 2_000_000
     private(set) var spent = 0
     private(set) var exhausted = false
+    /// CoreText line requests, independently of cache hits and the UTF-16/assembly work budget.
+    private(set) var lineRequests = 0
+    private(set) var rowAssemblies = 0
+
+    func requestedLine() { lineRequests += 1 }
+    func assembledRow() { rowAssemblies += 1 }
 
     func consume(_ count: Int) -> Bool {
         guard !exhausted, count <= Self.limit - spent else { exhausted = true; return false }
@@ -56,6 +62,7 @@ final class LogicalTextSource {
         }
         words = ranges
         if let space = units.firstIndex(of: 0x20) {
+            work.requestedLine()
             spaceWidth = CGFloat(CTLineGetTypographicBounds(
                 CTTypesetterCreateLine(typesetter, CFRange(location: space, length: 1)), nil, nil, nil))
         } else { spaceWidth = 0 }
@@ -66,6 +73,7 @@ final class LogicalTextSource {
         // Count cache hits too: repeatedly assembling arbitrarily long rows must also stay bounded.
         guard work.consume(range.count) else { return .empty(width: MathLimits.extent + 1) }
         if let cached = boxes[range] { return cached }
+        work.requestedLine()
         let line = CTTypesetterCreateLine(typesetter, CFRange(location: range.lowerBound, length: range.count))
         let box = LayoutEngine.shapedTextBox(line, color: color)
         boxes[range] = box

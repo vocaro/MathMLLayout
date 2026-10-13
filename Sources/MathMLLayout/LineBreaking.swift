@@ -815,7 +815,13 @@ struct Paragraph {
     static let emptiness: CGFloat = 60, rowCost: CGFloat = 10, nesting: CGFloat = 25, overflow: CGFloat = 1_000_000
 
     private(set) var units: [Unit] = []
-    private var hasLogicalText = false
+    /// Prefix counts let a candidate formula-only span retain the constant-time ink summaries
+    /// even when another part of the paragraph requires contextual text shaping.
+    private var logicalTextCounts: [Int] = []
+
+    private func containsLogicalText(_ i: Int, _ j: Int) -> Bool {
+        logicalTextCounts[stops[j].at] != logicalTextCounts[stops[i].at]
+    }
     private var textWork: TextShapingWork?
     var textWorkExceeded: Bool {
         textWork?.exhausted == true || units.contains { $0.box.fenceLayout?.textWork.exhausted == true }
@@ -905,7 +911,11 @@ struct Paragraph {
         }
         if units.isEmpty { units = [Unit(box: box, x: 0, ink: box.spacingInkBounds)] }
         textWork = units.first { $0.box.logicalTextSlice != nil }?.box.logicalTextSlice?.source.work
-        hasLogicalText = textWork != nil
+        logicalTextCounts = [0]
+        logicalTextCounts.reserveCapacity(units.count + 1)
+        for unit in units {
+            logicalTextCounts.append(logicalTextCounts.last! + (unit.box.logicalTextSlice == nil ? 0 : 1))
+        }
         var opened: [Int] = []
         for index in units.indices {
             guard let op = units[index].box.op, op.has(.fence), let point = op.breakPoint else { continue }
@@ -1229,7 +1239,7 @@ struct Paragraph {
     /// measure the same per-line shape they draw, under the shared shaping/assembly budget.
     private func extent(_ i: Int, _ j: Int) -> (width: CGFloat, left: CGFloat) {
         if i == 0, j == stops.count - 1 { return entire }
-        if hasLogicalText {
+        if containsLogicalText(i, j) {
             let built = row(i, j)
             return (built.box.width, built.left)
         }
@@ -1258,6 +1268,7 @@ struct Paragraph {
         if let textWork, !textWork.consume(end - first) {
             return (.empty(width: MathLimits.extent + 1), 0, [:])
         }
+        textWork?.assembledRow()
         let head = stops[i].insert.flatMap { inserts[$0].head }
         let tail = stops[j].insert.flatMap { inserts[$0].tail }
         var ascent = -CGFloat.infinity, descent = -CGFloat.infinity
@@ -1481,7 +1492,7 @@ struct Paragraph {
                     let to = rightmost.map { $0(firstUnit..<endUnit) } ?? inkTo[endUnit]
                     let left = max(0, starts[i] - from - stops[i].headAdvance, stops[i].headLeft)
                     let right = max(end, to, starts[i] - stops[i].headAdvance + stops[i].headInk)
-                    let measured = hasLogicalText ? extent(i, middle).width
+                    let measured = containsLogicalText(i, middle) ? extent(i, middle).width
                         : stops[i].headAdvance + right - starts[i] + left
                     let fits = measured <= room + Self.slop
                     if fits { low = middle } else { high = middle - 1 }
