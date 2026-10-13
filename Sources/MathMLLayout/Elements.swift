@@ -84,19 +84,21 @@ extension LayoutEngine {
         let verticalGap = value(\.skewedFractionVerticalGap, context)
         let numeratorShift = axis + verticalGap / 2 + max(numerator.descent, 0)
         let denominatorShift = max(denominator.ascent, 0) - axis + verticalGap / 2
-        var slash = textBox("/", context)
+        var signContext = context
+        signContext.direction = .leftToRight
+        var slash = textBox("/", signContext)
         let height = numeratorShift + numerator.ascent + denominatorShift + denominator.descent
         if let glyph = singleGlyph(slash), let stretched = stretchedGlyph(glyph, vertical: true, size: height, context) {
             slash = stretched
         }
+        if context.alignmentRTL { slash = reflectedDecoration(slash) }
         slash = centered(slash, on: (numeratorShift + numerator.ascent - denominatorShift - denominator.descent) / 2)
-        var box = MathBox()
-        box.add(numerator, at: CGPoint(x: 0, y: numeratorShift))
         let slashX = numerator.width + horizontalGap / 2 - slash.width / 2
-        box.add(slash, at: CGPoint(x: slashX, y: 0))
         let denominatorX = max(numerator.width + horizontalGap, slashX + slash.width)
-        box.add(denominator, at: CGPoint(x: denominatorX, y: -denominatorShift))
-        box.width = denominatorX + denominator.width
+        var box = MathBox(width: denominatorX + denominator.width)
+        box.add(numerator, at: CGPoint(x: schemaX(0, numerator.width, box.width, context), y: numeratorShift))
+        box.add(slash, at: CGPoint(x: schemaX(slashX, slash.width, box.width, context), y: 0))
+        box.add(denominator, at: CGPoint(x: schemaX(denominatorX, denominator.width, box.width, context), y: -denominatorShift))
         box.ascent = max(numeratorShift + numerator.ascent, slash.ascent)
         box.descent = max(denominatorShift + denominator.descent, slash.descent)
         return box
@@ -111,18 +113,23 @@ extension LayoutEngine {
         let gap = context.display ? value(\.radicalDisplayStyleVerticalGap, context) : value(\.radicalVerticalGap, context)
         let target = base.ascent + base.descent + gap + thickness
         var sign: MathBox
-        let natural = textBox("√", context)
+        // The surd is a structural decoration, independent of the radicand's token bidi.
+        // Shape it once in LTR, then reflect only the sign for RTL, including font assemblies.
+        var signContext = context
+        signContext.direction = .leftToRight
+        let natural = textBox("√", signContext)
         if let glyph = singleGlyph(natural), font.table != nil {
             sign = stretchedGlyph(glyph, vertical: true, size: target, context) ?? glyphBox(glyph, context)
         } else {
             sign = drawnDelimiter("√", height: target, context) ?? natural
         }
+        if context.alignmentRTL { sign = reflectedDecoration(sign) }
         // Extra height in the sign is shared between the gap and the depth below the base.
         let clearance = gap + max(0, sign.height - target) / 2
         let top = base.ascent + clearance + thickness
         let signShift = top - sign.ascent
         var x: CGFloat = 0
-        var box = MathBox()
+        var indexPoint: CGPoint?
         var ascent = top + value(\.radicalExtraAscender, context)
         var descent = max(base.descent, sign.descent - signShift)
         if let index {
@@ -130,20 +137,24 @@ extension LayoutEngine {
             let raise = constants.radicalDegreeBottomRaisePercent / 100
             let indexShift = signShift - sign.descent + raise * sign.height + index.descent
             x = max(before + index.width + after, 0)
-            box.add(index, at: CGPoint(x: max(x - after - index.width, 0), y: indexShift))
+            indexPoint = CGPoint(x: max(x - after - index.width, 0), y: indexShift)
             ascent = max(ascent, indexShift + index.ascent)
             descent = max(descent, index.descent - indexShift)
         }
-        box.add(sign, at: CGPoint(x: x, y: signShift))
+        var box = MathBox(width: x + sign.width + base.width)
+        if let index, let point = indexPoint {
+            box.add(index, at: CGPoint(x: schemaX(point.x, index.width, box.width, context), y: point.y))
+        }
+        box.add(sign, at: CGPoint(x: schemaX(x, sign.width, box.width, context), y: signShift))
         x += sign.width
-        box.items.append(.rect(CGRect(x: x, y: top - thickness, width: base.width, height: thickness), context.color))
-        box.add(base, at: CGPoint(x: x, y: 0))
-        box.width = x + base.width
+        let baseX = schemaX(x, base.width, box.width, context)
+        box.items.append(.rect(CGRect(x: baseX, y: top - thickness, width: base.width, height: thickness), context.color))
+        box.add(base, at: CGPoint(x: baseX, y: 0))
         box.ascent = ascent
         box.descent = descent
         // A radicand too wide for the line stacks in lines under the one bar, beside the sign as wide
         // as it was: taller, it may be wider.
-        if wraps, let stacked = wrapped(base, beside: x, align: .left) {
+        if wraps, let stacked = wrapped(base, beside: x, align: context.alignmentRTL ? .right : .left) {
             return radical(base: stacked, index: index, context, wraps: false)
         }
         return box
@@ -160,12 +171,7 @@ extension LayoutEngine {
         case "msubsup": try arity(node, 3)
         default: guard !children.isEmpty else { throw MathLayoutError.invalidMarkup(node.name) }
         }
-        // Script placement remains LTR in the staged RTL implementation. Keep the
-        // base's inherited row progression consistent with that schema, while retaining
-        // its token bidi direction. Explicit row direction overrides still apply.
-        var baseContext = context
-        baseContext.alignmentRTL = false
-        let base = try layout(children[0], baseContext, embellishment, depth: depth + 1)
+        let base = try layout(children[0], context, embellishment, depth: depth + 1)
         let pairs = try scriptPairs(node, context, depth: depth)
         return attachScripts(base, post: pairs.post, pre: pairs.pre, context)
     }
@@ -241,7 +247,7 @@ extension LayoutEngine {
             if lift > 0 { superShift += lift; subShift -= lift }
         }
         let space = value(\.spaceAfterScript, context)
-        var box = MathBox()
+        var placements: [(MathBox, CGPoint)] = []
         var x: CGFloat = 0
         var ascent = base.ascent, descent = base.descent
         // A base that is a row may break across lines, as in a long bracketed sum squared. Its
@@ -257,41 +263,46 @@ extension LayoutEngine {
         }
         func place(_ sub: MathBox?, _ sup: MathBox?, subX: CGFloat, supX: CGFloat) {
             if let sub {
-                box.add(sub, at: CGPoint(x: subX, y: -subShift))
+                placements.append((sub, CGPoint(x: subX, y: -subShift)))
                 keep(sub, at: CGPoint(x: subX, y: -subShift))
                 descent = max(descent, subShift + sub.descent); ascent = max(ascent, sub.ascent - subShift)
             }
             if let sup {
-                box.add(sup, at: CGPoint(x: supX, y: superShift))
+                placements.append((sup, CGPoint(x: supX, y: superShift)))
                 keep(sup, at: CGPoint(x: supX, y: superShift))
                 ascent = max(ascent, superShift + sup.ascent); descent = max(descent, sup.descent - superShift)
             }
         }
         for (index, (sub, sup)) in pre.enumerated() {
             let adjacent = index == pre.count - 1
-            let subKern = adjacent ? sub.map { scriptKern(base, $0, shift: -subShift, upper: false, before: true) } ?? 0 : 0
-            let supKern = adjacent ? sup.map { scriptKern(base, $0, shift: superShift, upper: true, before: true) } ?? 0 : 0
+            let subKern = adjacent ? sub.map { scriptKern(base, $0, shift: -subShift, upper: false, before: !context.alignmentRTL) } ?? 0 : 0
+            let supKern = adjacent ? sup.map { scriptKern(base, $0, shift: superShift, upper: true, before: !context.alignmentRTL) } ?? 0 : 0
             let width = max(0, (sub?.width ?? 0) + subKern, (sup?.width ?? 0) + supKern)
             place(sub, sup, subX: x + width - (sub?.width ?? 0) - subKern,
                   supX: x + width - (sup?.width ?? 0) - supKern)
             x += width + space
         }
-        box.add(base, at: CGPoint(x: x, y: 0))
+        placements.append((base, CGPoint(x: x, y: 0)))
         if breaks { parts.append(BreakableRow.Child(box: base, x: x, isAttached: !parts.isEmpty)) }
         x += base.width
         for (index, (sub, sup)) in post.enumerated() {
-            let subKern = index == 0 ? sub.map { scriptKern(base, $0, shift: -subShift, upper: false, before: false) } ?? 0 : 0
-            let supKern = index == 0 ? sup.map { scriptKern(base, $0, shift: superShift, upper: true, before: false) } ?? 0 : 0
-            let subX = x - (index == 0 ? base.italicCorrection : 0) + subKern
+            let subKern = index == 0 ? sub.map { scriptKern(base, $0, shift: -subShift, upper: false, before: context.alignmentRTL) } ?? 0 : 0
+            let supKern = index == 0 ? sup.map { scriptKern(base, $0, shift: superShift, upper: true, before: context.alignmentRTL) } ?? 0 : 0
+            // Italic correction describes the glyph's physical right overhang. It does
+            // not become a left overhang when the unchanged glyph has RTL postscripts.
+            let subX = x - (index == 0 && !context.alignmentRTL ? base.italicCorrection : 0) + subKern
             let supX = x + supKern
             place(sub, sup, subX: subX, supX: supX)
             x = max(x, subX + (sub?.width ?? 0), supX + (sup?.width ?? 0)) + space
         }
-        box.width = x
+        var box = MathBox(width: x)
+        for (part, point) in placements {
+            box.add(part, at: CGPoint(x: schemaX(point.x, part.width, x, context), y: point.y))
+        }
         box.ascent = ascent
         box.descent = descent
         box.op = base.op
-        if breaks { box.row = BreakableRow(children: parts, itemCount: box.items.count, width: box.width, rtl: false, context) }
+        if breaks { box.row = BreakableRow(children: parts, itemCount: box.items.count, width: box.width, context) }
         return box
     }
 
@@ -494,7 +505,7 @@ extension LayoutEngine {
         var box = MathBox(width: resolve("width", content.width, reference: content.width, nonNegative: true),
                           ascent: resolve("height", content.ascent, reference: content.ascent, nonNegative: true),
                           descent: resolve("depth", content.descent, reference: content.descent, nonNegative: true))
-        box.add(content, at: CGPoint(x: resolve("lspace", 0, reference: content.width),
+        box.add(content, at: CGPoint(x: schemaX(resolve("lspace", 0, reference: content.width), content.width, box.width, context),
                                      y: resolve("voffset", 0, reference: content.ascent)))
         box.op = content.op
         return box
@@ -514,13 +525,14 @@ extension LayoutEngine {
                                    "actuarial", "madruwb", "radical"]
         let pad = notations.isDisjoint(with: framed) ? 0 : max(stroke * 3, em * 0.12)
         var left = pad, right = pad, top = pad, bottom = pad
-        if notations.contains("longdiv") { left += em * 0.3 }
-        if notations.contains("radical") { left += em * 0.6 }
+        let leading = (notations.contains("longdiv") ? em * 0.3 : 0)
+            + (notations.contains("radical") ? em * 0.6 : 0)
+        if context.alignmentRTL { right += leading } else { left += leading }
         // Content too wide for the line stacks in lines inside the one enclosure. A circle is √2 times
         // as wide as its padded content, so it leaves that share of the line.
         let budget = nextWrapWidth
         let bulge = notations.contains("circle") && budget.isFinite ? (budget - left - right + 2 * pad) * (1 - 0.5.squareRoot()) : 0
-        content = wrapped(content, beside: left + right + bulge, align: .left) ?? content
+        content = wrapped(content, beside: left + right + bulge, align: context.alignmentRTL ? .right : .left) ?? content
         if notations.contains("circle") {
             // An ellipse through the padded box's corners.
             let width = content.width + 2 * pad, height = content.height + 2 * pad
@@ -563,7 +575,8 @@ extension LayoutEngine {
             case "circle": path.addEllipse(in: inner)
             case "left": line(CGPoint(x: inner.minX, y: inner.minY), CGPoint(x: inner.minX, y: inner.maxY))
             case "right", "actuarial", "madruwb":
-                line(CGPoint(x: inner.maxX, y: inner.minY), CGPoint(x: inner.maxX, y: inner.maxY))
+                let side = notation != "right" && context.alignmentRTL ? inner.minX : inner.maxX
+                line(CGPoint(x: side, y: inner.minY), CGPoint(x: side, y: inner.maxY))
                 if notation == "actuarial" { line(CGPoint(x: inner.minX, y: inner.maxY), CGPoint(x: inner.maxX, y: inner.maxY)) }
                 if notation == "madruwb" { line(CGPoint(x: inner.minX, y: inner.minY), CGPoint(x: inner.maxX, y: inner.minY)) }
             case "top": line(CGPoint(x: inner.minX, y: inner.maxY), CGPoint(x: inner.maxX, y: inner.maxY))
@@ -580,13 +593,18 @@ extension LayoutEngine {
             case "downdiagonalstrike": line(CGPoint(x: inner.minX, y: inner.maxY), CGPoint(x: inner.maxX, y: inner.minY))
             case "longdiv":
                 line(CGPoint(x: inner.minX, y: inner.maxY), CGPoint(x: inner.maxX, y: inner.maxY))
-                path.move(to: CGPoint(x: inner.minX, y: inner.maxY))
-                path.addQuadCurve(to: CGPoint(x: inner.minX, y: inner.minY),
-                                  control: CGPoint(x: inner.minX + em * 0.35, y: inner.midY))
+                let side = context.alignmentRTL ? inner.maxX : inner.minX
+                path.move(to: CGPoint(x: side, y: inner.maxY))
+                path.addQuadCurve(to: CGPoint(x: side, y: inner.minY),
+                                  control: CGPoint(x: side + (context.alignmentRTL ? -1 : 1) * em * 0.35, y: inner.midY))
             case "radical":
-                if let sign = drawnDelimiter("√", height: inner.height, context) {
-                    box.add(sign, at: CGPoint(x: inner.minX, y: inner.minY))
-                    line(CGPoint(x: inner.minX + sign.width, y: inner.maxY), CGPoint(x: inner.maxX, y: inner.maxY))
+                if var sign = drawnDelimiter("√", height: inner.height, context) {
+                    if context.alignmentRTL { sign = reflectedDecoration(sign) }
+                    let signX = context.alignmentRTL ? inner.maxX - sign.width : inner.minX
+                    box.add(sign, at: CGPoint(x: signX, y: inner.minY))
+                    let barLeft = context.alignmentRTL ? inner.minX : inner.minX + sign.width
+                    let barRight = context.alignmentRTL ? signX : inner.maxX
+                    line(CGPoint(x: barLeft, y: inner.maxY), CGPoint(x: barRight, y: inner.maxY))
                 }
             default: break
             }

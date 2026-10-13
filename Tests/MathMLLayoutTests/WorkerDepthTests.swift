@@ -115,6 +115,20 @@ final class WorkerDepthTests: MathTestCase {
         }
     }
 
+    func testRTLSchemataAt64LevelsMatchOnAnExact512KBWorker() {
+        for (name, step, wrap) in shapes {
+            let structural = ["subscript", "under-over"].contains(name) ? 48 : 63 / step
+            var root = nested(structural, wrap)
+            root = nested(63 - structural * step, leaf: root) { MathMLNode(name: "mrow", children: [$0]) }
+            root.attributes["dir"] = "rtl"
+            let node = root
+            let reference = onWorker(stack: 8 * 1024 * 1024) { Self.snapshot(node) }
+            guard case .success = reference else { XCTFail("invalid RTL reference shape: \(name)"); continue }
+            XCTAssertEqual(onWorker { Self.snapshot(node) }, reference, name)
+            XCTAssertEqual(onWorker { Self.snapshot(node) }, reference, "repeat RTL \(name)")
+        }
+    }
+
     func testSmallerStacksRetainTheSafetyGuard() {
         for (name, step, wrap) in shapes {
             let root = nested(63 / step, wrap)

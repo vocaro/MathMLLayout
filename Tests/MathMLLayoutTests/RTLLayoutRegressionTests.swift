@@ -47,8 +47,10 @@ final class RTLLayoutRegressionTests: XCTestCase {
             let expected = reference.rows.flatMap { glyphOrigins($0.box, at: $0.origin) }
             let actual = drawn.rows.flatMap { glyphOrigins($0.box, at: $0.origin) }
             XCTAssertEqual(actual.count, expected.count)
+            let scriptWidth = try innerBox("<mstyle scriptlevel='1'><mn>2</mn></mstyle>").width
             for (a, b) in zip(actual, expected) {
-                XCTAssertEqual(a.x - rects[1].minX, b.x - oldRects[1].minX, accuracy: 0.001, name)
+                XCTAssertEqual(a.x - rects[1].minX, -scriptWidth, accuracy: 0.001, name)
+                XCTAssertEqual(b.x - oldRects[1].minX, oldRects[1].width, accuracy: 0.001, name)
                 XCTAssertEqual(a.y - rects[1].minY, b.y - oldRects[1].minY, accuracy: 0.001, name)
             }
         }
