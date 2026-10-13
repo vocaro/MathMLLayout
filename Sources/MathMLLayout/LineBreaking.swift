@@ -238,12 +238,40 @@ extension LayoutEngine {
         var result: [BreakableRow.Child] = []
         result.reserveCapacity(children.count)
         var visible: [Int: MathBox] = [:]
+        var markPositions: [ObjectIdentifier: CGFloat] = [:]
+        for event in box.alignment {
+            if case .mark = event.kind, let identity = event.identity {
+                markPositions[ObjectIdentifier(identity)] = event.x
+            }
+        }
         for (index, child) in children.enumerated() {
             var item = BreakableRow.Child(box: boxes[index], x: offsets[index], point: boxes[index].op?.breakPoint,
                                           isUnary: unary.contains(index), id: child.attributes["id"])
+            if let mark = Self.alignmentMark(child) {
+                // Row assembly resolves a direct mark to its neighbour's effective edge.
+                // Retain that coordinate, rather than the empty marker box's own origin.
+                let x = context.alignmentRTL ? box.width - offsets[index] - item.box.width : offsets[index]
+                let right = mark.attributes["edge"]?.lowercased() == "right"
+                let neighbour = index + ((right != context.alignmentRTL) ? -1 : 1)
+                for event in item.box.alignment.indices {
+                    if let identity = item.box.alignment[event].identity,
+                       let position = markPositions[ObjectIdentifier(identity)] {
+                        item.box.alignment[event].x = position - x
+                        if boxes.indices.contains(neighbour) {
+                            item.box.alignment[event].fenceTarget = boxes[neighbour].fenceLayout
+                            item.box.alignment[event].fenceEdgeRight = right
+                        }
+                    }
+                }
+            }
             switch child.name {
             case "mspace":
                 item.point = spaceBreak(child, context)
+                if item.point != nil, item.box.width == 0, item.box.ascent == 0, item.box.descent == 0 {
+                    // A break-only spacer moves to a new line's edge. It has no content
+                    // extent there and must not enlarge the preceding source group.
+                    item.box.alignment.removeAll { if case .extent = $0.kind { return true }; return false }
+                }
             case "mtext":
                 var textContext = inherit(child, context)
                 // A token's dir controls its text; its words follow the enclosing row's geometry.
@@ -346,7 +374,9 @@ extension LayoutEngine {
                 ? (children.lastIndex { $0.x < mark.x } ?? 0)
                 : (children.firstIndex { $0.x + $0.box.width > mark.x } ?? children.count - 1)
             var event = mark
-            event.x = min(max(0, mark.x - children[index].x), children[index].box.width)
+            // Keep the full caret while neighbouring words share a line. Only the
+            // selected row knows whether the separator beside this word was trimmed.
+            event.x = mark.x - children[index].x
             event.path = []
             children[index].box.alignment.append(event)
         }
@@ -1420,6 +1450,7 @@ struct Paragraph {
         if descent == -.infinity { descent = 0 }
         var delta: CGFloat = 0
         var shifts: [Int: CGFloat] = [:]
+        var fenceEdges: [ObjectIdentifier: (left: CGFloat, right: CGFloat)] = [:]
         func add(_ child: MathBox, _ childInk: CGRect?, at x: CGFloat) {
             if rtl { placements.append((child, x)) }
             else { box.add(child, at: CGPoint(x: x, y: 0)) }
@@ -1430,6 +1461,19 @@ struct Paragraph {
             ink = ink.map { $0.union(placed) } ?? placed
         }
         if let head { add(head, progressionInk(head), at: 0) }
+        func retainedWord(_ index: Int) -> MathBox {
+            let unit = units[index]
+            var word = unit.box
+            guard let group = unit.textGroup else { return word }
+            let keepsBefore = index > first && units[index - 1].textGroup === group
+            let keepsAfter = index + 1 < end && units[index + 1].textGroup === group
+            for event in word.alignment.indices {
+                guard case .mark = word.alignment[event].kind else { continue }
+                if !keepsBefore { word.alignment[event].x = max(0, word.alignment[event].x) }
+                if !keepsAfter { word.alignment[event].x = min(word.width, word.alignment[event].x) }
+            }
+            return word
+        }
         var index = first
         while index < end {
             let unit = units[index]
@@ -1456,7 +1500,7 @@ struct Paragraph {
                 let last = units[next - 1]
                 var text = MathBox(width: last.x + last.box.width - unit.x)
                 for word in index..<next {
-                    let part = units[word].box
+                    let part = retainedWord(word)
                     let wordX = units[word].x - unit.x
                     if word > index, let spaces = part.leadingTextSpace {
                         for space in spaces {
@@ -1476,7 +1520,7 @@ struct Paragraph {
             }
 
             shifts[index] = delta
-            var child = unit.box
+            var child = retainedWord(index)
             var childInk = unit.ink
             if fences.contains(index), let resized = child.fenceLayout?.box(ascent: ascent, descent: descent),
                resized.width <= child.width, resized.height <= child.height,
@@ -1490,6 +1534,13 @@ struct Paragraph {
                     child.alignment[index].order = original.order
                 }
                 childInk = progressionInk(resized)
+                if let target = unit.box.fenceLayout {
+                    let edges = child.alignmentEdges
+                    let position = unit.x + shift + delta
+                    fenceEdges[ObjectIdentifier(target)] = rtl
+                        ? (position + child.width - edges.right, position + child.width - edges.left)
+                        : (position + edges.left, position + edges.right)
+                }
             }
             if index > first, let spaces = child.leadingTextSpace {
                 for space in spaces {
@@ -1509,6 +1560,12 @@ struct Paragraph {
             box.add(child, at: CGPoint(x: rtl ? box.width - x - child.width : x, y: 0))
         }
         for index in box.alignment.indices {
+            if let target = box.alignment[index].fenceTarget,
+               let edges = fenceEdges[ObjectIdentifier(target)] {
+                let right = box.alignment[index].fenceEdgeRight
+                box.alignment[index].x = rtl ? box.width - (right ? edges.left : edges.right)
+                    : (right ? edges.right : edges.left)
+            }
             if let identity = box.alignment[index].identity,
                let order = alignmentPriorities[ObjectIdentifier(identity)] {
                 box.alignment[index].order = order

@@ -50,6 +50,11 @@ left/right/center points use the complete group's horizontal bounds. Cell line b
 baselines need not match those of another cell. Text marks follow their word through shaping;
 a mark in a trimmed separator belongs to the preceding word for `edge="right"`, or the
 following word otherwise. Paragraph-edge marks remain on the first or last word.
+When a separator remains on the line, its mark retains the original caret instead of snapping
+to a word edge. Rebuilt row marks retain their resolved neighbouring-element coordinates;
+marks beside resized fences use the final drawn edge. Break-only spacers carry no content
+extent into their new line's group. Nested backgrounds use the translated fragment extents
+and reserved sections when groups overlap horizontally on different lines.
 
 The table measures a fully broken, aligned layout for its minimum width. If shared side widths
 make an ordinary wrapping trial overflow, that measured layout is the fitting alternative.

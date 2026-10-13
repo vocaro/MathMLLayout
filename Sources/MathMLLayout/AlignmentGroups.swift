@@ -20,6 +20,8 @@ struct AlignmentEvent {
     var path: [Int] = []
     var tokenEdgeRight = false
     var identity: AlignmentIdentity?
+    var fenceTarget: FenceLayout?
+    var fenceEdgeRight = false
 
     init(kind: Kind, x: CGFloat, order: Int = 0, path: [Int] = [], tokenEdgeRight: Bool = false) {
         self.kind = kind; self.x = x; self.order = order; self.path = path; self.tokenEdgeRight = tokenEdgeRight
@@ -134,6 +136,35 @@ extension MathBox {
                 ranges[prefix] = (ranges[prefix]?.first ?? index, index)
             }
         }
+        // On different cell lines, source groups can occupy overlapping horizontal
+        // intervals. Stretching a background by its endpoint shift difference then
+        // counts blank space twice. Measure its actual descendant extents instead.
+        struct BackgroundBounds {
+            var oldLeft: CGFloat
+            var oldRight: CGFloat
+            var left: CGFloat
+            var right: CGFloat
+        }
+        var backgroundBounds: [[Int]: BackgroundBounds] = [:]
+        let overlaps = groups.indices.dropFirst().contains { index in
+            rtl ? groups[index - 1].start < groups[index].end : groups[index - 1].end > groups[index].start
+        }
+        if overlaps {
+            var current = -1
+            for event in alignment {
+                if case .group = event.kind { current += 1 }
+                guard current >= 0, current < shifts.count, case .extent(let size) = event.kind else { continue }
+                for length in 0..<event.path.count {
+                    let prefix = Array(event.path.prefix(length))
+                    guard ranges[prefix] != nil else { continue }
+                    let old = backgroundBounds[prefix]
+                    backgroundBounds[prefix] = BackgroundBounds(oldLeft: min(old?.oldLeft ?? event.x, event.x),
+                        oldRight: max(old?.oldRight ?? event.x + size, event.x + size),
+                        left: min(old?.left ?? event.x + shifts[current], event.x + shifts[current]),
+                        right: max(old?.right ?? event.x + size + shifts[current], event.x + size + shifts[current]))
+                }
+            }
+        }
         func precedes(_ a: [Int], _ b: [Int]) -> Bool { a == b || a.lexicographicallyPrecedes(b) }
         // One cursor per active ancestor retains source order without recursive frames.
         // A hidden ancestor still contributes spacing and groups, but never paints its leaves.
@@ -172,6 +203,17 @@ extension MathBox {
                 var left = cursor.path.isEmpty ? 0 : cursor.origin.x + shifts[rtl ? last : first]
                 var right = cursor.path.isEmpty ? width
                     : left + max(0, rect.width + (rtl ? shifts[first] - shifts[last] : shifts[last] - shifts[first]))
+                if !cursor.path.isEmpty, let bounds = backgroundBounds[cursor.path] {
+                    left = bounds.left - max(0, bounds.oldLeft - cursor.origin.x)
+                    right = bounds.right + max(0, cursor.origin.x + rect.width - bounds.oldRight)
+                    // A complete group also owns the blank space reserved by its section.
+                    for index in first...last where !sections.isEmpty {
+                        if groups[index].start >= cursor.origin.x, groups[index].end <= cursor.origin.x + rect.width {
+                            left = min(left, sections[index].left)
+                            right = max(right, sections[index].right)
+                        }
+                    }
+                }
                 // RTL automatic left alignment can insert blank space at the right edge
                 // without translating either endpoint. A background containing complete
                 // groups must cover those reserved sections as well as their shifted ink.
