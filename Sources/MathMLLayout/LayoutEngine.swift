@@ -59,6 +59,8 @@ struct LayoutContext {
     var lines = LineStyle()
     /// `decimalpoint`: the character a stack's rows align on (`stackalign="decimalpoint"`); nil is ".".
     var decimalPoint: String?
+    /// `rowalign` set by `mstyle` supplies only table defaults (MathML 3 §3.3.4).
+    var tableRowAlign: String?
 }
 
 /// What an embellished operator learns from where it sits: its form from its position in a
@@ -226,6 +228,7 @@ final class LayoutEngine {
         guard !attributes.isEmpty else { return outer }
         var context = outer
         if node.name == "mstyle" {
+            if let rowAlign = attributes["rowalign"] { context.tableRowAlign = rowAlign }
             if let multiplier = attributes["scriptsizemultiplier"].flatMap({ Double($0.trimmingCharacters(in: .whitespaces)) }),
                multiplier > 0.1, multiplier <= 10 {
                 context.sizeMultiplier = CGFloat(multiplier)

@@ -30,7 +30,12 @@ declarations in any encoding, so no entity expands and nothing external loads; i
 - **Speech.** Five languages, without regional variants or grammatical agreement. Token text and
   `alt` are spoken as written. A stack's reading gives its rows, carries and lines in order,
   not their column positions.
-- Cell spans in `mtable` are ignored, and rows align on their baselines only.
+- Cell spans in `mtable` are ignored. A row containing only `top`, `bottom` or `center`
+  entries (including its label) uses its midpoint as its baseline when the table's `align`
+  names that row; MathML 3 leaves that baseline unspecified. Labels contribute to row height
+  to keep their ink inside the table. `equalrows`, `equalcolumns`, `columnwidth` and table
+  `width` are not read;
+  overlap label sides reserve the same space as their non-overlap forms.
 - No kerning from the font's MathKernInfo.
 
 [Documentation index](../README.md#documentation)
