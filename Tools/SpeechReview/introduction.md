@@ -5,7 +5,7 @@ the remaining novel descriptions in English, French, German, Spanish and Italian
 **Every language is awaiting human review.** Generated examples and automated checks do
 not count as linguistic approval.
 
-The [wording audit](../SpeechWordingAudit.md#accepted-evidence-and-remaining-human-review-scope)
+The [wording audit](../speech-wording-audit.md#accepted-evidence-and-remaining-human-review-scope)
 already accepts matching upstream rules, locale maps and fixtures as evidence. Review the
 complete descriptions and joining policies below. Their component accent, symbol, digit,
 punctuation, ordinal and positional script names do not need a new blanket translation review.
@@ -30,7 +30,7 @@ negative numbers lie to its left, and numbers increase to the right. A carry ann
 crossout applies to the associated column digit, even when the annotation sits beside it.
 MathML uses the same carry element for carries and borrows; the engine describes both and
 does not guess which arithmetic operation was intended. Division frames describe presentation,
-not a calculation method or correctness. See the [speech guide](../../doc/speech.md).
+not a calculation method or correctness. See the [speech guide](../speech.md).
 
 ## Review checklist
 

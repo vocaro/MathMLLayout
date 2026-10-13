@@ -1,6 +1,6 @@
 // Selected wording adapted from Speech Rule Engine (Apache-2.0).
 // Modified for MathMLLayout's phrase templates; see THIRD_PARTY_NOTICES.md and
-// Documentation/SpeechWordingAudit.md for sources, decisions and remaining uncertainty.
+// doc/speech-wording-audit.md for sources, decisions and remaining uncertainty.
 /// Italian formula readings.
 enum ItalianVocabulary: MathVocabulary {
     static let language = "it"
@@ -53,7 +53,7 @@ enum ItalianVocabulary: MathVocabulary {
         phrase(base, "da", lower, "fino a", upper)
     }
     // Positional script names adapted from pinned MathCAT/SRE; compound closing
-    // phrases composed for MathMLLayout. See Documentation/SpeechWordingAudit.md.
+    // phrases composed for MathMLLayout. See doc/speech-wording-audit.md.
     static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String {
         let label: String, end: String
         switch position {
@@ -121,7 +121,7 @@ enum ItalianVocabulary: MathVocabulary {
         ])
 
     // Bounded ordinal names adapted from pinned SRE number rules and MathCAT root rules.
-    // See Documentation/SpeechWordingAudit.md; compound indices retain explicit labels.
+    // See doc/speech-wording-audit.md; compound indices retain explicit labels.
     static let ordinalRoots = ["1": "prima", "4": "quarta", "5": "quinta", "6": "sesta", "7": "settima", "8": "ottava", "9": "nona", "10": "decima", "n": "n-esima"]
     static func ordinalRoot(_ radicand: String, ordinal: String) -> String {
         phrase("radice", ordinal, "di", radicand, "fine radice")

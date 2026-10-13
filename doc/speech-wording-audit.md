@@ -123,7 +123,7 @@ The Government of Canada's [élision guide](https://nos-langues.canada.ca/fr/cle
 supports `de` elision before vowels and records uncertainty before letter names. The engine's
 vowel-based joining policy fixes the issue's `de a` example. It does not infer silent `h`, apply
 agreement to arbitrary author text, or claim to resolve every letter-name or regional convention.
-The full structural policies and examples are in the [speech guide](../doc/speech.md).
+The full structural policies and examples are in the [speech guide](speech.md).
 
 ### Additional source-backed decisions
 
@@ -248,7 +248,7 @@ vocabularies. [Structural speech cases](../Tests/MathMLLayoutTests/SpeechStructu
 provide parsed examples for checking how their labels combine. Review these complete descriptions
 in context; a terminology change alone does not validate their sequence or scope.
 
-The [native-speaker review packet](SpeechReview/README.md) supplies stable example IDs,
+The [native-speaker review packet](speech-review/README.md) supplies stable example IDs,
 exact readings in each language, MathML inputs, rendered context and a response checklist
 for issue #63. It records no human approval; reviewers should state language/region and
 case coverage before any description is marked reviewed.
@@ -313,7 +313,7 @@ baseline announcement; MathMLLayout deliberately keeps its base-first source ord
 and explicit side labels. The fixture comparison does not claim identical utterances.
 
 The complete four-corner templates and reading order are in the
-[speech guide](../doc/speech.md#multiscripts). Compound expressions close with
+[speech guide](speech.md#multiscripts). Compound expressions close with
 language-specific subscript/superscript endings (German uses `Ende Index` for both).
 These closing phrases are MathMLLayout compositions, following its existing explicit
 fraction, power and radical closure policy; they are not claimed as complete upstream

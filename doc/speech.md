@@ -127,10 +127,10 @@ also follow those sources. This does not claim new native-speaker or voice valid
 Fresh linguistic review is limited to the novel elementary-math descriptions (columns,
 alignment, lines, carry/borrow locations and crossouts, division frames), compound-script
 closing and other scoped combinations without matching upstream utterances, and French
-joining of arbitrary formula/letter readings. The [wording audit](../Documentation/SpeechWordingAudit.md#accepted-evidence-and-remaining-human-review-scope)
+joining of arbitrary formula/letter readings. The [wording audit](speech-wording-audit.md#accepted-evidence-and-remaining-human-review-scope)
 records exact evidence and adaptations for the completed [#31](https://github.com/vocaro/MathMLLayout/issues/31).
 The remaining human review is tracked in [issue #63](https://github.com/vocaro/MathMLLayout/issues/63).
-The [review packet](../Documentation/SpeechReview/README.md) provides concrete examples in
+The [review packet](speech-review/README.md) provides concrete examples in
 all five languages, rendered context and a checklist for reporting case-level findings.
 Listening with host voices remains useful usability QA; it is not a blanket wording gate.
 

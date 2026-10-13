@@ -6,7 +6,7 @@ the remaining novel descriptions in English, French, German, Spanish and Italian
 **Every language is awaiting human review.** Generated examples and automated checks do
 not count as linguistic approval.
 
-The [wording audit](../SpeechWordingAudit.md#accepted-evidence-and-remaining-human-review-scope)
+The [wording audit](../speech-wording-audit.md#accepted-evidence-and-remaining-human-review-scope)
 already accepts matching upstream rules, locale maps and fixtures as evidence. Review the
 complete descriptions and joining policies below. Their component accent, symbol, digit,
 punctuation, ordinal and positional script names do not need a new blanket translation review.
@@ -31,7 +31,7 @@ negative numbers lie to its left, and numbers increase to the right. A carry ann
 crossout applies to the associated column digit, even when the annotation sits beside it.
 MathML uses the same carry element for carries and borrows; the engine describes both and
 does not guess which arithmetic operation was intended. Division frames describe presentation,
-not a calculation method or correctness. See the [speech guide](../../doc/speech.md).
+not a calculation method or correctness. See the [speech guide](../speech.md).
 
 ## Review checklist
 
@@ -109,7 +109,9 @@ claim that uncommitted vocabulary changes have been reviewed.
 
 ## Example snapshot
 
-Readings and images generated from library revision `43a0bb75e86797638377e7059805460883db5693`. They are actual implementation output, not proposed corrections or human approvals. No audio or voice validation is included.
+Readings and images generated from the checkout at revision `d2496a64154e7478c6e787e04857c464189a186e`. They are actual implementation output, not proposed corrections or human approvals. No audio or voice validation is included.
+
+Library-source SHA-256: `e5d826e35ea96a758ae7ec4f2296424bf3ecfb733f272400fd302a59f1e7522f`. This fingerprint includes any uncommitted Swift source changes present when generating the snapshot.
 
 The examples below retain the implementation's exact text, including punctuation, capitalization and literal author tokens. A formula image shows the current MathMLLayout rendering; it is context for the language review, not an independent rendering oracle.
 
