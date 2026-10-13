@@ -205,13 +205,23 @@ struct Embellishment {
     static let none = Embellishment()
 }
 
+/// Resolved images, including misses, shared by rebuilds without retaining an engine or table cells.
+/// Layout and its rebuilds use this on the same caller thread.
+fileprivate final class LayoutImageCache {
+    var values: [String: MathImage?] = [:]
+}
+
 /// Rebuilds an entire embellished fence, including its scripts, in its original inherited style.
 /// The outer context is retained: applying the element's own relative size twice would change it.
 final class FenceLayout {
     let node: MathMLNode
     let context: LayoutContext
     let form: OperatorForm?
-    let engine: LayoutEngine
+    // Retained measured cells must not own their engine and its table cache.
+    let font: MathFont
+    let imageProvider: MathImageProvider?
+    private let imageCacheStorage: LayoutImageCache
+    let textWork: TextShapingWork
     let lineWidth: CGFloat
     let wrapWidth: CGFloat
     let wrapParts: Range<Int>
@@ -223,16 +233,19 @@ final class FenceLayout {
     init(node: MathMLNode, context: LayoutContext, form: OperatorForm?, engine: LayoutEngine,
          lineWidth: CGFloat, wrapWidth: CGFloat, wrapParts: Range<Int>, wrapOverrides: [Int: CGFloat],
          isCoreGeometry: Bool) {
-        self.node = node; self.context = context; self.form = form; self.engine = engine
+        self.node = node; self.context = context; self.form = form
+        font = engine.font; imageProvider = engine.imageProvider; imageCacheStorage = engine.imageCacheStorage
+        textWork = engine.textWork
         self.lineWidth = lineWidth; self.wrapWidth = wrapWidth
         self.wrapParts = wrapParts; self.wrapOverrides = wrapOverrides
         self.isCoreGeometry = isCoreGeometry
     }
 
     func box(ascent: CGFloat, descent: CGFloat) -> MathBox? {
-        let fresh = LayoutEngine(font: engine.font)
-        fresh.imageProvider = engine.imageProvider
-        fresh.imageCache = engine.imageCache
+        let fresh = LayoutEngine(font: font)
+        fresh.imageProvider = imageProvider
+        fresh.imageCacheStorage = imageCacheStorage
+        fresh.textWork = textWork
         fresh.lineWidth = lineWidth
         fresh.wrapWidth = wrapWidth
         // A wrapping retry's part indices are relative to the complete formula; the rebuilt
@@ -284,8 +297,15 @@ final class LayoutEngine {
     /// `MathLimits.stackFloor` of the thread that lays out, found as the root starts.
     private var stackFloor: UInt = 0
     /// `MathStyle.imageProvider`, and what it has returned for each `src` it was asked for.
-    var imageProvider: MathImageProvider? { didSet { if imageProvider != oldValue { imageCache = [:] } } }
-    var imageCache: [String: MathImage?] = [:]
+    var imageProvider: MathImageProvider? {
+        didSet { if imageProvider != oldValue { imageCacheStorage = LayoutImageCache() } }
+    }
+    fileprivate var imageCacheStorage = LayoutImageCache()
+    var imageCache: [String: MathImage?] {
+        get { imageCacheStorage.values }
+        set { imageCacheStorage.values = newValue }
+        _modify { yield &imageCacheStorage.values }
+    }
 
     init(fontName: String?) {
         font = MathFont.named(fontName)
@@ -864,7 +884,7 @@ final class LayoutEngine {
     func relayoutCell(_ source: TableCellSource, width: CGFloat) throws -> MathBox {
         let fresh = LayoutEngine(font: font)
         fresh.imageProvider = imageProvider
-        fresh.imageCache = imageCache
+        fresh.imageCacheStorage = imageCacheStorage
         fresh.lineWidth = width
         fresh.wrapWidth = width
         fresh.textWork = textWork

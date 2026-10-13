@@ -1,11 +1,90 @@
 import CoreGraphics
 import CoreText
+import Foundation
 @testable import MathMLLayout
 import XCTest
 
 final class WorkerWrappingIntegrationTests: MathTestCase {
     private func box(_ node: MathMLNode) throws -> MathBox {
         try LayoutEngine(fontName: nil).layoutRoot(node, style: MathStyle(fontSize: 12, color: black))
+    }
+
+    func testRetainedTableFenceDoesNotRetainItsLayoutEngine() throws {
+        let table = try node("<mtable><mtr><mtd><mrow><mo fence='true' stretchy='true'>(</mo>"
+            + "<mfrac><mi>x</mi><mi>y</mi></mfrac><mo fence='true' stretchy='true'>)</mo>"
+            + "</mrow></mtd></mtr></mtable>").children[0]
+        let style = MathStyle(fontSize: 20, color: black)
+        var engine: LayoutEngine? = LayoutEngine(fontName: "STIXTwoMath-Regular")
+        weak var weakEngine = engine
+        let retained = try engine!.layoutRoot(table, style: style)
+        XCTAssertNotNil(engine!.tableMeasurements.lookup(table, engine!.rootContext(table, style: style)))
+        func fence(in box: MathBox) -> FenceLayout? {
+            var pending = [box]
+            while let next = pending.popLast() {
+                if let fence = next.fenceLayout { return fence }
+                for item in next.items {
+                    if case .box(let child, _) = item { pending.append(child) }
+                }
+            }
+            return nil
+        }
+        let saved = try XCTUnwrap(fence(in: retained))
+        XCTAssertTrue(saved.textWork === engine!.textWork)
+        let before = try XCTUnwrap(saved.box(ascent: 30, descent: 10))
+        engine = nil
+        withExtendedLifetime(retained) { XCTAssertNil(weakEngine) }
+        let after = try XCTUnwrap(saved.box(ascent: 30, descent: 10))
+        XCTAssertEqual([after.width, after.ascent, after.descent], [before.width, before.ascent, before.descent])
+        XCTAssertEqual(after.inkBounds, before.inkBounds)
+        XCTAssertEqual(after.itemCount, before.itemCount)
+        let paragraph = Paragraph(after, fontSize: 20)
+        XCTAssertNil(after.logicalTextSlice)
+        XCTAssertFalse(paragraph.textWorkExceeded)
+        XCTAssertTrue(saved.textWork.consume(TextShapingWork.limit - saved.textWork.spent))
+        XCTAssertFalse(saved.textWork.consume(1))
+        XCTAssertTrue(paragraph.textWorkExceeded, "fence-only rows must report their retained pass budget")
+    }
+
+    func testRetainedFenceSeesLaterImageCacheEntriesAndKeepsItsProvider() throws {
+        let canvas = CGContext(data: nil, width: 24, height: 16, bitsPerComponent: 8, bytesPerRow: 96,
+                               space: CGColorSpaceCreateDeviceRGB(),
+                               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        let image = MathImage(canvas.makeImage()!, logicalSize: CGSize(width: 37, height: 11))
+        let calls = FenceImageCalls()
+        let provider = MathImageProvider.resolving { source in
+            calls.add(source)
+            return source == "hit" ? image : nil
+        }
+        var engine: LayoutEngine? = LayoutEngine(fontName: nil)
+        weak var weakEngine = engine
+        engine!.imageProvider = provider
+        let context = LayoutContext(fontSize: 20, unclampedSize: 20, minSize: 8, display: false, color: black)
+        let content = MathMLNode(name: "mtext", children: [
+            MathMLNode(name: "mglyph", attributes: ["src": "hit", "alt": "image"]),
+            MathMLNode(name: "mglyph", attributes: ["src": "missing", "alt": "fallback"]),
+        ])
+        // Both entries are resolved after the retained fence is created, including a cached miss.
+        let saved = FenceLayout(node: content, context: context, form: nil, engine: engine!,
+                                lineWidth: .infinity, wrapWidth: .infinity, wrapParts: 0..<0,
+                                wrapOverrides: [:], isCoreGeometry: true)
+        _ = try engine!.layout(content, context, depth: 0)
+        XCTAssertEqual(calls.values, ["hit", "missing"])
+        let cached = try XCTUnwrap(engine!.imageCache["hit"] ?? nil)
+        XCTAssertEqual(cached.logicalSize, image.logicalSize)
+        let before = try XCTUnwrap(saved.box(ascent: 30, descent: 10))
+        XCTAssertEqual(calls.values, ["hit", "missing"])
+        let replacementCalls = FenceImageCalls()
+        engine!.imageProvider = .resolving { source in replacementCalls.add(source); return nil }
+        _ = try engine!.layout(content, context, depth: 0)
+        XCTAssertEqual(replacementCalls.values, ["hit", "missing"])
+        engine = nil
+        XCTAssertNil(weakEngine)
+        let after = try XCTUnwrap(saved.box(ascent: 30, descent: 10))
+        XCTAssertEqual(calls.values, ["hit", "missing"])
+        XCTAssertEqual(replacementCalls.values, ["hit", "missing"])
+        XCTAssertEqual([after.width, after.ascent, after.descent], [before.width, before.ascent, before.descent])
+        XCTAssertEqual(after.inkBounds, before.inkBounds)
+        XCTAssertEqual(after.itemCount, before.itemCount)
     }
 
     func testDirectionAndLineStyleCopiesRemainIndependent() {
@@ -108,4 +187,11 @@ final class WorkerWrappingIntegrationTests: MathTestCase {
         XCTAssertFalse(decorated.isPhantom)
         XCTAssertNotNil(decorated.inkBounds)
     }
+}
+
+private final class FenceImageCalls: @unchecked Sendable {
+    private let lock = NSLock()
+    private var recorded: [String] = []
+    var values: [String] { lock.withLock { recorded } }
+    func add(_ value: String) { lock.withLock { recorded.append(value) } }
 }

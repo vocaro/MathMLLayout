@@ -817,7 +817,9 @@ struct Paragraph {
     private(set) var units: [Unit] = []
     private var hasLogicalText = false
     private var textWork: TextShapingWork?
-    var textWorkExceeded: Bool { textWork?.exhausted == true }
+    var textWorkExceeded: Bool {
+        textWork?.exhausted == true || units.contains { $0.box.fenceLayout?.textWork.exhausted == true }
+    }
     /// The start, every place a row may end, and the end.
     private(set) var stops: [Stop] = []
     /// A duplicated operator, or an invisible times made visible, for the stops that have one.
