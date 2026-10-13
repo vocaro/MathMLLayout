@@ -183,7 +183,7 @@ final class SpeechTests: MathTestCase {
     func testLocalesMatchOnLanguageAndFallBackToEnglish() throws {
         let node = try node("<mfrac><mrow><mi>a</mi><mo>+</mo><mn>1</mn></mrow><msqrt><mi>b</mi></msqrt></mfrac>")
         let regions = ["fr": ["fr", "fr-CA", "fr_CH", "fr-Latn-BE", "fra"], "de": ["de_AT", "de-CH", "de-Latn-DE", "deu"],
-                       "es": ["es-419", "es_MX", "es-ES", "spa"], "it": ["it-CH", "it_IT"], "en": ["en-GB", "en_AU", "en-US-POSIX"]]
+                       "es": ["es-419", "es_MX", "es-ES", "spa"], "it": ["it-CH", "it_IT"], "en": ["en_AU", "en-US-POSIX"]]
         for (language, identifiers) in regions {
             let expected = node.accessibilityDescription(locale: Locale(identifier: language))
             XCTAssertEqual(expected.language, language)
@@ -193,6 +193,9 @@ final class SpeechTests: MathTestCase {
         }
         XCTAssertEqual(node.accessibilityDescription(locale: Locale(identifier: "fr")).text,
                        "début de fraction a plus 1 sur racine carrée de b fin de fraction")
+        // A supported region returns its actual voice tag even where the words match its base.
+        XCTAssertEqual(node.accessibilityDescription(locale: Locale(identifier: "en-GB")),
+                       MathReading(text: node.accessibilityDescription, language: "en-GB"))
         // No vocabulary: the whole reading is English, and says so, so a host can pick a matching voice.
         for identifier in ["ja", "pt-BR", "nl_NL", "zh-Hant-TW", "und", "", "x-private"] {
             XCTAssertEqual(node.accessibilityDescription(locale: Locale(identifier: identifier)),

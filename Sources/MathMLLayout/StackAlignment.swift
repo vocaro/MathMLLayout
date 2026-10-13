@@ -2,7 +2,7 @@ import Foundation
 
 /// Shared logical column geometry for drawing and speech. Column zero is the
 /// alignment reference; columns increase to the right, including punctuation.
-enum MathStackAlignment: String, CaseIterable, Sendable {
+public enum MathStackAlignment: String, CaseIterable, Sendable {
     case left, center, right, decimalPoint = "decimalpoint"
 
     init(attribute: String?) {

@@ -126,7 +126,7 @@ final class MultiscriptSpeechTests: MathTestCase {
             let corners = labels.first { $0.language == language }!.corners
             let expected = "T \(corners[0]) i \(corners[1]) j \(corners[2]) k \(corners[3]) l"
             XCTAssertEqual(formula.accessibilityDescription(locale: Locale(identifier: tag)),
-                           MathReading(text: expected, language: language), tag)
+                           MathReading(text: expected, language: tag == "en-GB" ? "en-GB" : language), tag)
         }
     }
 }

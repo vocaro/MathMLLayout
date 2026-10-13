@@ -27,9 +27,20 @@ declarations in any encoding, so no entity expands and nothing external loads; i
   axis.
 - **Elementary math.** Columns run left to right only. `decimalpoint` names one character. An
   `mglyph` in a stack's number is not drawn. Division frames are drawn, not font glyphs.
-- **Speech.** Five languages, without regional variants or grammatical agreement. Token text and
-  `alt` are spoken as written. A stack's reading gives its rows, carries and lines in order,
-  not their column positions.
+- **Speech.** English, French, German, Spanish and Italian, plus a narrow `en-GB` bracket
+  vocabulary. Complete custom languages and regional compositions use the
+  [vocabulary extension contract](speech-locales.md). Locale matching selects the exact supported
+  tag, then its base language, then whole-reading English. Recognized mathematical
+  symbols in `mi` and `mo` have localized names; unknown identifiers, `mtext`, `ms` and image
+  `alt` retain author wording and are not translated. Stacks and long divisions describe logical
+  columns, carry locations and crossouts, line endpoints and division frames, without inferring
+  arithmetic meaning. French root and limit templates elide `de` before a written vowel,
+  preserving `de` before `oui`, `onze` and `onzième`; they do not infer silent/aspirated `h`,
+  unwritten letter pronunciations or the language of author text. Letter-name usage, regional
+  naturalness and the novel spatial wording still need human validation in
+  [issue #63](https://github.com/vocaro/MathMLLayout/issues/63). See [Spoken readings](speech.md)
+  for the supported templates and remaining review scope. Readings obey source node, depth,
+  text and thread-stack bounds, leaving out content past them.
 - Cell spans in `mtable` are ignored, and rows align on their baselines only.
 - No kerning from the font's MathKernInfo.
 
