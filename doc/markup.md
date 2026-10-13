@@ -24,6 +24,16 @@
 Stretchy operators use the font's MATH variants and assemblies. Attributes include `displaystyle`,
 `scriptlevel`, `mathvariant`, `mathsize`, `mathcolor`, `columnalign` and table spacing.
 
+Tables honor `rowspan` and `columnspan` using the [MathML 3 table model](https://www.w3.org/TR/MathML3/chapter3.html#presm.mtd).
+Later cells skip occupied positions; shorter rows leave empty slots. A spanning cell measures
+and aligns within all its tracks and their internal spacing. Single-track cells set initial
+track sizes; a spanning deficit is shared equally across its tracks. Baseline-aligned row spans
+anchor to the first row and distribute any missing depth across covered rows. `top`, `bottom`
+and `center` align within the full spanning rectangle. Labels have an independent gutter and
+may span rows without consuming main-grid positions. Internal solid and dashed rules stop
+at spanning rectangles, including their share of adjacent gaps; rule caps and frames stay
+inside table bounds. See [bounds and malformed-span handling](limits.md).
+
 Layout follows MathML Core with TeX's choices where it leaves room: a unary minus after `=` or
 `(`, and a delimiter factor and shortfall so `f(x)` keeps plain parentheses. Text is an operand
 to the operators beside it, so a word equation (`<mtext>` operands) is spaced like any other.

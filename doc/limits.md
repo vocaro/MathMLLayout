@@ -11,6 +11,13 @@ same way and leave out what is past the bounds. `MathMLNode.parse(xml:)` refuses
 declarations in any encoding, so no entity expands and nothing external loads; it reads at most
 4 MiB.
 
+Tables reserve at most 20,000 occupied grid slots apiece and perform at most 200,000 occupancy
+probes and label-span row visits across all tables in a layout pass. A valid span above 20,000, a larger occupied area,
+or a conflict search beyond that work budget throws `MathLayoutError.limitExceeded`. Zero and
+malformed spans use one; a row span stops at the last source row. Subsequent cells start at
+the first fully vacant rectangle after the preceding cell, so overlapping requests move right
+instead of overwriting an earlier cell. Sparse grid slots are not materialized.
+
 ## Limitations
 
 - **Line breaking.** No breaks inside `mpadded`, `mphantom`, `merror`, `munder`/`mover`/
@@ -30,12 +37,14 @@ declarations in any encoding, so no entity expands and nothing external loads; i
 - **Speech.** Five languages, without regional variants or grammatical agreement. Token text and
   `alt` are spoken as written. A stack's reading gives its rows, carries and lines in order,
   not their column positions.
-- Cell spans in `mtable` are ignored. A row containing only `top`, `bottom` or `center`
-  entries (including its label) uses its midpoint as its baseline when the table's `align`
-  names that row; MathML 3 leaves that baseline unspecified. Labels contribute to row height
-  to keep their ink inside the table. `equalrows`, `equalcolumns`, `columnwidth` and table
-  `width` are not read;
-  overlap label sides reserve the same space as their non-overlap forms.
+- A row containing only `top`, `bottom` or `center` entries (including its label) uses its
+  midpoint as its baseline when the table's `align` names that row; MathML 3 leaves that
+  baseline unspecified. Labels contribute to row height to keep their ink inside the table.
+  `equalrows`, `equalcolumns`, `columnwidth` and table `width` are not read; overlap label
+  sides reserve the same space as their non-overlap forms.
+- Table label columns remain independent gutters: `columnspan` on a label does not add grid
+  columns. Stretchy operators in table cells do not stretch to match neighboring cells.
+
 - No kerning from the font's MathKernInfo.
 
 [Documentation index](../README.md#documentation)

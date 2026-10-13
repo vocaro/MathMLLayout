@@ -510,9 +510,9 @@ extension LayoutEngine {
 
     // MARK: Tables
 
-    /// `mtable`: a grid with `rowalign`, `columnalign`, `rowspacing`,
+    /// `mtable`: a grid of baseline-aligned rows with `columnalign`, `rowspacing`,
     /// `columnspacing`, lines and frame, centred on the math axis by default. `mlabeledtr`
-    /// labels form a column at the side. Spanning cells occupy one cell.
+    /// labels form a column at the side. Spanning cells reserve rectangles in a bounded grid.
     func table(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
         guard depth + 2 < MathLimits.depth else { throw MathLayoutError.limitExceeded }
         let attributes = node.attributes
@@ -530,16 +530,10 @@ extension LayoutEngine {
                   ["top", "bottom", "center", "baseline", "axis"].contains(value) else { return nil }
             return value
         }
-        struct VerticalAlignment {
-            var name: String
-            var axis: CGFloat
-        }
-        var cells: [[(box: MathBox, align: String?)]] = []
-        var labels: [MathBox?] = []
-        var verticalAlignments: [[VerticalAlignment]] = []
-        var labelAlignments: [VerticalAlignment] = []
-        var rowAxes: [CGFloat] = []
         let tableRowAlign = list("rowalign", in: attributes, fallback: context.tableRowAlign)
+        var rowAxes: [CGFloat] = []
+        var cells = try TableGrid(rowCount: node.children.count)
+        var labels: [TableCell?] = []
         for (rowIndex, rowNode) in node.children.enumerated() {
             let rowContext: LayoutContext
             var cellNodes: [MathMLNode]
@@ -559,27 +553,37 @@ extension LayoutEngine {
             let rowVertical = ((rowNode.name == "mtr" || rowNode.name == "mlabeledtr")
                 ? vertical(rowNode.attributes["rowalign"]) : nil)
                 ?? vertical(pick(tableRowAlign, rowIndex)) ?? "baseline"
-            func alignment(_ cell: MathMLNode) -> VerticalAlignment {
-                VerticalAlignment(name: vertical(cell.attributes["rowalign"]) ?? rowVertical,
-                                  axis: value(\.axisHeight, inherit(cell, rowContext)))
-            }
-            var row: [(MathBox, String?)] = []
-            var rowVerticalAlignments: [VerticalAlignment] = []
-            for (index, cell) in cellNodes.enumerated() {
+            rowAxes.append(value(\.axisHeight, rowContext))
+            for cell in cellNodes {
                 let box = try layout(cell, rowContext, depth: depth + 2)
                 let align = cell.attributes["columnalign"]?.trimmingCharacters(in: .whitespaces).lowercased()
-                    ?? pick(rowAlign, index)
-                row.append((box, align))
-                rowVerticalAlignments.append(alignment(cell))
+                let alignment = vertical(cell.attributes["rowalign"]) ?? rowVertical
+                let oldWork = cells.work
+                try cells.insert(box, row: rowIndex, rowSpan: TableGrid.span(cell.attributes["rowspan"]),
+                                 columnSpan: TableGrid.span(cell.attributes["columnspan"]), align: align, rowAlign: alignment,
+                                 workBudget: remainingTableWork)
+                try countTableWork(cells.work - oldWork)
+                // Row alignment lists address grid columns, including occupied ones.
+                let index = cells.rows[rowIndex].count - 1
+                cells.rows[rowIndex][index].axis = value(\.axisHeight, inherit(cell, rowContext))
+                if cells.rows[rowIndex][index].align == nil {
+                    cells.rows[rowIndex][index].align = pick(rowAlign, cells.rows[rowIndex][index].column)
+                }
             }
-            cells.append(row)
-            verticalAlignments.append(rowVerticalAlignments)
-            let rowAxis = value(\.axisHeight, rowContext)
-            rowAxes.append(rowAxis)
-            labelAlignments.append(label.map(alignment) ?? VerticalAlignment(name: rowVertical, axis: rowAxis))
-            labels.append(try label.map { try layout($0, rowContext, depth: depth + 2) })
+            labels.append(try label.map {
+                // Labels have their own gutter; neither their spans nor previous grid spans reserve
+                // a position for the next label (MathML 3, 3.5.4.2).
+                let rowSpan = min(try TableGrid.span($0.attributes["rowspan"]), cells.rows.count - rowIndex)
+                _ = try TableGrid.span($0.attributes["columnspan"])
+                // Label spans also touch row tracks, even though they do not occupy main-grid slots.
+                try countTableWork(rowSpan)
+                return TableCell(box: try layout($0, rowContext, depth: depth + 2), align: nil,
+                                 rowAlign: vertical($0.attributes["rowalign"]) ?? rowVertical,
+                                 column: 0, rowSpan: rowSpan, columnSpan: 1,
+                                 axis: value(\.axisHeight, inherit($0, rowContext)))
+            })
         }
-        let columns = cells.map(\.count).max() ?? 0
+        let columns = cells.columns
         let ex = xHeight(context), em = context.fontSize
         func spacing(_ name: String, _ standard: CGFloat, count: Int) -> [CGFloat] {
             let values = list(name, in: attributes)
@@ -587,7 +591,7 @@ extension LayoutEngine {
                 pick(values, index).flatMap { length($0, context, reference: em) }.map { max($0, 0) } ?? standard
             }
         }
-        let rowGaps = spacing("rowspacing", ex, count: cells.count - 1)
+        let rowGaps = spacing("rowspacing", ex, count: cells.rows.count - 1)
         let columnGaps = spacing("columnspacing", 0.8 * em, count: columns - 1)
         let rowLines = list("rowlines", in: attributes), columnLines = list("columnlines", in: attributes)
         let frame = attributes["frame"]?.trimmingCharacters(in: .whitespaces).lowercased() ?? "none"
@@ -596,54 +600,56 @@ extension LayoutEngine {
         let frameY = frame == "none" ? 0 : (pick(framing, 1).flatMap { length($0, context) } ?? 0.5 * ex)
         let tableAlign = list("columnalign", in: attributes)
         let labelGap = length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em
-        let labelWidth = labels.compactMap { $0?.width }.max().map { $0 + labelGap } ?? 0
+        let labelWidth = labels.compactMap { $0?.box.width }.max().map { $0 + labelGap } ?? 0
         // Before the rows are measured: a table too wide for the line wraps its cells, which grow taller.
-        wrapCells(&cells, columnAlign: tableAlign, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
-        var widths = [CGFloat](repeating: 0, count: columns)
-        var ascents = [CGFloat](repeating: 0, count: cells.count), descents = ascents
-        for (rowIndex, row) in cells.enumerated() {
+        wrapCells(&cells, columnAlign: tableAlign, gaps: columnGaps, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
+        let widths = cells.widths(gaps: columnGaps) { _, _, cell in cell.box.width }
+        var ascents = [CGFloat](repeating: 0, count: cells.rows.count), descents = ascents
+        for (rowIndex, row) in cells.rows.enumerated() {
             var tallest: CGFloat = 0
-            // Baseline/axis entries constrain both sides of the row's baseline. Edge/center
-            // entries constrain only its total height, using the final (possibly wrapped) box.
-            func measure(_ box: MathBox, _ alignment: VerticalAlignment) {
-                tallest = max(tallest, box.height)
-                guard alignment.name == "baseline" || alignment.name == "axis" else { return }
-                let shift = alignment.name == "axis" ? rowAxes[rowIndex] - alignment.axis : 0
-                ascents[rowIndex] = max(ascents[rowIndex], box.ascent + shift)
-                descents[rowIndex] = max(descents[rowIndex], box.descent - shift)
-            }
-            for (column, cell) in row.enumerated() {
-                widths[column] = max(widths[column], cell.box.width)
-                measure(cell.box, verticalAlignments[rowIndex][column])
-            }
-            if let label = labels[rowIndex] {
-                measure(label, labelAlignments[rowIndex])
+            for cell in row + (labels[rowIndex].map { [$0] } ?? []) {
+                if cell.rowSpan == 1 { tallest = max(tallest, cell.box.height) }
+                guard cell.rowAlign == "baseline" || cell.rowAlign == "axis" else { continue }
+                let shift = cell.rowAlign == "axis" ? rowAxes[rowIndex] - cell.axis : 0
+                ascents[rowIndex] = max(ascents[rowIndex], cell.box.ascent + shift)
+                if cell.rowSpan == 1 { descents[rowIndex] = max(descents[rowIndex], cell.box.descent - shift) }
             }
             let extra = max(0, tallest - ascents[rowIndex] - descents[rowIndex]) / 2
-            // Extra height is shared above/below the anchored cells. Without baseline/axis
-            // entries this puts the row's otherwise unspecified baseline at its midpoint.
             ascents[rowIndex] += extra
             descents[rowIndex] += extra
+        }
+        for (rowIndex, row) in cells.rows.enumerated() {
+            for cell in row + (labels[rowIndex].map { [$0] } ?? []) where cell.rowSpan > 1 {
+                let end = rowIndex + cell.rowSpan
+                let anchored = cell.rowAlign == "baseline" || cell.rowAlign == "axis"
+                let shift = cell.rowAlign == "axis" ? rowAxes[rowIndex] - cell.axis : 0
+                let available = descents[rowIndex..<end].reduce(0, +)
+                    + ascents[(rowIndex + 1)..<end].reduce(0, +) + rowGaps[rowIndex..<(end - 1)].reduce(0, +)
+                    + (anchored ? 0 : ascents[rowIndex])
+                let required = anchored ? cell.box.descent - shift : cell.box.height
+                let extra = max(0, required - available) / CGFloat(cell.rowSpan)
+                for row in rowIndex..<end { descents[row] += extra }
+            }
         }
 
         let gridWidth = widths.reduce(0, +) + columnGaps.reduce(0, +)
         let height = ascents.reduce(0, +) + descents.reduce(0, +) + rowGaps.reduce(0, +) + 2 * frameY
         // `align`: axis (default), center or baseline, top, bottom, for the whole table or for the row
         // whose number follows, counted from the bottom when it is negative. A row's axis is as far
-        // above its baseline as its row context's; `axis` with a row accounts for any size change. A
+        // above its baseline as the surrounding one's, so `axis` with a row is `baseline` with it. A
         // number that names no row is ignored (MathML 3, 3.5.1.2).
         let alignParts = list("align", in: attributes)
         var top: CGFloat
         var baselines: [CGFloat] = []
         var y = frameY
-        for index in cells.indices {
+        for index in cells.rows.indices {
             baselines.append(y + ascents[index])
             y += ascents[index] + descents[index] + (index < rowGaps.count ? rowGaps[index] : 0)
         }
         let axis = value(\.axisHeight, context)
         let alignment = alignParts.first ?? "axis"
-        if alignParts.count > 1, let number = Int(alignParts[1]), number != 0, (-cells.count...cells.count).contains(number) {
-            let row = number > 0 ? number - 1 : cells.count + number
+        if alignParts.count > 1, let number = Int(alignParts[1]), number != 0, (-cells.rows.count...cells.rows.count).contains(number) {
+            let row = number > 0 ? number - 1 : cells.rows.count + number
             top = switch alignment {
             case "top": baselines[row] - ascents[row]
             case "bottom": baselines[row] + descents[row]
@@ -662,31 +668,39 @@ extension LayoutEngine {
         var box = MathBox()
         let labelsLeft = attributes["side"]?.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("left") == true
         let gridX = labelsLeft ? labelWidth : 0
-        for (rowIndex, row) in cells.enumerated() {
-            let baseline = top - baselines[rowIndex]
-            func shift(_ box: MathBox, _ alignment: VerticalAlignment) -> CGFloat {
-                switch alignment.name {
-                case "top": ascents[rowIndex] - box.ascent
-                case "bottom": box.descent - descents[rowIndex]
-                case "center": (ascents[rowIndex] - descents[rowIndex] - box.ascent + box.descent) / 2
-                case "axis": rowAxes[rowIndex] - alignment.axis
-                default: 0
-                }
+        var columnStarts: [CGFloat] = [], columnEnds: [CGFloat] = []
+        var x = gridX + frameX
+        for column in widths.indices {
+            columnStarts.append(x)
+            columnEnds.append(x + widths[column])
+            x += widths[column] + (column < columnGaps.count ? columnGaps[column] : 0)
+        }
+        func cellBaseline(_ cell: TableCell, row: Int) -> CGFloat {
+            let end = row + cell.rowSpan - 1
+            let cellTop = top - baselines[row] + ascents[row]
+            let cellBottom = top - baselines[end] - descents[end]
+            return switch cell.rowAlign ?? "baseline" {
+            case "top": cellTop - cell.box.ascent
+            case "bottom": cellBottom + cell.box.descent
+            case "center": (cellTop + cellBottom - cell.box.ascent + cell.box.descent) / 2
+            case "axis": top - baselines[row] + rowAxes[row] - cell.axis
+            default: top - baselines[row]
             }
-            var x = gridX + frameX
-            for (column, cell) in row.enumerated() {
-                let align = cell.align ?? pick(tableAlign, column) ?? "center"
+        }
+        for (rowIndex, row) in cells.rows.enumerated() {
+            for cell in row {
+                let width = cells.spanWidth(cell, widths: widths, gaps: columnGaps)
+                let align = cell.align ?? pick(tableAlign, cell.column) ?? "center"
                 let offset: CGFloat = switch align {
                 case "left": 0
-                case "right": widths[column] - cell.box.width
-                default: (widths[column] - cell.box.width) / 2
+                case "right": width - cell.box.width
+                default: (width - cell.box.width) / 2
                 }
-                box.add(cell.box, at: CGPoint(x: x + offset, y: baseline + shift(cell.box, verticalAlignments[rowIndex][column])))
-                x += widths[column] + (column < columnGaps.count ? columnGaps[column] : 0)
+                box.add(cell.box, at: CGPoint(x: columnStarts[cell.column] + offset, y: cellBaseline(cell, row: rowIndex)))
             }
             if let label = labels[rowIndex] {
                 let labelX = labelsLeft ? 0 : gridX + gridWidth + 2 * frameX + labelGap
-                box.add(label, at: CGPoint(x: labelX, y: baseline + shift(label, labelAlignments[rowIndex])))
+                box.add(label.box, at: CGPoint(x: labelX, y: cellBaseline(label, row: rowIndex)))
             }
         }
         // Lines, half-way through the gaps. A stroke reaches half its thickness to either side of its
@@ -699,12 +713,45 @@ extension LayoutEngine {
         let gridLeft = gridX, gridRight = gridX + gridWidth + 2 * frameX
         let inside = (left: gridLeft + stroke / 2, right: gridRight - stroke / 2, top: top - stroke / 2, bottom: top - height + stroke / 2)
         let hasRoom = inside.left <= inside.right && inside.bottom <= inside.top
+        var rowBlocks = [[ClosedRange<CGFloat>]](repeating: [], count: rowGaps.count)
+        var columnBlocks = [[ClosedRange<CGFloat>]](repeating: [], count: columnGaps.count)
+        for (rowIndex, row) in cells.rows.enumerated() {
+            for cell in row {
+                let lastColumn = cell.column + cell.columnSpan - 1
+                let left = cell.column == 0 ? inside.left : columnStarts[cell.column] - columnGaps[cell.column - 1] / 2
+                let right = lastColumn == columns - 1 ? inside.right : columnEnds[lastColumn] + columnGaps[lastColumn] / 2
+                for boundary in rowIndex..<(rowIndex + cell.rowSpan - 1) {
+                    if left <= right { rowBlocks[boundary].append(left...right) }
+                }
+                let lastRow = rowIndex + cell.rowSpan - 1
+                let upper = rowIndex == 0 ? inside.top : top - baselines[rowIndex] + ascents[rowIndex] + rowGaps[rowIndex - 1] / 2
+                let lower = lastRow == cells.rows.count - 1 ? inside.bottom : top - baselines[lastRow] - descents[lastRow] - rowGaps[lastRow] / 2
+                for boundary in cell.column..<lastColumn {
+                    if lower <= upper { columnBlocks[boundary].append(lower...upper) }
+                }
+            }
+        }
+        // Subtract merged blocked intervals, keeping round caps outside the spanning rectangle.
+        func segments(_ range: ClosedRange<CGFloat>, excluding blocks: [ClosedRange<CGFloat>],
+                      draw: (CGFloat, CGFloat) -> Void) {
+            var cursor = range.lowerBound
+            for block in blocks.sorted(by: { $0.lowerBound < $1.lowerBound }) {
+                let start = max(range.lowerBound, block.lowerBound - stroke / 2)
+                let end = min(range.upperBound, block.upperBound + stroke / 2)
+                guard start <= end else { continue }
+                if start > cursor { draw(cursor, start) }
+                cursor = max(cursor, end)
+            }
+            if cursor < range.upperBound { draw(cursor, range.upperBound) }
+        }
         var lineY = top - frameY
         for index in rowGaps.indices {
             lineY -= ascents[index] + descents[index] + rowGaps[index] / 2
             if let style = pick(rowLines, index), style != "none", hasRoom {
                 let path = style == "dashed" ? dashed : solid, y = min(max(lineY, inside.bottom), inside.top)
-                path.move(to: CGPoint(x: inside.left, y: y)); path.addLine(to: CGPoint(x: inside.right, y: y))
+                segments(inside.left...inside.right, excluding: rowBlocks[index]) { left, right in
+                    path.move(to: CGPoint(x: left, y: y)); path.addLine(to: CGPoint(x: right, y: y))
+                }
             }
             lineY -= rowGaps[index] / 2
         }
@@ -713,7 +760,9 @@ extension LayoutEngine {
             lineX += widths[index] + columnGaps[index] / 2
             if let style = pick(columnLines, index), style != "none", hasRoom {
                 let path = style == "dashed" ? dashed : solid, x = min(max(lineX, inside.left), inside.right)
-                path.move(to: CGPoint(x: x, y: inside.top)); path.addLine(to: CGPoint(x: x, y: inside.bottom))
+                segments(inside.bottom...inside.top, excluding: columnBlocks[index]) { bottom, top in
+                    path.move(to: CGPoint(x: x, y: top)); path.addLine(to: CGPoint(x: x, y: bottom))
+                }
             }
             lineX += columnGaps[index] / 2
         }

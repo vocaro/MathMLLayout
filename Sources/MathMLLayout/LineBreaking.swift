@@ -632,70 +632,67 @@ extension LayoutEngine {
     /// engine's. Columns narrower than an equal share keep their width and the rest share what
     /// is left, none below its widest unbreakable unit. A cell with a forced break is stacked
     /// whatever the width. `fixed` is the width of everything but the columns.
-    func wrapCells(_ cells: inout [[(box: MathBox, align: String?)]], columnAlign: [String], fixed: CGFloat) {
+    func wrapCells(_ cells: inout TableGrid, columnAlign: [String], gaps: [CGFloat], fixed: CGFloat) {
         let part = wrapParts.count, budget = nextWrapWidth
         wrapParts.append((0, 0, 0))
-        func align(_ row: Int, _ column: Int) -> IndentAlign {
-            let name = cells[row][column].align ?? columnAlign.last.map { _ in columnAlign[min(column, columnAlign.count - 1)] }
+        func align(_ row: Int, _ index: Int) -> IndentAlign {
+            let cell = cells.rows[row][index]
+            let name = cell.align ?? columnAlign.last.map { _ in columnAlign[min(cell.column, columnAlign.count - 1)] }
             return name == "left" ? .left : name == "right" ? .right : .center
         }
-        var paragraphs: [[Paragraph?]] = cells.map { [Paragraph?](repeating: nil, count: $0.count) }
-        // Asked before a forced break stacks a cell, which is then a box and no row.
-        let isSeveral = cells.contains { $0.contains { $0.box.row?.isSeveral == true } }
-        for row in cells.indices {
-            for column in cells[row].indices where cells[row][column].box.row?.hasForced == true {
-                let paragraph = Paragraph(cells[row][column].box)
-                paragraphs[row][column] = paragraph
-                guard let box = wrapped(paragraph, width: .infinity, align: align(row, column)) else { continue }
-                cells[row][column].box = box
+        var paragraphs = cells.rows.map { [Paragraph?](repeating: nil, count: $0.count) }
+        let isSeveral = cells.rows.contains { $0.contains { $0.box.row?.isSeveral == true } }
+        for row in cells.rows.indices {
+            for index in cells.rows[row].indices where cells.rows[row][index].box.row?.hasForced == true {
+                let paragraph = Paragraph(cells.rows[row][index].box)
+                paragraphs[row][index] = paragraph
+                guard let box = wrapped(paragraph, width: .infinity, align: align(row, index)) else { continue }
+                cells.rows[row][index].box = box
             }
         }
-        var natural = [CGFloat](repeating: 0, count: cells.map(\.count).max() ?? 0), least = natural
-        func total() -> CGFloat {
-            for index in natural.indices { natural[index] = 0 }
-            for row in cells {
-                for (column, cell) in row.enumerated() { natural[column] = max(natural[column], cell.box.width) }
-            }
-            return natural.reduce(0, +) + fixed
-        }
-        var width = total()
+        let natural = cells.widths(gaps: gaps) { _, _, cell in cell.box.width }
+        var width = natural.reduce(0, +) + fixed
         wrapParts[part] = (width, width, width)
-        // Smaller tables are left alone, and unmeasured: a row breaks around them.
         guard lineWidth.isFinite, width > min(budget, lineWidth / 2) else {
             if isSeveral { loose(width) }
             return
         }
-        for row in cells.indices {
-            for column in cells[row].indices {
-                let paragraph = paragraphs[row][column] ?? Paragraph(cells[row][column].box)
-                paragraphs[row][column] = paragraph
-                least[column] = max(least[column], min(paragraph.widest, cells[row][column].box.width))
+        for row in cells.rows.indices {
+            for index in cells.rows[row].indices {
+                paragraphs[row][index] = paragraphs[row][index] ?? Paragraph(cells.rows[row][index].box)
             }
+        }
+        let least = cells.widths(gaps: gaps) { row, index, cell in
+            min(paragraphs[row][index]?.widest ?? cell.box.width, cell.box.width)
         }
         if width > budget + Paragraph.slop {
             let room = budget - fixed
-            func filled(_ level: CGFloat) -> CGFloat { zip(natural, least).reduce(0) { $0 + min($1.0, max($1.1, level)) } }
-            var low: CGFloat = 0, high = natural.max() ?? 0
+            let upper = zip(natural, least).map { max($0.0, $0.1) }
+            func filled(_ level: CGFloat) -> CGFloat { zip(upper, least).reduce(0) { $0 + min($1.0, max($1.1, level)) } }
+            var low: CGFloat = 0, high = upper.max() ?? 0
             if filled(0) < room {
                 for _ in 0..<48 {
                     let level = (low + high) / 2
                     if filled(level) <= room { low = level } else { high = level }
                 }
             }
-            for row in cells.indices {
-                for column in cells[row].indices {
-                    let share = max(least[column], low)
-                    guard cells[row][column].box.width > share + Paragraph.slop, let paragraph = paragraphs[row][column],
-                          let box = wrapped(paragraph, width: share, align: align(row, column)) else { continue }
-                    cells[row][column].box = box
+            let shares = zip(upper, least).map { min($0.0, max($0.1, low)) }
+            for row in cells.rows.indices {
+                for index in cells.rows[row].indices {
+                    let cell = cells.rows[row][index]
+                    let share = cells.spanWidth(cell, widths: shares, gaps: gaps)
+                    guard cell.box.width > share + Paragraph.slop, let paragraph = paragraphs[row][index],
+                          let box = wrapped(paragraph, width: share, align: align(row, index)) else { continue }
+                    cells.rows[row][index].box = box
                 }
             }
-            width = total()
+            width = cells.widths(gaps: gaps) { _, _, cell in cell.box.width }.reduce(0, +) + fixed
         }
-        if width > least.reduce(0, +) + fixed + Paragraph.slop { loose(width) }
+        let minimum = least.reduce(0, +) + fixed
+        if width > minimum + Paragraph.slop { loose(width) }
         wrapParts[part].width = width
-        wrapParts[part].minimum = least.reduce(0, +) + fixed
-        note(width: width, minimum: least.reduce(0, +) + fixed, isTable: true)
+        wrapParts[part].minimum = minimum
+        note(width: width, minimum: minimum, isTable: true)
     }
 }
 
