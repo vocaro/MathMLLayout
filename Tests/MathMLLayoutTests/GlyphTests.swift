@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreText
 import Foundation
 @testable import MathMLLayout
 import XCTest
@@ -941,6 +942,100 @@ final class GlyphTests: MathTestCase {
             XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
         }
     }
+    // MARK: Explicit whole-token operator geometry
+
+    func testImageOperatorExplicitVerticalGeometryAndBounds() throws {
+        let images = provider(["g": quarters(10, 8)])
+        let engine = LayoutEngine(fontName: nil)
+        engine.imageProvider = images
+        let context = LayoutContext(fontSize: 20, unclampedSize: 20, minSize: 8, display: false, color: black)
+        let glyph = #"<mglyph src="g" alt="g" width="10px" height="8px" valign="-2px"/>"#
+        func op(_ attributes: String) throws -> MathBox {
+            let core = try node("<mo \(attributes)>a\(glyph)b</mo>").children[0]
+            return try engine.layout(core, context,
+                                     Embellishment(stretch: .vertical(ascent: 40, descent: 10)), depth: 0)
+        }
+        let natural = try op(#"stretchy="false" minsize="10" symmetric="true""#)
+        assertRect(imageRects(natural).first, CGRect(x: try box("<mtext>a</mtext>", images: nil).width,
+                                                    y: -2, width: 10, height: 8))
+        let stretched = try op(#"stretchy="true" symmetric="false""#)
+        XCTAssertEqual(stretched.width, natural.width, accuracy: 0.001)
+        XCTAssertEqual(stretched.height, 50, accuracy: 0.001)
+        XCTAssertEqual(stretched.ascent, 40, accuracy: 0.001)
+        XCTAssertEqual(stretched.descent, 10, accuracy: 0.001)
+        XCTAssertEqual(imageRects(stretched)[0].height / 8, 50 / natural.height, accuracy: 0.001)
+        XCTAssertEqual(CTFontGetMatrix(glyphRuns(stretched)[0].font).d, 50 / natural.height, accuracy: 0.001)
+        XCTAssertEqual(stretched.italicCorrection, 0)
+        XCTAssertNil(stretched.topAccentAttachment)
+        let symmetric = try op(#"stretchy="true" symmetric="true""#)
+        let axis = engine.value(\.axisHeight, context)
+        XCTAssertEqual((symmetric.ascent - symmetric.descent) / 2, axis, accuracy: 0.001)
+        let bounded = try op(#"stretchy="true" minsize="200%" maxsize="150%""#)
+        XCTAssertEqual(bounded.height, 2 * natural.height, accuracy: 0.001, "minsize wins conflicting maxsize")
+        let shrunk = try op(#"stretchy="true" minsize="0" maxsize="50%""#)
+        XCTAssertEqual(shrunk.height, natural.height / 2, accuracy: 0.001)
+        let zero = try op(#"stretchy="true" minsize="0" maxsize="0""#)
+        XCTAssertTrue(zero.items.isEmpty)
+        XCTAssertEqual(zero.height, 0)
+        let missing = LayoutEngine(fontName: nil)
+        let fallback = try missing.layout(try node(#"<mo stretchy="true" minsize="2"><mglyph alt="abc"/></mo>"#).children[0],
+                                          context, Embellishment(stretch: .vertical(ascent: 40, descent: 10)), depth: 0)
+        XCTAssertEqual(fallback.height, 50, accuracy: 0.001)
+        XCTAssertEqual(fallback.italicCorrection, 0)
+        XCTAssertNil(fallback.topAccentAttachment)
+    }
+
+    func testImageOperatorDisplayOptInScalesCompleteToken() throws {
+        let images = provider(["g": quarters(10, 20)])
+        let glyph = #"<mglyph src="g" alt="g" width="10px" height="20px" valign="-3px"/>"#
+        func op(_ attributes: String, display: Bool) throws -> MathBox {
+            let parsed = try node("<mo displaystyle=\"\(display)\" \(attributes)>∑\(glyph)</mo>")
+            return try box(parsed, images: images)
+        }
+        let natural = try op("", display: false)
+        let unchanged = try op("", display: true)
+        XCTAssertEqual(imageRects(unchanged), imageRects(natural))
+        let optedInline = try op(#"largeop="true""#, display: false)
+        XCTAssertEqual(imageRects(optedInline), imageRects(natural))
+        let large = try op(#"largeop="true""#, display: true)
+        let scale = large.height / natural.height
+        XCTAssertGreaterThanOrEqual(scale, 2.squareRoot() - 0.001)
+        XCTAssertEqual(large.width, natural.width * scale, accuracy: 0.001)
+        XCTAssertEqual(imageRects(large)[0].size.width, 10 * scale, accuracy: 0.001)
+        XCTAssertEqual(imageRects(large)[0].size.height, 20 * scale, accuracy: 0.001)
+        XCTAssertEqual(CTFontGetMatrix(glyphRuns(large)[0].font).a, scale, accuracy: 0.001)
+        XCTAssertEqual(imageRects(try op(#"largeop="false" stretchy="false" symmetric="true" minsize="3""#,
+                                         display: true)), imageRects(natural))
+    }
+
+    func testImageOperatorFencesLabelsAndDrawnInk() throws {
+        let images = provider(["g": quarters(10, 8)])
+        let glyph = #"<mglyph src="g" alt="g" width="10px" height="8px" valign="-2px"/>"#
+        let fraction = "<mfrac><mfrac><mi>a</mi><mi>b</mi></mfrac><mi>c</mi></mfrac>"
+        let fence = "<mrow><munder><mo stretchy=\"true\" symmetric=\"false\">(\(glyph)</mo><mi>u</mi></munder>\(fraction)<mo>)</mo></mrow>"
+        XCTAssertGreaterThan(imageRects(try box(fence, images: images))[0].height, 8)
+        let horizontal = "<munderover><mo stretchy=\"true\">→\(glyph)</mo><mtext>long label below</mtext><mtext>above</mtext></munderover>"
+        let wide = try box(horizontal, images: images)
+        let source = try box("<mo>→\(glyph)</mo>", images: images)
+        let factor = wide.width / source.width
+        XCTAssertGreaterThan(factor, 1)
+        XCTAssertEqual(imageRects(wide)[0].width, 10 * factor, accuracy: 0.001)
+        XCTAssertEqual(imageRects(wide)[0].height, 8)
+        XCTAssertEqual(CTFontGetMatrix(glyphRuns(wide)[0].font).a, factor, accuracy: 0.001)
+        let background = glyph.replacingOccurrences(of: "valign=", with: "mathbackground=\"red\" valign=")
+        let painted = try box("<mrow><mo stretchy=\"true\">(\(background)</mo>\(fraction)</mrow>", images: images)
+        assertRect(fills(painted)[0].rect, imageRects(painted)[0])
+        for display in [false, true] {
+            for body in [fence, horizontal,
+                         "<mo largeop=\"true\">∑\(glyph)</mo>",
+                         "<mover><mi>abc</mi><mo stretchy=\"true\" minsize=\"150%\" maxsize=\"200%\">→\(glyph)</mo></mover>"] {
+                let result = try MathLayout(node(body, display: display),
+                                            style: MathStyle(fontSize: 20, color: black, imageProvider: images))
+                assertBoxCoversInk(result, body)
+            }
+        }
+    }
+
 }
 
 /// The bytes `layout` draws, for comparing drawings made on different threads.

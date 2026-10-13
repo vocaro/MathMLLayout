@@ -384,7 +384,7 @@ final class LayoutEngine {
         }
         if box.op?.has(.fence) == true, case .vertical = embellishment.stretch,
            isStretchy(node, form: embellishment.form, horizontal: false) {
-            let isCoreGeometry = node.name == "mo" && !children.contains(where: { $0.name == "mglyph" })
+            let isCoreGeometry = node.name == "mo" && (!Self.hasGlyph(node) || node.attributes.flag("stretchy") == true)
                 || box.fenceLayout?.isCoreGeometry == true
             box.fenceLayout = FenceLayout(node: node, context: outer, form: embellishment.form, engine: self,
                                           lineWidth: lineWidth, wrapWidth: wrapWidth, wrapParts: wrapStart..<wrapParts.count,
@@ -614,6 +614,8 @@ final class LayoutEngine {
 
     private func isStretchy(_ node: MathMLNode, form: OperatorForm?, horizontal: Bool) -> Bool {
         guard let core = embellishedCore(node) else { return false }
+        // Dictionary geometry cannot override the author's image size; explicit true opts in.
+        if Self.hasGlyph(core), core.attributes.flag("stretchy") != true { return false }
         return operatorFlags(core, form: form).contains(.stretchy)
             && OperatorDictionary.isHorizontal(operatorText(core)) == horizontal
     }
@@ -889,14 +891,15 @@ final class LayoutEngine {
     private static let invisible: Set<String> = ["\u{2061}", "\u{2062}", "\u{2063}", "\u{2064}", ""]
 
     /// An `mo`: dictionary properties, the display size of large operators, and stretching.
-    /// One with an `mglyph` is drawn as its author sized it, neither enlarged nor stretched.
+    /// Image tokens preserve author sizing unless explicit attributes opt into whole-token geometry.
     private func operatorBox(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment) throws -> MathBox {
         var text = operatorText(node)
         let properties = properties(node, form: embellishment.form, context)
         if Self.hasGlyph(node) {
             let content = try operatorGlyphContent(of: node, context)
             try countText(content.text)
-            var box = textBox(context.variant?.apply(to: content.text) ?? content.text, images: content.images, context)
+            let natural = textBox(context.variant?.apply(to: content.text) ?? content.text, images: content.images, context)
+            var box = imageOperator(node, natural: natural, properties: properties, context, embellishment)
             box.op = properties
             return box
         }

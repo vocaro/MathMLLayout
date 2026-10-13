@@ -23,8 +23,9 @@ declarations in any encoding, so no entity expands and nothing external loads; i
   the host decides by the `maximumWidth` it passes.
 - **`mglyph`.** MathML 2's `fontfamily` and `index` glyphs have no image and show their `alt`.
   An image has no scale of its own: size a 2x asset with `width` and `height`. An `mo` with an
-  `mglyph` keeps the size its author gave it: it is not stretched, enlarged or centred on the
-  axis.
+  `mglyph` preserves author sizing and baseline by default. Explicit `stretchy="true"` or
+  `largeop="true"` opts into [whole-token image operator geometry](image-operators.md).
+  Images provide no italic correction or accent attachment metrics.
 - **Elementary math.** Columns run left to right only. `decimalpoint` names one character. An
   `mglyph` in a stack's number is not drawn. Division frames are drawn, not font glyphs.
 - **Speech.** Five languages, without regional variants or grammatical agreement. Token text and
