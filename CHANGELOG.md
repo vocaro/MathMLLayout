@@ -37,15 +37,17 @@ Line breaking, `mglyph`, elementary math and localized readings
   crossout styles, and long-division frames. Stack digits and punctuation are explicit.
   Large-operator side limits, under-accents, multiple primes, configured fence separators,
   identifier symbols and simple ordinal roots are read in all five languages; French vowel
-  elision is explicit. Fresh linguistic review is limited to novel descriptions in the
-  [speech audit](Documentation/SpeechWordingAudit.md#structural-follow-up-for-31)
-  ([#31](https://github.com/vocaro/MathMLLayout/issues/31)).
+  elision is explicit ([#31](https://github.com/vocaro/MathMLLayout/issues/31)).
+  Fresh linguistic review is limited to novel descriptions in the
+  [speech audit](Documentation/SpeechWordingAudit.md#structural-follow-up-for-31), tracked separately
+  in [#63](https://github.com/vocaro/MathMLLayout/issues/63).
 
 - `mmultiscripts` spoken readings distinguish right/left subscripts and superscripts
   in all five languages. Pairs follow source order after the base, including silent
-  placeholders, and compound scripts announce their end. The speech guide and
-  wording audit record templates, pinned evidence and remaining linguistic uncertainty
-  ([#55](https://github.com/vocaro/MathMLLayout/issues/55)).
+  placeholders, and compound scripts announce their end
+  ([#55](https://github.com/vocaro/MathMLLayout/issues/55)). The speech guide and
+  wording audit record templates and pinned evidence; the remaining human review is tracked
+  in [#63](https://github.com/vocaro/MathMLLayout/issues/63).
 - Inline large operators retain their font baseline instead of being shifted onto the math
   axis. This corrects under/over limit placement; display-style centering is preserved
   ([#54](https://github.com/vocaro/MathMLLayout/issues/54)).

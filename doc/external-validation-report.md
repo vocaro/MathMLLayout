@@ -196,5 +196,6 @@ all eight supplemental standards cases and the original 81 numeric assertions pa
 This successful focused release run supersedes the disk-space limitation; it covers the
 selected validation tests, not the full release suite.
 
-Larger corpora, further MathML 3 cases, MathJax/Firefox/WebKit runs, speech/human review,
+Larger corpora, further MathML 3 cases, MathJax/Firefox/WebKit runs, speech validation and
+[human review of novel wording](https://github.com/vocaro/MathMLLayout/issues/63),
 regular supported-runner CI and adjudication of the noted differences remain follow-up work.

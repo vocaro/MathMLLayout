@@ -36,7 +36,8 @@ French root and limit templates elide `de` before a written vowel (`d'a`); they 
 silent/aspirated `h`, unwritten letter pronunciations, or the language of author text.
 The disjunctive words `oui`, `onze` and `onzième` retain `de`.
 The choice to elide before vowel-letter variables is a deterministic speech policy;
-letter-name usage and regional naturalness still need human validation.
+letter-name usage and regional naturalness still need human validation, tracked in
+[issue #63](https://github.com/vocaro/MathMLLayout/issues/63).
 
 ## Elementary math and columns
 
@@ -127,7 +128,8 @@ Fresh linguistic review is limited to the novel elementary-math descriptions (co
 alignment, lines, carry/borrow locations and crossouts, division frames), compound-script
 closing and other scoped combinations without matching upstream utterances, and French
 joining of arbitrary formula/letter readings. The [wording audit](../Documentation/SpeechWordingAudit.md#accepted-evidence-and-remaining-human-review-scope)
-records exact evidence, adaptations and this limited follow-up for [#31](https://github.com/vocaro/MathMLLayout/issues/31).
+records exact evidence and adaptations for the completed [#31](https://github.com/vocaro/MathMLLayout/issues/31).
+The remaining human review is tracked in [issue #63](https://github.com/vocaro/MathMLLayout/issues/63).
 Listening with host voices remains useful usability QA; it is not a blanket wording gate.
 
 [Documentation index](../README.md#documentation)
