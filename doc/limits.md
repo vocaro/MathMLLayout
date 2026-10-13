@@ -51,8 +51,8 @@ input text limit.
   Mathematical row geometry itself remains left to right.
   Text with inline images or decorated `alt` fallbacks breaks at ordinary spaces; images and
   segments joined by no-break spaces stay whole.
-  `overflow` and `maxwidth` on `math` are not read:
-  the host decides by the `maximumWidth` it passes.
+  `maxwidth` on `math` can narrow the host width (see [Line breaking](line-breaking.md)).
+  `overflow` is not read: scrolling, eliding, truncating and scaling remain the host responsibility.
 - **`mglyph`.** MathML 2's `fontfamily` and `index` glyphs have no image and show their `alt`.
   An image has no scale of its own: size a 2x asset with `width` and `height`. An `mo` with an
   `mglyph` keeps the size its author gave it: it is not stretched, enlarged or centred on the

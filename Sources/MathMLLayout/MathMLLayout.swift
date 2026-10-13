@@ -80,7 +80,7 @@ public enum MathLayoutError: Error, Equatable, Sendable {
 
 /// A laid-out formula. Immutable and thread-safe: lay out off the main thread, draw anywhere.
 ///
-/// It is one row unless the markup forces a line break or `maximumWidth` requires one. Its box
+/// It is one row unless the markup forces a line break or a host width or `math maxwidth` requires one. Its box
 /// covers everything it draws, and each row's box everything that row draws, as laid out. A
 /// bitmap context moves each glyph onto its pixel grid and on macOS thickens it, so a host that
 /// clips to a box allows two device pixels around it (see doc/line-breaking.md, "Clipping").
@@ -94,7 +94,7 @@ public final class MathLayout: @unchecked Sendable {
     public let ascent: CGFloat
     public let descent: CGFloat
     /// The lines of the formula, top to bottom. One, unless the markup forces a break or
-    /// `maximumWidth` requires one.
+    /// a host width or `math maxwidth` requires one.
     public let rows: [Row]
     /// How far the math axis is above the baseline, at the style's font size (the MATH table's
     /// AxisHeight).
@@ -103,7 +103,8 @@ public final class MathLayout: @unchecked Sendable {
     /// overflows. When it is more than the `maximumWidth` given, a row is wider than that, and a
     /// host scales the formula. Tables, fractions, radicals and enclosures count as they were laid
     /// out: wrapped as far as the width given asked, and where a row overflows all the same, as far
-    /// as they go, so that a formula laid out again at this width fits it.
+    /// as they go, so that a formula laid out again at this width fits it. A smaller authored
+    /// `maxwidth` must also be removed or enlarged for that retry; this report does not override it.
     public let widestUnbreakableWidth: CGFloat
 
     /// One line of a formula.
@@ -138,6 +139,9 @@ public final class MathLayout: @unchecked Sendable {
     /// markup forces them (`linebreak="newline"`, whatever the width) and otherwise at operators,
     /// at relations sooner than sums and at sums sooner than products (MathML 3, 3.1.7). Only a
     /// unit that cannot break makes a row wider: see `widestUnbreakableWidth`.
+    /// A top-level `math`'s valid `maxwidth` can further narrow either host width, never enlarge
+    /// it. Percentages and unitless multiples use the finite host `maximumWidth` as reference;
+    /// absolute and font-relative lengths also work with an unbounded host. See `doc/line-breaking.md`.
     public init(_ root: MathMLNode, style: MathStyle, maximumWidth: CGFloat = .infinity,
                 firstRowMaximumWidth: CGFloat? = nil) throws {
         let lines = try LayoutEngine.lines(root, style: style, maximumWidth: maximumWidth,

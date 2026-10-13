@@ -423,10 +423,10 @@ extension LayoutEngine {
     /// `firstRowMaximumWidth`. Each row's box covers its ink, so a host that clips to a row (an
     /// attachment image) never cuts an italic overhang or a glyph that leans past the left edge.
     ///
-    /// `overflow` and `maxwidth` on `math` (MathML 3, 2.2.1) are not read: the width given decides.
+    /// `maxwidth` on `math` (MathML 3, 2.2.1) can narrow either host budget, never enlarge it.
     /// Breaking is what `overflow="linebreak"`, the default, asks for (3.1.7.1). The other values
     /// "suggest a processing method to the renderer" that is a host's to carry out (scrolling,
-    /// eliding, truncating, scaling), and a host that means to gives no width.
+    /// eliding, truncating, scaling).
     static func lines(_ root: MathMLNode, style: MathStyle, maximumWidth: CGFloat,
                       firstRowMaximumWidth: CGFloat?) throws -> MathLines {
         // Check before entering the fitting and element-layout frames. A tiny host thread may
@@ -437,11 +437,14 @@ extension LayoutEngine {
         // tenth of it, was placed past the bound on extent and the formula refused, and a share of
         // 1e308 points overflowed to infinity and from there to rows of no width.
         func bound(_ width: CGFloat) -> CGFloat { width.isNaN || width > MathLimits.extent ? .infinity : max(width, 0) }
-        let limit = bound(maximumWidth)
-        let first = firstRowMaximumWidth.map { $0.isNaN ? limit : bound($0) } ?? limit
+        let hostLimit = bound(maximumWidth)
+        let hostFirst = firstRowMaximumWidth.map { $0.isNaN ? hostLimit : bound($0) } ?? hostLimit
         let size = fontSize(style)
         // One engine, so whatever it keeps for the formula is kept across a second pass.
         let engine = LayoutEngine(fontName: style.fontName)
+        let authored = engine.mathMaximumWidth(root, style: style, available: hostLimit).map(bound) ?? .infinity
+        let limit = min(hostLimit, authored)
+        let first = min(hostFirst, authored)
         var layoutPasses = 0
         func fitted(_ limit: CGFloat, first: CGFloat) throws -> Paragraph {
             try fittedParagraph(root, style: style, limit: limit, first: first,
@@ -513,6 +516,29 @@ extension LayoutEngine {
         lines.widestUnbreakable = needed
         lines.layoutPasses = layoutPasses
         return lines
+    }
+
+    /// MathML 3, 2.2.1 and 2.1.5.2: the surrounding available width is the reference for
+    /// percentages and unitless multiples. An unbounded host has no finite reference; an
+    /// explicit absolute or font-relative length can still establish one. Resolve directly,
+    /// rather than using the spacing-length clamp, so a large author width cannot accidentally
+    /// narrow a finite host. Width normalization above treats extents beyond our bounds as free.
+    func mathMaximumWidth(_ root: MathMLNode, style: MathStyle, available: CGFloat) -> CGFloat? {
+        guard root.name == "math", let text = root.attributes["maxwidth"],
+              let length = MathLength(text), length.value.isFinite, length.value >= 0 else { return nil }
+        let context = inherit(root, rootContext(root, style: style))
+        let width: CGFloat
+        switch length.unit {
+        case .points: width = length.value
+        case .em: width = length.value * context.fontSize
+        case .ex: width = length.value * xHeight(context)
+        case .percent, .multiple:
+            // Zero is independent of an unknown reference, as for other length attributes.
+            guard length.value == 0 || available.isFinite else { return nil }
+            width = length.value == 0 ? 0 : length.value * available
+        case .width, .height, .depth: return nil // mpadded pseudo-units do not apply to math.
+        }
+        return width.isFinite && width >= 0 ? width : nil
     }
 
     /// The actual returned rows and their public geometry bounds, shared by width trials.

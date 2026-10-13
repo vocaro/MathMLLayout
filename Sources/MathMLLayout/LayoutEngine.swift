@@ -166,12 +166,17 @@ final class LayoutEngine {
     /// number at all, which `min` and `max` would hand on to every measure of the formula.
     static func fontSize(_ style: MathStyle) -> CGFloat { style.fontSize.isNaN ? 1 : min(max(style.fontSize, 1), 1000) }
 
-    func layoutRoot(_ root: MathMLNode, style: MathStyle) throws -> MathBox {
-        imageProvider = style.imageProvider
+    /// The host's initial style, before the root applies its own attributes.
+    func rootContext(_ root: MathMLNode, style: MathStyle) -> LayoutContext {
         let size = Self.fontSize(style)
-        let context = LayoutContext(fontSize: size, unclampedSize: size, minSize: min(size, max(8, size * 0.6)),
+        return LayoutContext(fontSize: size, unclampedSize: size, minSize: min(size, max(8, size * 0.6)),
                                     display: style.isDisplay || root.attributes["display"]?.trimmingCharacters(in: .whitespaces).lowercased() == "block",
                                     color: style.color)
+    }
+
+    func layoutRoot(_ root: MathMLNode, style: MathStyle) throws -> MathBox {
+        imageProvider = style.imageProvider
+        let context = rootContext(root, style: style)
         // One unbroken row: `lines` breaks it, makes each row cover its ink and checks the result's size.
         let box = try layout(root, context, depth: 0)
         guard !textWork.exhausted else { throw MathLayoutError.limitExceeded }
