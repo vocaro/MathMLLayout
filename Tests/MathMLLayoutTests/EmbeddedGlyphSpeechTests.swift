@@ -45,6 +45,20 @@ final class EmbeddedGlyphSpeechTests: MathTestCase {
         XCTAssertEqual(stack.accessibilityDescription, "stack with 1 row alignment left row 1: column 0: one column 1: space column 2: two end stack")
     }
 
+    func testHostAppendedGlyphRetainsItsPrecedingAuthoredSpaceColumn() {
+        let glyph = MathMLNode(name: "mglyph", attributes: ["alt": "glyph"])
+        for text in ["12 ", "12\t", " 12\r\n"] {
+            let number = MathMLNode(name: "mn", children: [glyph], text: text)
+            let stack = MathMLNode(name: "mstack", attributes: ["stackalign": "left"], children: [number])
+            XCTAssertEqual(stack.accessibilityDescription,
+                           "stack with 1 row alignment left row 1: column 0: one column 1: two column 2: space column 3: glyph end stack")
+        }
+        let empty = MathMLNode(name: "mn", children: [glyph], text: " \t")
+        let stack = MathMLNode(name: "mstack", attributes: ["stackalign": "left"], children: [empty])
+        XCTAssertEqual(stack.accessibilityDescription,
+                       "stack with 1 row alignment left row 1: column 0: glyph end stack")
+    }
+
     func testPositionsAndShiftsIncludeAtomicGlyphColumns() throws {
         XCTAssertEqual(try read("<mstack><msgroup position='2' shift='1'><mn>1<mglyph alt='23'/></mn><msrow position='-1'><mstyle><mn><mglyph alt='.'/>4</mn></mstyle><none/></msrow></msgroup></mstack>"),
                        "stack with 2 rows alignment decimal point row 1: column minus 4: one column minus 3: 23 row 2: column minus 4: . column minus 3: four column minus 2: blank end stack")

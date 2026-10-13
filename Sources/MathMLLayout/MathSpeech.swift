@@ -101,6 +101,14 @@ private struct Speaker {
             }
             paired.append(scalar)
         }
+        // Appending a host glyph makes the text's trailing XML whitespace internal.
+        // Restore its one normalized space before the appended markers, as drawing does.
+        if markers < glyphs.count, !paired.isEmpty, let last = node.text.unicodeScalars.last,
+           last == " " || last == "\t" || last == "\n" || last == "\r" {
+            let gap = said(" ")
+            guard !isTextSpent else { return [] }
+            paired.append(contentsOf: gap.unicodeScalars)
+        }
         paired.append(contentsOf: repeatElement(LayoutEngine.glyphMarker, count: glyphs.count - markers))
         let runs = LayoutEngine.normalized(String(paired)).unicodeScalars.split(
             separator: LayoutEngine.glyphMarker, omittingEmptySubsequences: false)
