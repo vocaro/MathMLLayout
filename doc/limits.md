@@ -18,10 +18,21 @@ declarations in any encoding, so no entity expands and nothing external loads; i
   inside a number. `indenttarget` must name a child of a row
   being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
   a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
-  drawn on a `mathbackground` of its own does not wrap.
+  drawn on a `mathbackground` of its own, or a legacy font glyph, does not wrap.
   `overflow` and `maxwidth` on `math` are not read:
   the host decides by the `maximumWidth` it passes.
-- **`mglyph`.** MathML 2's `fontfamily` and `index` glyphs have no image and show their `alt`.
+- **`mglyph`.** The [MathML 2 font/index form](https://www.w3.org/TR/MathML2/chapter3.html#presm.mglyph)
+  supports one installed font's exact PostScript, full or family name (optionally quoted),
+  and a decimal glyph ID (optional leading `+`) from 1 through the font's last glyph, at most
+  65535. Names are bounded to 256 UTF-8 bytes and indices to 64 bytes, with at most ten digits.
+  `index` is a position in that font, not a Unicode value; glyph 0 (`.notdef`) uses `alt`.
+  The surrounding token supplies size, script sizing, foreground colour and normal/bold/italic/
+  bold-italic traits; unavailable trait faces use the requested face. Other variants, CSS font
+  lists/generic names, missing fonts, invalid indices and legacy `width`/`height`/`valign`
+  combinations use `alt` (or U+25AF without it). No font is downloaded or auto-activated.
+  Presence of `src` selects the image path even if empty or unresolved; legacy attributes
+  never replace a missing image. An `mglyph`'s own size/variant/colour attributes have no effect,
+  and its `mathbackground` fills its box. Glyph metrics and ink come directly from that font.
   An image has no scale of its own: size a 2x asset with `width` and `height`. An `mo` with an
   `mglyph` keeps the size its author gave it: it is not stretched, enlarged or centred on the
   axis.
