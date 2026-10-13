@@ -101,6 +101,7 @@ are included; see [how to regenerate the images](doc/usage.md#regenerating-the-r
 - [Supported markup](doc/markup.md): elements, attributes and layout rules.
 - [Fonts](doc/fonts.md): font selection and fallbacks.
 - [Bounds and limitations](doc/limits.md): input limits and unsupported behavior.
+- [Elementary direction](doc/elementary-direction.md): RTL token contents and MathML 3's LTR columns.
 - [Testing](doc/testing.md): debug, release, simulator and fuzz testing.
 - [External validation](doc/external-validation.md): pinned standards, reference rendering, font checks and corpus sampling.
 - [Notices](doc/notices.md): speech attribution, specification and font acknowledgments.

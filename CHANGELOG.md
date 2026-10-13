@@ -1,5 +1,9 @@
 # Release notes
 
+## Unreleased
+
+- Wrap plain bidirectional `mtext` in logical order with per-line shaping and inherited text paragraph direction.
+
 ## 0.2.0
 
 Line breaking, `mglyph`, elementary math and localized readings

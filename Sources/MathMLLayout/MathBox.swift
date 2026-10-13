@@ -16,8 +16,22 @@ struct MathBox {
     var op: OperatorProperties?
     /// Set when the box is a row a line may break inside: its children, kept apart.
     var row: BreakableRow?
+    /// Logical token text, retained for per-line shaping after line breaks are chosen.
+    var textSlice: LogicalTextSlice?
+    /// Decorations and structural edits invalidate the plain token shape, as they invalidate
+    /// a breakable row's item count. Replacing such a box by reshaped text would lose its drawing.
+    var logicalTextSlice: LogicalTextSlice? {
+        guard !items.isEmpty, items.allSatisfy({ if case .glyphs = $0 { return true }; return false }) else { return nil }
+        return textSlice
+    }
     /// The source of a vertically stretched fence, for a pair that later stays on one output row.
     var fenceLayout: FenceLayout?
+    /// Hidden drawing still retains its geometry and row structure for line breaking.
+    var isPhantom = false
+    /// Logical text and atomic image pieces, retained only while a token can wrap.
+    var textSegments: [TextSegment]?
+    /// Decorated whitespace before a word, drawn only when it follows another word on a row.
+    var leadingTextSpace: [TextSegment]?
     var items: [MathItem] = []
 
     var height: CGFloat { ascent + descent }
@@ -30,12 +44,15 @@ struct MathBox {
     /// their own metrics.
     mutating func add(_ box: MathBox, at point: CGPoint) {
         guard !box.items.isEmpty else { return }
-        if point == .zero, box.fenceLayout == nil, box.items.count == 1, case .box = box.items[0] {
+        if point == .zero, !box.isPhantom, box.fenceLayout == nil, box.items.count == 1, case .box = box.items[0] {
             items.append(box.items[0]); return
         }
         // What is drawn keeps no row structure: that is for whoever may still break the row.
         var box = box
         box.row = nil
+        box.textSegments = nil
+        box.leadingTextSpace = nil
+        box.textSlice = nil
         items.append(.box(box, at: point))
     }
 
@@ -49,7 +66,13 @@ struct MathBox {
     }
 
     /// The union of everything drawn, relative to the baseline origin; nil when nothing is.
-    var inkBounds: CGRect? {
+    var inkBounds: CGRect? { bounds(includingPhantoms: false) }
+
+    /// Invisible content participates in spacing exactly as its visible counterpart does.
+    var spacingInkBounds: CGRect? { bounds(includingPhantoms: true) }
+
+    private func bounds(includingPhantoms: Bool) -> CGRect? {
+        if isPhantom && !includingPhantoms { return nil }
         var cursors = [ItemCursor(items: items, origin: .zero)]
         while !cursors.isEmpty {
             let last = cursors.count - 1
@@ -74,6 +97,7 @@ struct MathBox {
             case .path(let path, let width, _, _), .dashes(let path, let width, _, _):
                 rect = path.boundingBoxOfPath.insetBy(dx: -width / 2, dy: -width / 2)
             case .box(let box, let point):
+                if box.isPhantom && !includingPhantoms { continue }
                 cursors.append(ItemCursor(items: box.items, origin: point))
                 continue
             }
@@ -102,6 +126,7 @@ struct MathBox {
     }
 
     func draw(in context: CGContext, at origin: CGPoint) {
+        guard !isPhantom else { return }
         var cursors = [ItemCursor(items: items, origin: origin)]
         while !cursors.isEmpty {
             let last = cursors.count - 1
@@ -154,6 +179,7 @@ struct MathBox {
                 // Upright as it is: CoreGraphics puts an image's top row at the rect's greater y.
                 context.draw(image, in: rect.offsetBy(dx: origin.x, dy: origin.y))
             case .box(let box, let point):
+                guard !box.isPhantom else { continue }
                 cursors.append(ItemCursor(items: box.items,
                                           origin: CGPoint(x: origin.x + point.x, y: origin.y + point.y)))
             }
@@ -185,4 +211,11 @@ enum MathItem {
     /// shape with none of its own: its token's, as for the text beside it.
     case image(CGImage, CGRect, CGColor)
     case box(MathBox, at: CGPoint)
+}
+
+/// One shaped piece in source order. Only an ordinary normalized space permits a break.
+struct TextSegment {
+    var box: MathBox
+    var x: CGFloat
+    var isSpace: Bool
 }
