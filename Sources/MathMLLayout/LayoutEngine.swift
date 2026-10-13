@@ -7,6 +7,8 @@ enum MathLimits {
     /// Element nesting. Layout recurses per level, so this also bounds stack use.
     static let depth = 64
     static let nodes = 20_000
+    /// Occupancy probes and label-span row visits across all tables in a layout pass.
+    static let tableWork = 200_000
     /// UTF-16 units of token text in one formula.
     static let textLength = 50_000
     /// Points, any dimension of the result.
@@ -143,6 +145,8 @@ final class LayoutEngine {
     let constants: MathConstants
     private var nodeCount = 0
     private var textLength = 0
+    private var tableWork = 0
+    var remainingTableWork: Int { MathLimits.tableWork - tableWork }
     /// `MathLimits.stackFloor` of the thread that lays out, found as the root starts.
     private var stackFloor: UInt = 0
     /// `MathStyle.imageProvider`, and what it has returned for each `src` it was asked for.
@@ -299,6 +303,12 @@ final class LayoutEngine {
         }
     }
 
+    /// Charges grid searches and label spans to the same budget across nested and sibling tables.
+    func countTableWork(_ count: Int) throws {
+        tableWork += count
+        guard tableWork <= MathLimits.tableWork else { throw MathLayoutError.limitExceeded }
+    }
+
     /// Elements visited without a box still count toward the formula's node bound.
     func countNodes(_ count: Int = 1) throws {
         nodeCount += count
@@ -417,6 +427,7 @@ final class LayoutEngine {
     func restart() {
         nodeCount = 0
         textLength = 0
+        tableWork = 0
         narrowable = nil
         loosest = 0
         wrapParts.removeAll(keepingCapacity: true)

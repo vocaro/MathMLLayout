@@ -145,8 +145,6 @@ def main():
         'exclusions': exclusions + [
             {'feature': 'DOM/CSS integration', 'classification': 'unsuitable reference/test',
              'reason': 'Events, CSS cascading, dynamic mutation and browser line boxes are outside the API.'},
-            {'feature': 'mtable spans', 'classification': 'unsupported feature',
-             'reason': 'rowspan/columnspan ignored (doc/limits.md); no span test imported.'},
             {'feature': 'unary/lone operator spacing, ordinary delimiter sizing',
              'classification': 'intentional difference', 'reason': 'Specific TeX choices documented in doc/markup.md; not counted as passes.'},
             {'feature': 'stretchy arrow labels', 'classification': 'intentional difference',
