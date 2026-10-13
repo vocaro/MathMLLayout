@@ -47,7 +47,10 @@ its left. For decimal alignment, the decimal separator (or the implied separator
 the first number) occupies column zero before position offsets. Right alignment uses the
 boundary after the last cell as its reference. Center alignment uses the middle cell,
 or the cell to the right of the middle for an even count. These are the same logical
-coordinates used by drawing, independent of font or physical widths.
+coordinates used by drawing, independent of font or physical widths. Elementary columns
+always progress left to right under MathML 3, including within `dir="rtl"`; their speech
+coordinates and compass locations retain the same convention in both directions. See
+[elementary direction](elementary-direction.md).
 
 `position` and every group's incremental `shift` accumulate, including shifts past lines
 and nested groups. Numbers directly in a stack row are spelled digit by digit, naming

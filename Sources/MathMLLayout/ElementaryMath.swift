@@ -164,6 +164,10 @@ enum LongDivision: String, CaseIterable, Sendable {
     var hasResultOnTop: Bool { self == .leftTop || self == .rightTop || self == .stackedLeftLineTop }
 }
 
+/// Elementary columns, operators, carries and frame sides always progress LTR, even in an RTL
+/// context (MathML 3, 3.6, 3.6.4, 3.6.5). Inherited direction applies inside token/carry
+/// contents; it never changes their logical columns, compass points or physical placement.
+///
 /// Elementary math (MathML 3, 3.6): `mstack` and `mlongdiv` with their `msgroup`, `msrow`,
 /// `mscarries`, `mscarry` and `msline` children. MathML Core leaves these out, so the rules are
 /// MathML 3's, with choices of this engine's where it says nothing: the leading between rows,
@@ -956,7 +960,10 @@ extension LayoutEngine {
             var x: CGFloat = 0
             let space = 0.25 * em
             func sign(_ text: String) {
-                let glyph = textBox(text, context)
+                var signContext = context
+                // Separators belong to this physical frame, not to a bidi operand.
+                signContext.direction = .leftToRight
+                let glyph = textBox(text, signContext)
                 box.add(glyph, at: CGPoint(x: x, y: -row.baseline))
                 placed.append(CGRect(x: x, y: row.baseline - glyph.ascent, width: glyph.width, height: glyph.height))
                 top = min(top, row.baseline - glyph.ascent); bottom = max(bottom, row.baseline + glyph.descent)

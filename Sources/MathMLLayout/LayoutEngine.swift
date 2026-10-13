@@ -59,6 +59,8 @@ struct LayoutContext {
     var lines = LineStyle()
     /// `decimalpoint`: the character a stack's rows align on (`stackalign="decimalpoint"`); nil is ".".
     var decimalPoint: String?
+    /// Base direction for bidi token contents; elementary columns retain their LTR geometry.
+    var direction: CTWritingDirection = .natural
 }
 
 /// What an embellished operator learns from where it sits: its form from its position in a
@@ -225,6 +227,11 @@ final class LayoutEngine {
         let attributes = node.attributes
         guard !attributes.isEmpty else { return outer }
         var context = outer
+        switch attributes["dir"]?.trimmingCharacters(in: .whitespaces).lowercased() {
+        case "ltr": context.direction = .leftToRight
+        case "rtl": context.direction = .rightToLeft
+        default: break
+        }
         if node.name == "mstyle" {
             if let multiplier = attributes["scriptsizemultiplier"].flatMap({ Double($0.trimmingCharacters(in: .whitespaces)) }),
                multiplier > 0.1, multiplier <= 10 {
@@ -803,6 +810,9 @@ final class LayoutEngine {
     /// says otherwise, and its width includes its italic correction (TeX's rule 17). An `mglyph`
     /// is not a character, so an `mi` of one stays upright even when its `alt` is drawn instead.
     private func token(_ node: MathMLNode, _ context: LayoutContext) throws -> MathBox {
+        var context = context
+        // Numbers keep LTR progression in every context (MathML 3, 3.1.5 and 3.6).
+        if node.name == "mn" { context.direction = .leftToRight }
         var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", context)
         if node.name == "ms" {
             // The quotes are text, whatever they hold: only `mglyph`s have markers.
@@ -829,8 +839,17 @@ final class LayoutEngine {
     /// system's fallback fonts.
     func textBox(_ text: String, _ context: LayoutContext) -> MathBox {
         guard !text.isEmpty else { return .empty() }
-        let attributes = [kCTFontAttributeName: ctFont(context)] as CFDictionary
-        let line = CTLineCreateWithAttributedString(CFAttributedStringCreate(nil, text as CFString, attributes))
+        var attributes: [CFString: Any] = [kCTFontAttributeName: ctFont(context)]
+        if context.direction != .natural {
+            var direction = context.direction
+            let paragraph = withUnsafePointer(to: &direction) { value in
+                var setting = CTParagraphStyleSetting(spec: .baseWritingDirection,
+                                                      valueSize: MemoryLayout<CTWritingDirection>.size, value: value)
+                return CTParagraphStyleCreate(&setting, 1)
+            }
+            attributes[kCTParagraphStyleAttributeName] = paragraph
+        }
+        let line = CTLineCreateWithAttributedString(CFAttributedStringCreate(nil, text as CFString, attributes as CFDictionary))
         var box = MathBox(width: CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)))
         var ink: CGRect?
         for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
