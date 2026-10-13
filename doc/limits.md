@@ -15,8 +15,22 @@ declarations in any encoding, so no entity expands and nothing external loads; i
 
 - **Line breaking.** No breaks inside `mpadded`, `mphantom`, `merror`, `munder`/`mover`/
   `munderover`, a script, or a row with a `mathbackground`; none between adjacent identifiers or
-  inside a number. `indenttarget` must name a child of a row
-  being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. A table inside
+  inside a number. `indenttarget` resolves unique IDs on earlier output lines of the same
+  broken paragraph, including descendants of nested `mrow`/`mstyle` wrappers and the placed
+  row content of a background or `mphantom`. A fragmented wrapper targets its original left
+  edge on its first fragment, discarding leading operator space when that fragment starts a
+  continuation line; indentation, ink coverage and fence resizing are included.
+  Targets across independently wrapped paragraphs (fraction parts, radical content, table
+  cells), script arguments outside the flattened base, unselected content, or outside the input formula have no shared coordinate
+  here. Absent, duplicate, same-line and later-line targets fall back to `auto`, as unavailable
+  targets do under [MathML 3, 3.2.5.2.3](https://www.w3.org/TR/MathML3/chapter3.html#presm.mo.indent).
+  Anchor indexing is bounded by the input node/depth limits, with logarithmic predecessor
+  lookup and one final placement pass; it adds no wrapping retries. For an unbounded line or
+  an internally wrapped paragraph, center/right alignment uses the common frame chosen before
+  final ID placement. An ID continuation may extend the returned width beyond that frame:
+  requiring a right-aligned target and a longer continuation to share the final right edge
+  can have no finite solution.
+  `malignmark` and `maligngroup` align nothing. A table inside
   a table cell does not narrow, and `mtext` with a right-to-left run, an image, or an `alt`
   drawn on a `mathbackground` of its own does not wrap.
   `overflow` and `maxwidth` on `math` are not read:
