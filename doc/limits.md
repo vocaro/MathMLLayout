@@ -17,7 +17,8 @@ work throw `MathLayoutError.limitExceeded`; malformed/zero spans use one, and ro
 at the last source row. Cell rebuilds share separate limits of 1,280,000 node visits and 200,000 table-work
 visits per pass; cached tables charge their original descendant count and measured grid work.
 Logical text range requests and row assembly share 2,000,000 units per pass: requested UTF-16
-range lengths (including cache hits) plus row units visited. This counter does not measure
+range lengths (including cache hits) plus row units visited, including retained-word candidate
+assembly in RTL paragraphs. This counter does not measure
 elapsed time or CoreText's internal paragraph resolution and shaping cost. Plain ASCII letters,
 digits and U+0020 spaces under LTR/natural direction reuse their full-token glyphs and word
 metrics in one pass, provided CoreText preserves separate space clusters. Other plain text
@@ -52,6 +53,12 @@ wrappers. This includes pure subscript and under-over chains. The sweep checks s
 comparisons above. Measurements used arm64 macOS 27.0 (build 26A428), Xcode 27.1 (build 27A9269),
 and Apple Swift 6.4 (`swiftlang-6.4.0.34.1`).
 
+The reviewed RTL alignment follow-up source `6b2d906` repeated all eleven pure-chain probes at 64
+levels in debug and release on the same platform. A new 64-level fixture also retains two
+alignment groups through 58 nested RTL rows in each table cell. Its geometry, drawing-item
+counts, ink, pixels and all five base-language readings match the reference layout on an
+exactly 512 KB worker. The ordinary node, text, table-work and extent limits still apply.
+
 These fixtures do not establish universal 64-level coverage. Different attributes, fonts,
 stretched operators, width constraints or callbacks can exhaust the stack sooner. Smaller
 workers may safely reject bounded inputs; tests include exact 128 KB and 256 KB stacks and the
@@ -82,20 +89,22 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   chosen before ID placement; an ID continuation can extend the returned width beyond that
   frame. See [Line breaking](line-breaking.md).
 - **Direction and elementary math.** Inherited `dir` sets direction within shaped token text;
-  general layout schemata still progress LTR. Elementary grids, numeric text and frame sides
+  rows and table columns progress in the inherited layout direction. Scripts, radicals and
+  other schemata retain their existing geometry; full RTL schema mirroring is unsupported.
+  Elementary grids, numeric text and frame sides
   retain the LTR policy. `decimalpoint` names one character. A number's `mglyph` occupies one
   column, sized to its image or entire fallback; its `alt` supplies neither a decimal separator
   nor several digit columns. Division frames are drawn, not font glyphs. See
   [Direction and columns](elementary-direction.md).
-- **Tables.** Spans use a bounded sparse grid; overlapping requests move right to a vacant
-  rectangle. Label columns remain independent gutters, so a label's `columnspan` adds no grid
+- **Tables.** Spans use a bounded sparse grid; overlapping requests advance to a vacant
+  rectangle in source-column order. Label columns remain independent gutters, so a label's `columnspan` adds no grid
   columns. Row/cell vertical alignment is supported; a row with only top/bottom/center entries
   uses a midpoint baseline, and labels contribute to row height. Equal tracks, authored
   table/column widths and stretching cell operators to neighboring cells remain unsupported;
-  overlap label sides reserve the same space as non-overlap forms. LTR alignment groups and
+  overlap label sides reserve the same space as non-overlap forms. LTR and RTL alignment groups and
   marks are supported, but aligned cells stay indivisible under automatic wrapping. Forced
   breaks and non-default spans opt out. Token marks also align beside inline images, legacy
-  glyphs, and fallbacks. RTL alignment remains staged. See [Alignment groups](alignment-groups.md).
+  glyphs, and fallbacks. Left/right edges and label sides remain physical. See [Alignment groups](alignment-groups.md).
 - **Images and legacy glyphs.** Intrinsic image scale/logical size is supplied by the host;
   markup can override image dimensions. An `mo` containing `mglyph` preserves author sizing
   and baseline by default; explicit `stretchy="true"`/`largeop="true"` opts into whole-token

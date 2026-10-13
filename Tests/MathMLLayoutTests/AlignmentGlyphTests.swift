@@ -230,4 +230,35 @@ final class AlignmentGlyphTests: XCTestCase {
         _ = try cached.layout(element("<mn><mglyph src='g'/><malignmark/><mglyph src='g'/><malignmark/></mn>"), context, depth: 0)
         XCTAssertEqual(calls.withLock { $0 }, 1, "alignment mapping must not resolve or lay out glyph prefixes again")
     }
+    func testRTLTokenMarksBesideImagesAndFallbacksRetainRenderedCoordinates() throws {
+        var rtl = context
+        rtl.direction = .rightToLeft
+        rtl.alignmentRTL = true
+        for token in ["mi", "mn", "mo", "mtext", "ms"] {
+            for glyph in ["src='g'", "src='missing' alt='WIDE' mathbackground='red'",
+                          "fontfamily='STIX Two Math' index='2'"] {
+                let engine = engine(images: glyph == "src='g'")
+                let node = try element("<\(token) lquote='' rquote=''>1<mglyph \(glyph)/><malignmark/>3</\(token)>")
+                let box = try engine.layout(node, rtl, depth: 0)
+                let prefix = try engine.layout(element("<\(token) lquote='' rquote=''>1<mglyph \(glyph)/></\(token)>"), rtl, depth: 0)
+                XCTAssertEqual(try mark(box).x, prefix.width, accuracy: 0.001, token)
+            }
+        }
+        let body = "<mtable dir='rtl'><mtr><mtd><maligngroup/><mtext>1<mglyph src='g' width='1em'/><malignmark/>3</mtext></mtd></mtr>"
+            + "<mtr><mtd><maligngroup/><mtext>123<mglyph src='g' width='2em'/><malignmark/>4</mtext></mtd></mtr></mtable>"
+        let r = imageRects(try engine().layout(element(body), context, depth: 0))
+        XCTAssertEqual(r.count, 2)
+        XCTAssertEqual(r[0].maxX, r[1].maxX, accuracy: 0.001)
+    }
+
+    func testRTLStretchedOperatorTokenEdgesUseDirectionAndRenderedWidth() throws {
+        var rtl = context
+        rtl.direction = .rightToLeft
+        rtl.alignmentRTL = true
+        for (text, end) in [("→<malignmark/>", true), ("<malignmark/>→", false)] {
+            let box = try engine().layout(element("<mover><mo>\(text)</mo><mspace width='8em'/></mover>"), rtl, depth: 0)
+            XCTAssertEqual(try mark(box).x, end ? 0 : box.width, accuracy: 0.001)
+        }
+    }
+
 }

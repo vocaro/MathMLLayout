@@ -152,6 +152,26 @@ final class WorkerDepthTests: MathTestCase {
         }
     }
 
+    func testRTLAlignmentGroupsAt64LevelsMatchOnAnExact512KBWorker() {
+        func cell(_ first: Int, _ second: Int) -> MathMLNode {
+            var row = MathMLNode(name: "mrow", children: [
+                MathMLNode(name: "maligngroup"),
+                MathMLNode(name: "mspace", attributes: ["width": "\(first)em", "height": "1em", "mathbackground": "red"]),
+                MathMLNode(name: "maligngroup"),
+                MathMLNode(name: "mspace", attributes: ["width": "\(second)em", "height": "1em", "mathbackground": "blue"]),
+            ])
+            for _ in 0..<58 { row = MathMLNode(name: "mrow", attributes: ["dir": "rtl"], children: [row]) }
+            return MathMLNode(name: "mtr", children: [MathMLNode(name: "mtd", children: [row])])
+        }
+        let root = MathMLNode(name: "math", attributes: ["dir": "rtl"], children: [
+            MathMLNode(name: "mtable", children: [cell(1, 2), cell(3, 1)])
+        ])
+        let main = Self.snapshot(root)
+        guard case .success(let snapshot) = main else { return XCTFail("64-level RTL groups must lay out") }
+        XCTAssertEqual(snapshot.metrics[0], 60, accuracy: 0.001)
+        XCTAssertEqual(onWorker { Self.snapshot(root) }, main)
+    }
+
     func testMeasureWorkerDepth() throws {
         guard ProcessInfo.processInfo.environment["MATHML_MEASURE_WORKER_DEPTH"] == "1" else {
             throw XCTSkip("Set MATHML_MEASURE_WORKER_DEPTH=1 to report maximum covered depths")

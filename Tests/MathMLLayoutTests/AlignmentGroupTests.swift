@@ -171,20 +171,22 @@ final class AlignmentGroupTests: XCTestCase {
                 + "<maligngroup/><mo>\(sign)</mo><mrow><maligngroup/><mn>\(b)</mn><mo>&#x2062;</mo><maligngroup/><mi>y</mi></mrow></mrow>"
                 + "<maligngroup/><mo>=</mo><maligngroup/>\(rhs)</mrow>"
         }
-        let body = table(equation("8.44", "+", "55", "<mn>0</mn>"), equation("3.1", "-", "0.7", "<mrow><mo>-</mo><mn>1.1</mn></mrow>"),
-                         attributes: "groupalign='{decimalpoint left left decimalpoint left left decimalpoint}'")
-        let drawn = runs(try innerBox(body))
-        // 7 runs in the first equation, 8 in the second (the negative constant adds a sign).
-        XCTAssertEqual(drawn.count, 15)
-        guard drawn.count == 15 else { return }
-        XCTAssertEqual(drawn[0].origin.x + drawn[0].run.positions[1].x,
-                       drawn[7].origin.x + drawn[7].run.positions[1].x, accuracy: 0.001)
-        for (a, b) in [(1, 8), (2, 9), (4, 11), (5, 12)] {
-            XCTAssertEqual(drawn[a].origin.x + drawn[a].run.positions[0].x,
-                           drawn[b].origin.x + drawn[b].run.positions[0].x, accuracy: 0.001)
+        for direction in ["ltr", "rtl"] {
+            let body = table(equation("8.44", "+", "55", "<mn>0</mn>"), equation("3.1", "-", "0.7", "<mrow><mo>-</mo><mn>1.1</mn></mrow>"),
+                             attributes: "dir='\(direction)' groupalign='{decimalpoint left left decimalpoint left left decimalpoint}'")
+            let drawn = runs(try innerBox(body))
+            // 7 runs in the first equation, 8 in the second (the negative constant adds a sign).
+            XCTAssertEqual(drawn.count, 15)
+            guard drawn.count == 15 else { return }
+            XCTAssertEqual(drawn[0].origin.x + drawn[0].run.positions[1].x,
+                           drawn[7].origin.x + drawn[7].run.positions[1].x, accuracy: 0.001)
+            for (a, b) in [(1, 8), (2, 9), (4, 11), (5, 12)] {
+                XCTAssertEqual(drawn[a].origin.x + drawn[a].run.positions[0].x,
+                               drawn[b].origin.x + drawn[b].run.positions[0].x, accuracy: 0.001)
+            }
+            XCTAssertEqual(drawn[3].origin.x + (try innerBox("<mn>55</mn>")).width,
+                           drawn[10].origin.x + drawn[10].run.positions[1].x, accuracy: 0.001)
         }
-        XCTAssertEqual(drawn[3].origin.x + (try innerBox("<mn>55</mn>")).width,
-                       drawn[10].origin.x + drawn[10].run.positions[1].x, accuracy: 0.001)
     }
 
     func testAlignmentScopesAndNestedMarks() throws {
@@ -210,7 +212,7 @@ final class AlignmentGroupTests: XCTestCase {
         XCTAssertEqual(spanningBox.width, 4.8 * em, accuracy: 0.001, "spanning tracks retain their internal gap")
         XCTAssertEqual(rectangles(spanningBox), rectangles(try innerBox(span.replacingOccurrences(of: "<maligngroup/>", with: ""))),
                        "group alignment stays disabled for spanning cells")
-        XCTAssertEqual(try innerBox("<mstyle dir='rtl'>\(table(first, second))</mstyle>").width, 4 * em, accuracy: 0.001)
+        XCTAssertEqual(try innerBox("<mstyle dir='rtl'>\(table(first, second))</mstyle>").width, 5 * em, accuracy: 0.001)
         let formula = try mathML(table(first, second))
         let narrow = try MathLayout(formula, style: MathStyle(fontSize: em, color: black), maximumWidth: 2 * em)
         XCTAssertEqual(narrow.rows.count, 1)

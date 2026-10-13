@@ -35,7 +35,7 @@ extension LayoutEngine {
     func glyphContent(of token: MathMLNode, trimming: Bool = true, countingGlyphs: Bool = true,
                       _ context: LayoutContext) throws -> (text: String, images: [MathBox], markOffset: Int?) {
         let (paired, glyphs) = try Self.pairedGlyphText(of: token, trimming: trimming)
-        let pairedMark = context.trackAlignment && !context.alignmentRTL
+        let pairedMark = context.trackAlignment
             ? Self.pairedTokenMarkOffset(token, text: paired, trimming: trimming) : nil
         guard !glyphs.isEmpty else { return (paired, [], pairedMark) }
         if countingGlyphs { try countNodes(glyphs.count) }

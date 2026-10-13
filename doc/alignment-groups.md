@@ -1,6 +1,6 @@
 # Table alignment groups
 
-LTR table columns follow the side-width algorithm in
+LTR and RTL table columns follow the side-width algorithm in
 [MathML 3, section 3.5.5](https://www.w3.org/TR/MathML3/chapter3.html#presm.maligngroup).
 Each `maligngroup` starts a group. Corresponding groups share the maximum widths on each side
 of their alignment point; missing trailing groups act as empty groups. Ungrouped cells use
@@ -24,7 +24,8 @@ fractions do not capture decimal alignment. Explicit marks may appear within the
 Groups can cross nested rows and styles, including redundant `dir="ltr"` declarations,
 and pass through phantoms, expanded fences, selected
 actions and semantics. Groups inside other layout schemata do not subdivide the outer cell.
-A nested table consumes marks in its own alignment scopes. Its `alignmentscope="false"`
+A nested table consumes marks in its own alignment scopes, including after forced or automatic
+cell wrapping. Its `alignmentscope="false"`
 columns instead expose their explicit marks to the enclosing scope. Boolean scope lists
 repeat their last value. Labeled-row labels do not participate in column alignment.
 
@@ -47,14 +48,27 @@ of alignment groups. A cell declaring a non-default `rowspan` or `columnspan` al
 MathML 3 leaves line-breaking and span interactions unspecified, so these policies retain
 predictable content geometry until a fuller table grid implementation is available.
 
-RTL layout is not implemented by the surrounding layout engine. Alignment events are therefore
-ignored under inherited `dir="rtl"`. A nested row or style that changes effective direction
-prevents its groups from propagating into an outer scope, as MathML 3 section 3.5.5.2 requires;
-a declaration that preserves LTR direction retains them. An RTL child inside an LTR group
-retains one atomic extent, including its advances, ink overhang and background, while suppressing its
-internal marks, numbers and groups. General RTL row/table geometry and
-RTL alignment groups remain follow-up work for issue #76. The staged line-break and span
-policies above also remain unchanged.
+Rows, inferred rows and table columns progress in their inherited direction. Source group
+indices and attribute lists retain source order: in an RTL table, the first column and first
+group section are rightmost, and missing trailing groups reserve space on the left. `left`
+and `right` remain physical edges; decimal numbers retain LTR digit order. Explicit row marks
+select the physical neighbour specified by `edge`, so that neighbour changes source side in
+RTL. Token marks retain their mapped positions within the token's shaped text or attachments.
+Labels remain on their authored physical `side`, outside the reflected main grid. Column and
+row rules, including interruptions for spans, use that grid's physical edges.
+
+A nested row or style that changes effective direction forms an atomic extent in the enclosing
+group. Its internal marks, numbers and groups do not propagate; its advance, ink overhang and
+background do. A declaration that preserves direction retains groups. This rule applies in
+both directions. Such rows resolve their own line breaks before joining an outer paragraph.
+Ordinary RTL row breaks retain source order and place each line from right to left; glyphs and
+images retain their original drawing orientation. Indentation and column alignment continue
+to use physical left/right coordinates.
+
+This support is scoped to rows and tables. Scripts, radicals and other layout schemata retain
+their existing geometric policies; it does not implement full MathML 3 RTL schema mirroring.
+Elementary grid columns retain MathML 3's explicit LTR policy. The staged group line-break
+and span policies above remain unchanged.
 
 Metadata visits only the laid-out tree and is retained inside cells. Group measurements and
 column side-width scans are linear in event count; restoring source priority for deferred

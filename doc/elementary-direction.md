@@ -46,7 +46,7 @@ In this engine, `dir="rtl"` and `dir="ltr"` inherit through `math`, `mstyle`, st
 groups, rows and carries; a child's valid value overrides its parent's. The engine also
 accepts explicit direction on elementary containers to set their descendants' token
 direction. Invalid values, including the unsupported `auto`, inherit both text direction
-and the policy that disables alignment groups in RTL contexts. Shaped
+and layout direction. Shaped
 text uses the specified base direction with Unicode bidi processing, so a mixed token
 such as `<mtext>+ 12 אב</mtext>` can change internal visual order without changing its
 column. Numeric tokens retain LTR progression. With no explicit direction, existing
@@ -54,9 +54,10 @@ CoreText natural-direction shaping is preserved.
 
 The supported scope for [issue #75](https://github.com/vocaro/MathMLLayout/issues/75)
 is inherited bidi **token contents** and MathML 3's physical elementary column policy.
-General layout schemata, including compound expressions inside one elementary cell,
-still progress LTR in this engine. The standard's overall RTL schema mirroring remains
-unsupported. Reversing elementary columns would instead require an explicitly chosen
+Rows and tables now follow inherited layout direction, including compound rows inside
+one elementary cell. The enclosing elementary columns themselves still progress LTR.
+Scripts, radicals and other schemata retain their existing geometric policies, so complete
+RTL schema mirroring remains unsupported. Reversing elementary columns would instead require an explicitly chosen
 extension to MathML 3.
 
 ## Regression coverage
@@ -72,7 +73,7 @@ extension to MathML 3.
 
 `DirectionalityScopeTests` checks that invalid direction attributes on table, row, cell
 and style contexts retain inherited RTL alignment policy, while a valid LTR override
-enables the supported LTR alignment scope. `BidiTextTests` checks logical token wrapping
+changes back to LTR column and group progression. `BidiTextTests` checks logical token wrapping
 with paragraph bidi context and numeric parentheses in an RTL stack. These tests verify
 the supported token and elementary scope; they do not establish general RTL schema support.
 

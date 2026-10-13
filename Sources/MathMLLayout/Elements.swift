@@ -160,7 +160,12 @@ extension LayoutEngine {
         case "msubsup": try arity(node, 3)
         default: guard !children.isEmpty else { throw MathLayoutError.invalidMarkup(node.name) }
         }
-        let base = try layout(children[0], context, embellishment, depth: depth + 1)
+        // Script placement remains LTR in the staged RTL implementation. Keep the
+        // base's inherited row progression consistent with that schema, while retaining
+        // its token bidi direction. Explicit row direction overrides still apply.
+        var baseContext = context
+        baseContext.alignmentRTL = false
+        let base = try layout(children[0], baseContext, embellishment, depth: depth + 1)
         let pairs = try scriptPairs(node, context, depth: depth)
         return attachScripts(base, post: pairs.post, pre: pairs.pre, context)
     }
@@ -286,7 +291,7 @@ extension LayoutEngine {
         box.ascent = ascent
         box.descent = descent
         box.op = base.op
-        if breaks { box.row = BreakableRow(children: parts, itemCount: box.items.count, context) }
+        if breaks { box.row = BreakableRow(children: parts, itemCount: box.items.count, width: box.width, rtl: false, context) }
         return box
     }
 
@@ -743,10 +748,13 @@ extension LayoutEngine {
         let tableAlign = list("columnalign", in: attributes)
         let labelGap = length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em
         let labelWidth = labels.compactMap { $0?.box.width }.max().map { $0 + labelGap } ?? 0
-        try alignColumns(&cells, scopes: list("alignmentscope", in: attributes))
+        try alignColumns(&cells, scopes: list("alignmentscope", in: attributes), rtl: context.alignmentRTL)
         // Aligned cells are indivisible; forced breaks and spans retain ordinary wrapping.
         // Before the rows are measured: a table too wide for the line wraps its cells, which grow taller.
         let minimum = try wrapCells(&cells, sources: sources, columnAlign: tableAlign, gaps: columnGaps, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
+        // Wrapping reconstructs rows from retained children, which still carry their
+        // original events. Consume this table's scopes again after that reconstruction.
+        consumeColumnAlignment(&cells, scopes: list("alignmentscope", in: attributes))
         let widths = cells.widths(gaps: columnGaps) { _, _, cell in cell.box.width }
         var ascents = [CGFloat](repeating: 0, count: cells.rows.count), descents = ascents
         for (rowIndex, row) in cells.rows.enumerated() {
@@ -819,6 +827,15 @@ extension LayoutEngine {
             columnEnds.append(x + widths[column])
             x += widths[column] + (column < columnGaps.count ? columnGaps[column] : 0)
         }
+        // Grid indices stay in source order. Reflect track edges without reflecting cells,
+        // physical column alignment, or the independently positioned label gutters.
+        if context.alignmentRTL {
+            for column in widths.indices {
+                let start = columnStarts[column]
+                columnStarts[column] = 2 * gridX + gridWidth + 2 * frameX - columnEnds[column]
+                columnEnds[column] = 2 * gridX + gridWidth + 2 * frameX - start
+            }
+        }
         func cellBaseline(_ cell: TableCell, row: Int) -> CGFloat {
             let end = row + cell.rowSpan - 1
             let cellTop = top - baselines[row] + ascents[row]
@@ -840,7 +857,7 @@ extension LayoutEngine {
                 case "right": width - cell.box.width
                 default: (width - cell.box.width) / 2
                 }
-                box.add(cell.box, at: CGPoint(x: columnStarts[cell.column] + offset, y: cellBaseline(cell, row: rowIndex)))
+                box.add(cell.box, at: CGPoint(x: columnStarts[context.alignmentRTL ? cell.column + cell.columnSpan - 1 : cell.column] + offset, y: cellBaseline(cell, row: rowIndex)))
             }
             if let label = labels[rowIndex] {
                 let labelX = labelsLeft ? 0 : gridX + gridWidth + 2 * frameX + labelGap
@@ -862,8 +879,13 @@ extension LayoutEngine {
         for (rowIndex, row) in cells.rows.enumerated() {
             for cell in row {
                 let lastColumn = cell.column + cell.columnSpan - 1
-                let left = cell.column == 0 ? inside.left : columnStarts[cell.column] - columnGaps[cell.column - 1] / 2
-                let right = lastColumn == columns - 1 ? inside.right : columnEnds[lastColumn] + columnGaps[lastColumn] / 2
+                let leading = cell.column == 0 ? (context.alignmentRTL ? inside.right : inside.left)
+                    : (context.alignmentRTL ? columnEnds[cell.column] + columnGaps[cell.column - 1] / 2
+                       : columnStarts[cell.column] - columnGaps[cell.column - 1] / 2)
+                let trailing = lastColumn == columns - 1 ? (context.alignmentRTL ? inside.left : inside.right)
+                    : (context.alignmentRTL ? columnStarts[lastColumn] - columnGaps[lastColumn] / 2
+                       : columnEnds[lastColumn] + columnGaps[lastColumn] / 2)
+                let left = min(leading, trailing), right = max(leading, trailing)
                 for boundary in rowIndex..<(rowIndex + cell.rowSpan - 1) {
                     if left <= right { rowBlocks[boundary].append(left...right) }
                 }
@@ -903,7 +925,8 @@ extension LayoutEngine {
         for index in columnGaps.indices {
             lineX += widths[index] + columnGaps[index] / 2
             if let style = pick(columnLines, index), style != "none", hasRoom {
-                let path = style == "dashed" ? dashed : solid, x = min(max(lineX, inside.left), inside.right)
+                let physicalX = context.alignmentRTL ? gridLeft + gridRight - lineX : lineX
+                let path = style == "dashed" ? dashed : solid, x = min(max(physicalX, inside.left), inside.right)
                 segments(inside.bottom...inside.top, excluding: columnBlocks[index]) { bottom, top in
                     path.move(to: CGPoint(x: x, y: top)); path.addLine(to: CGPoint(x: x, y: bottom))
                 }
