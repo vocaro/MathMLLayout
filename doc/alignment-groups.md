@@ -24,7 +24,8 @@ fractions do not capture decimal alignment. Explicit marks may appear within the
 Groups can cross nested rows and styles, including redundant `dir="ltr"` declarations,
 and pass through phantoms, expanded fences, selected
 actions and semantics. Groups inside other layout schemata do not subdivide the outer cell.
-A nested table consumes marks in its own alignment scopes. Its `alignmentscope="false"`
+A nested table consumes marks in its own alignment scopes, including after forced or automatic
+cell wrapping. Its `alignmentscope="false"`
 columns instead expose their explicit marks to the enclosing scope. Boolean scope lists
 repeat their last value. Labeled-row labels do not participate in column alignment.
 

@@ -71,7 +71,11 @@ scrolling, eliding, truncating or scaling remain the host's responsibility.
 RTL mathematical rows retain source-order break decisions and draw each selected line from
 right to left, preserving the orientation and bidi shaping of each token. Opposite-direction
 rows resolve their own breaks and remain atomic to the outer paragraph. Physical left/right
-indentation and ID targets use the final drawn coordinates. See [alignment groups](alignment-groups.md)
+indentation and ID targets use the final drawn coordinates. RTL script boxes retain their staged LTR
+base-row geometry and resolve those rows internally, keeping forced breaks and scripts on
+the final base fragment. Token bidi direction remains inherited. Retained LTR text words in
+RTL formulas are measured as drawn blocks, with assembly charged to the shared text-work
+budget; formula-only candidates retain their constant-time ink summaries. See [alignment groups](alignment-groups.md)
 for the table-specific policies.
 
 [Documentation index](../README.md#documentation)

@@ -164,6 +164,7 @@ final class BreakableRow {
     let width: CGFloat
     /// Words of one token retain their internal text order inside an RTL formula.
     let isText: Bool
+    let textWork: TextShapingWork?
     /// By child index, the visible form of an invisible times whose `linebreakmultchar` asks for one.
     let visible: [Int: MathBox]
     /// How many items the row's box drew when it was built. A geometry or drawing change that
@@ -184,16 +185,17 @@ final class BreakableRow {
     /// A sentinel avoids coincidental item-count equality after a phantom background holder.
     init(opaque row: BreakableRow) {
         children = row.children; visible = row.visible; itemCount = -1
-        rtl = row.rtl; width = row.width; isText = row.isText
+        rtl = row.rtl; width = row.width; isText = row.isText; textWork = row.textWork
         isOperator = row.isOperator; hasForced = row.hasForced; isSeveral = row.isSeveral
         fontSize = row.fontSize; display = row.display; style = row.style
     }
 
     init(children: [Child], visible: [Int: MathBox] = [:], itemCount: Int, isOperator: Bool = false,
-         width: CGFloat? = nil, rtl: Bool? = nil, isText: Bool = false, _ context: LayoutContext) {
+         width: CGFloat? = nil, rtl: Bool? = nil, isText: Bool = false, textWork: TextShapingWork? = nil, _ context: LayoutContext) {
         self.children = children; self.visible = visible; self.itemCount = itemCount; self.isOperator = isOperator
         self.rtl = rtl ?? context.alignmentRTL
         self.isText = isText
+        self.textWork = textWork
         self.width = width ?? children.last.map { $0.x + $0.box.width } ?? 0
         hasForced = children.contains { $0.point?.linebreak == .newline || $0.box.row?.hasForced == true }
         isSeveral = children.count > 1 || children.first?.box.row?.isSeveral == true
@@ -202,7 +204,7 @@ final class BreakableRow {
 
     init(children: [Child], replacing row: BreakableRow, itemCount: Int, width: CGFloat? = nil) {
         self.children = children; visible = row.visible; self.itemCount = itemCount
-        rtl = row.rtl; self.width = width ?? row.width; isText = row.isText
+        rtl = row.rtl; self.width = width ?? row.width; isText = row.isText; textWork = row.textWork
         isOperator = row.isOperator; hasForced = row.hasForced; isSeveral = row.isSeveral
         fontSize = row.fontSize; display = row.display; style = row.style
     }
@@ -290,7 +292,7 @@ extension LayoutEngine {
         // Keep the last logical edge at the original token edge: following formula children
         // were placed using that advance. Per-line shaping then applies its exact width delta.
         children[children.count - 1].box.width += box.width - x
-        return BreakableRow(children: children, itemCount: box.items.count, width: box.width, isText: true, context)
+        return BreakableRow(children: children, itemCount: box.items.count, width: box.width, isText: true, textWork: textWork, context)
     }
 
     /// An `mtext`'s logical text/image pieces grouped at eligible spaces. An image is atomic,
@@ -335,7 +337,7 @@ extension LayoutEngine {
         }
         close(at: box.width)
         guard children.count > 1 else { return nil }
-        return BreakableRow(children: children, itemCount: box.items.count, width: box.width, isText: true, context)
+        return BreakableRow(children: children, itemCount: box.items.count, width: box.width, isText: true, textWork: textWork, context)
     }
 
     // MARK: Lines
@@ -837,7 +839,7 @@ struct Paragraph {
 
     private(set) var units: [Unit] = []
     /// Prefix counts let a candidate formula-only span retain the constant-time ink summaries
-    /// even when another part of the paragraph requires contextual text shaping.
+    /// even when another part needs contextual shaping or RTL retained-word regrouping.
     private var logicalTextCounts: [Int] = []
 
     private func containsLogicalText(_ i: Int, _ j: Int) -> Bool {
@@ -853,7 +855,12 @@ struct Paragraph {
     private var inserts: [(head: MathBox?, tail: MathBox?)] = []
     /// A source element's left edge, retained independently of its first flattened unit. A
     /// wrapper can start before that unit (for example, before an operator's leading space).
-    private struct Anchor { var unit: Int; var x: CGFloat; var trimsLeading: Bool }
+    private struct Anchor {
+        var unit: Int
+        var x: CGFloat
+        var trimsLeading: Bool
+        var endUnit: Int?
+    }
     private var ids: [String: Anchor] = [:]
     /// Duplicate IDs are ambiguous, including a later duplicate: do not choose an invented target.
     private var duplicateIDs: Set<String> = []
@@ -861,7 +868,7 @@ struct Paragraph {
     private mutating func anchor(_ id: String?, unit: Int, x: CGFloat, trimsLeading: Bool = false) {
         guard let id, !id.isEmpty, !duplicateIDs.contains(id) else { return }
         if ids[id] != nil { ids.removeValue(forKey: id); duplicateIDs.insert(id) }
-        else { ids[id] = Anchor(unit: unit, x: x, trimsLeading: trimsLeading) }
+        else { ids[id] = Anchor(unit: unit, x: x, trimsLeading: trimsLeading, endUnit: nil) }
     }
 
     /// An opaque row (a background or phantom) still has placed children. Preserve their
@@ -944,10 +951,11 @@ struct Paragraph {
         }
         if units.isEmpty { units = [Unit(box: box, x: 0, ink: progressionInk(box))] }
         textWork = units.first { $0.box.logicalTextSlice != nil }?.box.logicalTextSlice?.source.work
+            ?? (rtl ? units.first { $0.textGroup?.textWork != nil }?.textGroup?.textWork : nil)
         logicalTextCounts = [0]
         logicalTextCounts.reserveCapacity(units.count + 1)
         for unit in units {
-            logicalTextCounts.append(logicalTextCounts.last! + (unit.box.logicalTextSlice == nil ? 0 : 1))
+            logicalTextCounts.append(logicalTextCounts.last! + (unit.box.logicalTextSlice != nil || rtl && unit.textGroup != nil ? 1 : 0))
         }
         var opened: [Int] = []
         for index in units.indices {
@@ -1109,6 +1117,7 @@ struct Paragraph {
         let isAttached: Bool
         let level: Int
         let isPhantom: Bool
+        var anchorID: String?
         var index = 0
         var fences = 0
     }
@@ -1121,7 +1130,11 @@ struct Paragraph {
                                     level: level, isPhantom: isPhantom)]
         while let last = pending.indices.last {
             guard pending[last].index < pending[last].row.children.count else {
-                pending.removeLast()
+                let frame = pending.removeLast()
+                if let id = frame.anchorID, var found = ids[id] {
+                    found.endUnit = units.count - 1
+                    ids[id] = found
+                }
                 continue
             }
             let frame = pending[last], row = frame.row, index = frame.index
@@ -1147,7 +1160,7 @@ struct Paragraph {
                 let deeper = inner.isOperator || row.children.count == 1 || isHeld || Self.isPair(inner) ? 0 : 1
                 pending.append(FlattenFrame(row: inner, x: childX, depth: frame.depth + fences + deeper,
                                             isUnary: frame.isUnary || child.isUnary, isAttached: attached,
-                                            level: frame.level + 1, isPhantom: frame.isPhantom || child.box.isPhantom))
+                                            level: frame.level + 1, isPhantom: frame.isPhantom || child.box.isPhantom, anchorID: child.id))
             } else {
                 var unitBox = child.box
                 unitBox.isPhantom = unitBox.isPhantom || frame.isPhantom
@@ -1349,9 +1362,10 @@ struct Paragraph {
                 let range = slice.range.lowerBound..<(last.box.logicalTextSlice!.range.upperBound)
                 var shaped = slice.source.box(range)
                 shaped.isPhantom = unit.box.isPhantom
-                for word in index..<next { shifts[word] = delta }
+                let after = delta + shaped.width - (last.x + last.box.width - unit.x)
+                for word in index..<next { shifts[word] = rtl ? after : delta }
                 add(shaped, progressionInk(shaped), at: unit.x + shift + delta)
-                delta += shaped.width - (last.x + last.box.width - unit.x)
+                delta = after
                 index = next
                 continue
             }
@@ -1402,6 +1416,7 @@ struct Paragraph {
             }
             add(child, childInk, at: unit.x + shift + delta)
             delta += child.width - unit.box.width
+            if rtl { shifts[index] = delta }
             index += 1
         }
         if let tail { add(tail, progressionInk(tail), at: ends[j] + shift + delta + stops[j].tailOffset) }
@@ -1471,7 +1486,8 @@ struct Paragraph {
                 x = rtl ? min(anchor.x, ends[end])
                     : (start > 0 && anchor.unit == stops[start].at ? max(anchor.x, starts[start]) : anchor.x)
             } else { x = anchor.x }
-            let progression = stops[start].headAdvance + x - starts[start] + (unitShifts[anchor.unit] ?? 0)
+            let edgeUnit = rtl ? min(anchor.endUnit ?? anchor.unit, stops[end].at - 1) : anchor.unit
+            let progression = stops[start].headAdvance + x - starts[start] + (unitShifts[edgeUnit] ?? 0)
             let edge = origins[end] + lefts[end] + (rtl ? advances[end] - progression : progression)
             targets[i] = edge
             return edge

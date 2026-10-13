@@ -841,7 +841,11 @@ final class LayoutEngine {
     private func finish(_ result: MathBox, _ node: MathMLNode, _ outer: LayoutContext,
                         _ context: LayoutContext, _ embellishment: Embellishment, wrapStart: Int) -> MathBox {
         var box = result
-        if (node.name == "mrow" || node.name == "mstyle"), context.alignmentRTL != outer.alignmentRTL {
+        let changesRowDirection = (node.name == "mrow" || node.name == "mstyle")
+            && context.alignmentRTL != outer.alignmentRTL
+        let stagedScript = ["msub", "msup", "msubsup", "mmultiscripts"].contains(node.name)
+            && box.row.map { $0.rtl != context.alignmentRTL } == true
+        if changesRowDirection || stagedScript {
             // Opposite-direction rows are atomic to the outer paragraph, but their own
             // forced and automatic breaks must be resolved before becoming an outer unit.
             box = wrapped(box, beside: 0, align: .left) ?? box

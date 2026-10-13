@@ -160,7 +160,12 @@ extension LayoutEngine {
         case "msubsup": try arity(node, 3)
         default: guard !children.isEmpty else { throw MathLayoutError.invalidMarkup(node.name) }
         }
-        let base = try layout(children[0], context, embellishment, depth: depth + 1)
+        // Script placement remains LTR in the staged RTL implementation. Keep the
+        // base's inherited row progression consistent with that schema, while retaining
+        // its token bidi direction. Explicit row direction overrides still apply.
+        var baseContext = context
+        baseContext.alignmentRTL = false
+        let base = try layout(children[0], baseContext, embellishment, depth: depth + 1)
         let pairs = try scriptPairs(node, context, depth: depth)
         return attachScripts(base, post: pairs.post, pre: pairs.pre, context)
     }
@@ -747,6 +752,9 @@ extension LayoutEngine {
         // Aligned cells are indivisible; forced breaks and spans retain ordinary wrapping.
         // Before the rows are measured: a table too wide for the line wraps its cells, which grow taller.
         let minimum = try wrapCells(&cells, sources: sources, columnAlign: tableAlign, gaps: columnGaps, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
+        // Wrapping reconstructs rows from retained children, which still carry their
+        // original events. Consume this table's scopes again after that reconstruction.
+        consumeColumnAlignment(&cells, scopes: list("alignmentscope", in: attributes))
         let widths = cells.widths(gaps: columnGaps) { _, _, cell in cell.box.width }
         var ascents = [CGFloat](repeating: 0, count: cells.rows.count), descents = ascents
         for (rowIndex, row) in cells.rows.enumerated() {

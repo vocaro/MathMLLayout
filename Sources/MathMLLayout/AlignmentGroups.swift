@@ -385,6 +385,10 @@ extension LayoutEngine {
                 cells.rows[entry.row][index].box = cells.rows[entry.row][index].box.aligning(entry.groups, shifts: shifts, width: width, rtl: rtl, sections: sections)
             }
         }
+        consumeColumnAlignment(&cells, scopes: scopes)
+    }
+
+    func consumeColumnAlignment(_ cells: inout TableGrid, scopes: [String]) {
         for row in cells.rows.indices {
             for column in cells.rows[row].indices where scopes.isEmpty || scopes[min(cells.rows[row][column].column, scopes.count - 1)] != "false" {
                 cells.rows[row][column].box.alignment = []
