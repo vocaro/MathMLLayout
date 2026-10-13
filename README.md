@@ -96,7 +96,7 @@ are included; see [how to regenerate the images](doc/usage.md#regenerating-the-r
 - [Line breaking](doc/line-breaking.md): wrapping formulas and placing rows.
 - [Images](doc/images.md): supplying images for `mglyph`.
 - [Spoken readings](doc/speech.md): accessibility and language selection.
-- [Speech wording audit](Documentation/SpeechWordingAudit.md): source evidence and remaining questions from #31.
+- [Speech wording audit](Documentation/SpeechWordingAudit.md): source evidence for #31 and remaining human review in [#63](https://github.com/vocaro/MathMLLayout/issues/63).
 - [Supported markup](doc/markup.md): elements, attributes and layout rules.
 - [Fonts](doc/fonts.md): font selection and fallbacks.
 - [Bounds and limitations](doc/limits.md): input limits and unsupported behavior.

@@ -10,7 +10,8 @@ Scope: the wording table and wording questions in
 This source-backed audit is complete for the wording questions and structural follow-up in #31.
 Matching upstream rules, locale maps and fixtures are accepted as wording evidence; a new
 native-speaker review is not a prerequisite for adopting those forms. Only the remaining
-novel descriptions and joining policies listed below need fresh linguistic review.
+novel descriptions and joining policies listed below need fresh linguistic review, tracked in
+[issue #63](https://github.com/vocaro/MathMLLayout/issues/63).
 This is not a claim that MathMLLayout itself has received native-speaker or voice validation.
 The follow-up for
 [#55](https://github.com/vocaro/MathMLLayout/issues/55) repairs multiscript positions.
@@ -211,8 +212,9 @@ and `git diff --check` passed. These focused runs follow the full structural sui
 The source-backed wording work is complete. Exact upstream forms and adaptations with a
 matching construct rule are accepted for this implementation; they do not wait for a second
 translation review. Source support and fresh human validation are distinct statuses.
-The completed implementation and audit can be reviewed and shipped on this basis; the remaining
-novel descriptions can be followed up separately. Do not describe them as native-speaker approved.
+The completed implementation and audit can be reviewed and shipped on this basis. The remaining
+novel descriptions are tracked separately in [issue #63](https://github.com/vocaro/MathMLLayout/issues/63),
+with review material and completion criteria. Do not describe them as native-speaker approved.
 
 | Accepted wording | Evidence and limits |
 | --- | --- |
@@ -317,7 +319,8 @@ can be interpreted without guessing where the nested expression ends.
 The source comparison is sufficient to accept the chosen positional labels. Only the
 composed closing descriptions stay in the human-review queue; there is no blanket requirement
 to re-review supported labels. Neither source agreement nor this implementation claims
-regional or voice certification. The limited review scope is recorded above.
+regional or voice certification. The limited review scope is recorded above and tracked in
+[issue #63](https://github.com/vocaro/MathMLLayout/issues/63).
 
 `MultiscriptSpeechTests` checks parsed formulas in all five languages, every combination
 of occupied/empty corners, five pairs on each side, empty pairs, the adapted tensor
