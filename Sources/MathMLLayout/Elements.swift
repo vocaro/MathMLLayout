@@ -677,10 +677,9 @@ extension LayoutEngine {
                 var rowSources: [TableCellSource] = []
                 for cell in cellNodes {
                     rowSources.append(TableCellSource(node: cell, context: rowContext, depth: depth + 2))
-                    var box = try layout(cell, rowContext, depth: depth + 2)
+                    let box = try layout(cell, rowContext, depth: depth + 2)
                     let rowSpan = try TableGrid.span(cell.attributes["rowspan"])
                     let columnSpan = try TableGrid.span(cell.attributes["columnspan"])
-                    if rowSpan > 1 || columnSpan > 1 { box.alignment = [] }
                     let align = cell.attributes["columnalign"]?.trimmingCharacters(in: .whitespaces).lowercased()
                     let alignment = vertical(cell.attributes["rowalign"]) ?? rowVertical
                     let oldWork = cells.work
@@ -748,13 +747,11 @@ extension LayoutEngine {
         let tableAlign = list("columnalign", in: attributes)
         let labelGap = length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em
         let labelWidth = labels.compactMap { $0?.box.width }.max().map { $0 + labelGap } ?? 0
-        try alignColumns(&cells, scopes: list("alignmentscope", in: attributes), rtl: context.alignmentRTL)
-        // Aligned cells are indivisible; forced breaks and spans retain ordinary wrapping.
-        // Before the rows are measured: a table too wide for the line wraps its cells, which grow taller.
-        let minimum = try wrapCells(&cells, sources: sources, columnAlign: tableAlign, gaps: columnGaps, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
-        // Wrapping reconstructs rows from retained children, which still carry their
-        // original events. Consume this table's scopes again after that reconstruction.
-        consumeColumnAlignment(&cells, scopes: list("alignmentscope", in: attributes))
+        // Resolve breaks before measuring group side widths. Every fragment of a source
+        // group then moves together, including fragments on later cell lines.
+        let minimum = try wrapCells(&cells, sources: sources, columnAlign: tableAlign, gaps: columnGaps,
+                                    fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth,
+                                    scopes: list("alignmentscope", in: attributes), rtl: context.alignmentRTL)
         let widths = cells.widths(gaps: columnGaps) { _, _, cell in cell.box.width }
         var ascents = [CGFloat](repeating: 0, count: cells.rows.count), descents = ascents
         for (rowIndex, row) in cells.rows.enumerated() {

@@ -316,6 +316,10 @@ extension LayoutEngine {
             let ink = word.spacingInkBounds
             word.ascent = ink?.maxY ?? 0
             word.descent = ink.map { -$0.minY } ?? 0
+            if context.trackAlignment {
+                let left = min(0, ink?.minX ?? 0), right = max(word.width, ink?.maxX ?? word.width)
+                word.alignment.append(AlignmentEvent(kind: .extent(right - left), x: left))
+            }
             children.append(BreakableRow.Child(box: word, x: x, point: spaced && !children.isEmpty ? point : nil))
             word = MathBox(); start = nil; spaced = false
         }
@@ -337,6 +341,15 @@ extension LayoutEngine {
         }
         close(at: box.width)
         guard children.count > 1 else { return nil }
+        if let mark = box.alignment.first(where: { if case .mark = $0.kind { return true }; return false }) {
+            let index = mark.tokenEdgeRight
+                ? (children.lastIndex { $0.x < mark.x } ?? 0)
+                : (children.firstIndex { $0.x + $0.box.width > mark.x } ?? children.count - 1)
+            var event = mark
+            event.x = min(max(0, mark.x - children[index].x), children[index].box.width)
+            event.path = []
+            children[index].box.alignment.append(event)
+        }
         return BreakableRow(children: children, itemCount: box.items.count, width: box.width, isText: true, textWork: textWork, context)
     }
 
@@ -680,7 +693,8 @@ extension LayoutEngine {
     /// is left, none below its widest unbreakable unit. A cell with a forced break is stacked
     /// whatever the width. `fixed` is the width of everything but the columns.
     func wrapCells(_ cells: inout TableGrid, sources: [[TableCellSource]],
-                   columnAlign: [String], gaps: [CGFloat], fixed: CGFloat) throws -> CGFloat {
+                   columnAlign: [String], gaps: [CGFloat], fixed: CGFloat,
+                   scopes: [String] = [], rtl: Bool = false) throws -> CGFloat {
         let part = wrapParts.count, budget = nextWrapWidth
         wrapParts.append((0, 0, 0))
         func align(_ row: Int, _ column: Int) -> IndentAlign {
@@ -689,6 +703,10 @@ extension LayoutEngine {
         }
         var paragraphs: [[Paragraph?]] = cells.rows.map { [Paragraph?](repeating: nil, count: $0.count) }
         let originalCells = cells
+        let alignmentScopes = TableAlignmentScopes(scopes, columns: cells.columns)
+        let hasGroups = cells.rows.contains { row in
+            row.contains { alignmentScopes.scope($0) == .local && !$0.box.alignmentGroups($0.groupAlign).isEmpty }
+        }
         // Asked before a forced break stacks a cell, which is then a box and no row.
         let isSeveral = cells.rows.contains { $0.contains { $0.box.row?.isSeveral == true } }
         for row in cells.rows.indices {
@@ -699,12 +717,15 @@ extension LayoutEngine {
                 cells.rows[row][column].box = box
             }
         }
-        var natural = cells.widths(gaps: gaps) { _, _, cell in cell.box.width }
+        let unalignedCells = cells
+        var naturalCells = cells
+        try alignColumns(&naturalCells, scopes: scopes, rtl: rtl)
+        var natural = naturalCells.widths(gaps: gaps) { _, _, cell in cell.box.width }
         func total() -> CGFloat {
             natural = cells.widths(gaps: gaps) { _, _, cell in cell.box.width }
             return natural.reduce(0, +) + fixed
         }
-        var width = total()
+        var width = natural.reduce(0, +) + fixed
         wrapParts[part] = (width, width, width)
         for row in cells.rows.indices {
             for column in cells.rows[row].indices {
@@ -712,16 +733,57 @@ extension LayoutEngine {
                 paragraphs[row][column] = paragraph
             }
         }
-        let least = cells.widths(gaps: gaps) { row, index, cell in
+        var least = cells.widths(gaps: gaps) { row, index, cell in
             let paragraph = paragraphs[row][index]!
             let hasTable = paragraph.units.contains { $0.box.tableMinimumWidth != nil }
             let cellMinimum = hasTable ? Paragraph.minimumTables(originalCells.rows[row][index].box).widest : paragraph.widest
             return min(cellMinimum, cell.box.width)
         }
-        let minimum = least.reduce(0, +) + fixed
+        var minimum = least.reduce(0, +) + fixed
+        var minimumCells: TableGrid?
+        if hasGroups {
+            // The minimum of an aligned column is the shared side widths of its broken
+            // groups, not the largest ordinary unbreakable unit. Measure an actual layout
+            // at zero width so the reported bound can reproduce those fragments and marks.
+            var smallest = unalignedCells
+            for row in cells.rows.indices {
+                for column in cells.rows[row].indices {
+                    var paragraph = paragraphs[row][column]!
+                    if paragraph.units.contains(where: { $0.box.tableMinimumWidth != nil }) {
+                        let rebuilt = try relayoutCell(sources[row][column], width: 0)
+                        smallest.rows[row][column].box = rebuilt
+                        paragraph = Paragraph(rebuilt)
+                    }
+                    if let box = wrapped(paragraph, width: 0, align: align(row, column)) {
+                        smallest.rows[row][column].box = box
+                    }
+                }
+            }
+            try alignColumns(&smallest, scopes: scopes, rtl: rtl)
+            let smallestWidths = smallest.widths(gaps: gaps) { _, _, cell in cell.box.width }
+            let smallestWidth = smallestWidths.reduce(0, +) + fixed
+            // Negative spacing or height-dependent ink may make fragmentation wider.
+            // Keep the complete natural alternative in that case.
+            if smallestWidth < width {
+                minimumCells = smallest
+                least = smallestWidths
+                minimum = smallestWidth
+            } else {
+                minimumCells = naturalCells
+                least = natural
+                minimum = width
+            }
+        }
         // Compute nested minima even without a finite budget: the containing table needs them.
         guard lineWidth.isFinite, width > min(budget, lineWidth / 2) else {
+            cells = naturalCells
             if isSeveral || width > minimum + Paragraph.slop { loose(width) }
+            wrapParts[part].minimum = minimum
+            return minimum
+        }
+        if let minimumCells, budget <= minimum + Paragraph.slop {
+            cells = minimumCells
+            wrapParts[part].width = minimum
             wrapParts[part].minimum = minimum
             return minimum
         }
@@ -752,7 +814,17 @@ extension LayoutEngine {
                     }
                 }
             }
+            try alignColumns(&cells, scopes: scopes, rtl: rtl)
             width = total()
+            // Ordinary line selection does not account for the space other cells add to
+            // each group. If their final shared sections overflow, the measured minimum
+            // is a bounded fitting alternative; the outer width search may keep fewer breaks.
+            if let minimumCells, width > budget + Paragraph.slop {
+                cells = minimumCells
+                width = minimum
+            }
+        } else {
+            cells = naturalCells
         }
         if width > minimum + Paragraph.slop { loose(width) }
         wrapParts[part].width = width
@@ -841,6 +913,9 @@ struct Paragraph {
     /// Prefix counts let a candidate formula-only span retain the constant-time ink summaries
     /// even when another part needs contextual shaping or RTL retained-word regrouping.
     private var logicalTextCounts: [Int] = []
+    /// Parent assembly/restamping establishes source priority without mutating retained
+    /// child boxes. Stable identities reconnect reconstructed fragment events to that order.
+    private var alignmentPriorities: [ObjectIdentifier: Int] = [:]
 
     private func containsLogicalText(_ i: Int, _ j: Int) -> Bool {
         logicalTextCounts[stops[j].at] != logicalTextCounts[stops[i].at]
@@ -941,6 +1016,9 @@ struct Paragraph {
         let covered = Self.covering(box, ink: box.spacingInkBounds)
         unbroken = covered.box
         entire = (covered.box.width, covered.left)
+        for event in box.alignment {
+            if let identity = event.identity { alignmentPriorities[ObjectIdentifier(identity)] = event.order }
+        }
         if let row = box.row, row.itemCount == box.items.count {
             em = row.fontSize; display = row.display
             var breaks: [Break] = []
@@ -1405,6 +1483,12 @@ struct Paragraph {
                [resized.width, resized.ascent, resized.descent].allSatisfy({ $0.isFinite && abs($0) <= MathLimits.extent }) {
                 child = resized
                 child.isPhantom = unit.box.isPhantom
+                let originals = unit.box.alignment.filter { $0.identity != nil }
+                let indices = child.alignment.indices.filter { child.alignment[$0].identity != nil }
+                for (index, original) in zip(indices, originals) {
+                    child.alignment[index].identity = original.identity
+                    child.alignment[index].order = original.order
+                }
                 childInk = progressionInk(resized)
             }
             if index > first, let spaces = child.leadingTextSpace {
@@ -1423,6 +1507,12 @@ struct Paragraph {
         box.width += delta
         for (child, x) in placements {
             box.add(child, at: CGPoint(x: rtl ? box.width - x - child.width : x, y: 0))
+        }
+        for index in box.alignment.indices {
+            if let identity = box.alignment[index].identity,
+               let order = alignmentPriorities[ObjectIdentifier(identity)] {
+                box.alignment[index].order = order
+            }
         }
         let physicalInk = ink.map { rtl ? CGRect(x: box.width - $0.maxX, y: $0.minY, width: $0.width, height: $0.height) : $0 }
         let covered = Self.covering(box, ink: physicalInk)

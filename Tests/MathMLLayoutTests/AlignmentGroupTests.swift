@@ -206,17 +206,17 @@ final class AlignmentGroupTests: XCTestCase {
         XCTAssertNotEqual(opaque[1].minX, opaque[3].minX)
     }
 
-    func testStagedWrappedSpanAndDirectionPolicies() throws {
+    func testDistinctSpanScopesAndUnbreakableGroupsKeepTheirNaturalWidths() throws {
         let span = "<mtable>" + row(first, cell: "columnspan='2'") + row(second, cell: "rowspan='2'") + "</mtable>"
         let spanningBox = try innerBox(span)
         XCTAssertEqual(spanningBox.width, 4.8 * em, accuracy: 0.001, "spanning tracks retain their internal gap")
         XCTAssertEqual(rectangles(spanningBox), rectangles(try innerBox(span.replacingOccurrences(of: "<maligngroup/>", with: ""))),
-                       "group alignment stays disabled for spanning cells")
+                       "groups in different column intervals remain independent")
         XCTAssertEqual(try innerBox("<mstyle dir='rtl'>\(table(first, second))</mstyle>").width, 5 * em, accuracy: 0.001)
         let formula = try mathML(table(first, second))
         let narrow = try MathLayout(formula, style: MathStyle(fontSize: em, color: black), maximumWidth: 2 * em)
         XCTAssertEqual(narrow.rows.count, 1)
-        XCTAssertEqual(narrow.width, 5 * em, accuracy: 0.001, "aligned cells remain indivisible")
+        XCTAssertEqual(narrow.width, 5 * em, accuracy: 0.001, "these groups contain no legal automatic breaks")
         let forced = "<maligngroup/>" + space(1, "red") + "<mspace linebreak='newline'/>" + space(2, "blue")
         let broken = try typeset(table(forced, second))
         XCTAssertGreaterThan(broken.ascent + broken.descent, 3 * em)

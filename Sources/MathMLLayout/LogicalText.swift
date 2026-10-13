@@ -36,12 +36,15 @@ final class LogicalTextSource {
     let work: TextShapingWork
     let words: [Range<Int>]
     let spaceWidth: CGFloat
+    private let trackAlignment: Bool
+    private var alignmentMark: (offset: Int, word: Range<Int>, event: AlignmentEvent)?
     private var boxes: [Range<Int>: MathBox] = [:]
 
-    init(_ text: CFAttributedString, color: CGColor, work: TextShapingWork) {
+    init(_ text: CFAttributedString, color: CGColor, work: TextShapingWork, trackAlignment: Bool = false) {
         typesetter = CTTypesetterCreateWithAttributedString(text)
         self.color = color
         self.work = work
+        self.trackAlignment = trackAlignment
         let string = CFAttributedStringGetString(text) as String
         let units = Array(string.utf16)
         var ranges: [Range<Int>] = []
@@ -68,6 +71,17 @@ final class LogicalTextSource {
         } else { spaceWidth = 0 }
     }
 
+    /// A mark in a separator follows its requested neighbouring word when the separator
+    /// is trimmed at a soft break. Choose that word once, rather than scanning on every shape.
+    func setAlignmentMark(_ offset: Int, event: AlignmentEvent) {
+        guard let first = words.first, let last = words.last else { return }
+        let word = event.tokenEdgeRight
+            ? (words.last { $0.lowerBound < offset } ?? first)
+            : (words.first { $0.upperBound > offset } ?? last)
+        alignmentMark = (offset, word, event)
+        boxes.removeAll()
+    }
+
     func box(_ range: Range<Int>) -> MathBox {
         guard !range.isEmpty else { return .empty() }
         // Count cache hits too: repeatedly assembling arbitrarily long rows must also stay bounded.
@@ -75,7 +89,17 @@ final class LogicalTextSource {
         if let cached = boxes[range] { return cached }
         work.requestedLine()
         let line = CTTypesetterCreateLine(typesetter, CFRange(location: range.lowerBound, length: range.count))
-        let box = LayoutEngine.shapedTextBox(line, color: color)
+        var box = LayoutEngine.shapedTextBox(line, color: color)
+        if trackAlignment {
+            let ink = box.spacingInkBounds
+            let left = min(0, ink?.minX ?? 0), right = max(box.width, ink?.maxX ?? box.width)
+            box.alignment.append(AlignmentEvent(kind: .extent(right - left), x: left))
+        }
+        if let mark = alignmentMark, range.lowerBound <= mark.word.lowerBound, range.upperBound >= mark.word.upperBound {
+            var event = mark.event
+            event.x = CTLineGetOffsetForStringIndex(line, min(max(mark.offset, range.lowerBound), range.upperBound), nil)
+            box.alignment.append(event)
+        }
         boxes[range] = box
         return box
     }

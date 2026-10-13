@@ -40,13 +40,36 @@ decorated fallbacks contribute their rendered box advances. Undecorated fallback
 full-token shaping. Explicitly enlarged or stretched image operators scale their alignment
 points with their drawing. Mapping never resolves a glyph or lays out a prefix again.
 
-## Staged interactions
+## Wrapping and spans
 
-Aligned cells remain indivisible when a maximum width is supplied; overflow is reported through
-the ordinary layout width. A cell with forced line breaks uses normal cell wrapping and opts out
-of alignment groups. A cell declaring a non-default `rowspan` or `columnspan` also opts out.
-MathML 3 leaves line-breaking and span interactions unspecified, so these policies retain
-predictable content geometry until a fuller table grid implementation is available.
+Forced and automatic cell breaks retain alignment groups. Cells first break into ordinary
+lines; each source group's side widths then cover all of its fragments, and those fragments
+move together horizontally. Corresponding groups retain their source indices across lines.
+The first source mark still supplies the point, including a mark on a later line. Automatic
+left/right/center points use the complete group's horizontal bounds. Cell line breaks and
+baselines need not match those of another cell. Text marks follow their word through shaping;
+a mark in a trimmed separator belongs to the preceding word for `edge="right"`, or the
+following word otherwise. Paragraph-edge marks remain on the first or last word.
+
+The table measures a fully broken, aligned layout for its minimum width. If shared side widths
+make an ordinary wrapping trial overflow, that measured layout is the fitting alternative.
+Negative spacing and height-dependent ink can make fragmentation wider; in that case the
+natural aligned layout remains available. A group's reserved sections still contribute to the
+column width even when its fragments occupy different lines, so an aligned table can have a
+larger minimum than its individual unbreakable units. The returned `widestUnbreakableWidth`
+is verified by laying the formula out again at that width.
+
+Row-spanning cells participate in their column's ordinary group alignment. Column-spanning
+cells align with cells covering the same source-column interval (same starting column and
+`columnspan`); other overlapping intervals remain independent. Their shared width constrains
+the combined tracks and gaps, and `columnalign` places the complete aligned cell in that span.
+The inherited `groupalign` list comes from the starting source column. If every covered column
+has an alignment scope, the interval is a local scope. If every column has
+`alignmentscope="false"`, explicit marks pass to the enclosing scope. A span crossing a mixture
+of scoped and unscoped columns is atomic and consumes its internal markers.
+
+MathML 3 leaves line-breaking and span interactions unspecified. These are the renderer's
+defined policies for those cases.
 
 Rows, inferred rows and table columns progress in their inherited direction. Source group
 indices and attribute lists retain source order: in an RTL table, the first column and first
@@ -67,15 +90,18 @@ to use physical left/right coordinates.
 
 This support is scoped to rows and tables. Scripts, radicals and other layout schemata retain
 their existing geometric policies; it does not implement full MathML 3 RTL schema mirroring.
-Elementary grid columns retain MathML 3's explicit LTR policy. The staged group line-break
-and span policies above remain unchanged.
+Elementary grid columns retain MathML 3's explicit LTR policy.
 
 Metadata visits only the laid-out tree and is retained inside cells. Group measurements and
 column side-width scans are linear in event count; restoring source priority for deferred
 children sorts marker events, bounded by the node limit. Drawing paths and background prefix ranges
 add a factor bounded by the existing depth limit. The ordinary node, text, drawing-item,
 stack, extent, and layout-retry bounds continue to apply. No new unrestricted subtree search
-or layout retry is introduced. Token offset mapping scans bounded source and resolved text;
-only the first mark is measured, using one shaping line per existing textual part.
+or layout retry is introduced. Grouped tables add one fully broken cell measurement within
+the existing cell-rebuild and text-work budgets. Span scope checks use prefix counts, so a
+wide span does not rescan its columns for each marker. Fragment reconstruction retains stable
+marker identities to restore source priority after deferred layout and cached-cell restamping.
+Token offset mapping scans bounded source and resolved text; only the first mark is measured,
+using the existing per-line shape for wrapped text and one shaping line per original textual part.
 
 [Documentation index](../README.md#documentation)

@@ -102,8 +102,9 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   uses a midpoint baseline, and labels contribute to row height. Equal tracks, authored
   table/column widths and stretching cell operators to neighboring cells remain unsupported;
   overlap label sides reserve the same space as non-overlap forms. LTR and RTL alignment groups and
-  marks are supported, but aligned cells stay indivisible under automatic wrapping. Forced
-  breaks and non-default spans opt out. Token marks also align beside inline images, legacy
+  marks survive forced and automatic cell wrapping. Row spans share their column's groups;
+  column spans align only within identical source-column intervals. Mixed scoped/unscoped
+  spans consume their markers. Token marks also align beside inline images, legacy
   glyphs, and fallbacks. Left/right edges and label sides remain physical. See [Alignment groups](alignment-groups.md).
 - **Images and legacy glyphs.** Intrinsic image scale/logical size is supplied by the host;
   markup can override image dimensions. An `mo` containing `mglyph` preserves author sizing

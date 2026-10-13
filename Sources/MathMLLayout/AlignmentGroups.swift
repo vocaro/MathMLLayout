@@ -2,6 +2,9 @@ import CoreGraphics
 import CoreText
 import Foundation
 
+/// Shared across event copies so fragment assembly can recover the parent's source priority.
+final class AlignmentIdentity {}
+
 /// Source-ordered events survive ordinary layout, including nested rows. Drawing-item paths
 /// distinguish groups even when their x positions coincide (empty groups or negative space).
 struct AlignmentEvent {
@@ -15,6 +18,37 @@ struct AlignmentEvent {
     var x: CGFloat
     var order = 0
     var path: [Int] = []
+    var tokenEdgeRight = false
+    var identity: AlignmentIdentity?
+
+    init(kind: Kind, x: CGFloat, order: Int = 0, path: [Int] = [], tokenEdgeRight: Bool = false) {
+        self.kind = kind; self.x = x; self.order = order; self.path = path; self.tokenEdgeRight = tokenEdgeRight
+        switch kind {
+        case .mark, .number: identity = AlignmentIdentity()
+        default: identity = nil
+        }
+    }
+}
+
+/// A span participates only with cells covering the same source-column interval. A mixed
+/// scope span is opaque; an entirely unscoped interval exports its explicit marks.
+struct TableAlignmentScopes {
+    enum Scope { case local, inherited, mixed }
+    private let unscoped: [Int]
+
+    init(_ values: [String], columns: Int) {
+        var counts = [0]
+        for column in 0..<columns {
+            let isFalse = !values.isEmpty && values[min(column, values.count - 1)] == "false"
+            counts.append(counts.last! + (isFalse ? 1 : 0))
+        }
+        unscoped = counts
+    }
+
+    func scope(_ cell: TableCell) -> Scope {
+        let count = unscoped[cell.column + cell.columnSpan] - unscoped[cell.column]
+        return count == 0 ? .local : count == cell.columnSpan ? .inherited : .mixed
+    }
 }
 
 extension MathBox {
@@ -336,7 +370,10 @@ extension LayoutEngine {
                 position = prefix.utf16.count
             }
             alignmentSequence += 1
-            box.alignment.append(AlignmentEvent(kind: .mark, x: offset(position), order: alignmentSequence))
+            let event = AlignmentEvent(kind: .mark, x: offset(position), order: alignmentSequence,
+                                       tokenEdgeRight: mark.attributes["edge"]?.lowercased() == "right")
+            box.alignment.append(event)
+            box.logicalTextSlice?.source.setAlignmentMark(position, event: event)
         }
         if node.name == "mn", context.alignmentBaseline {
             let decimal = context.decimalPoint ?? "."
@@ -347,17 +384,22 @@ extension LayoutEngine {
     }
 
     func alignColumns(_ cells: inout TableGrid, scopes: [String], rtl: Bool = false) throws {
-        var columns: [Int: [(row: Int, index: Int, groups: [MathBox.AlignmentGroup])]] = [:]
+        struct Interval: Hashable { let column: Int; let span: Int }
+        let scopes = TableAlignmentScopes(scopes, columns: cells.columns)
+        var columns: [Interval: [(row: Int, index: Int, groups: [MathBox.AlignmentGroup])]] = [:]
         for row in cells.rows.indices {
             for column in cells.rows[row].indices {
-                let gridColumn = cells.rows[row][column].column
-                let scope = scopes.isEmpty || scopes[min(gridColumn, scopes.count - 1)] != "false"
-                if scope && cells.rows[row][column].box.row?.hasForced != true {
-                    let groups = cells.rows[row][column].box.alignmentGroups(cells.rows[row][column].groupAlign)
-                    if !groups.isEmpty { columns[gridColumn, default: []].append((row, column, groups)) }
-                }
-                if !scope {
+                let cell = cells.rows[row][column]
+                switch scopes.scope(cell) {
+                case .local:
+                    let groups = cell.box.alignmentGroups(cell.groupAlign)
+                    if !groups.isEmpty {
+                        columns[Interval(column: cell.column, span: cell.columnSpan), default: []].append((row, column, groups))
+                    }
+                case .inherited:
                     cells.rows[row][column].box.alignment.removeAll { if case .mark = $0.kind { return false }; return true }
+                case .mixed:
+                    cells.rows[row][column].box.alignment = []
                 }
             }
         }
@@ -385,12 +427,8 @@ extension LayoutEngine {
                 cells.rows[entry.row][index].box = cells.rows[entry.row][index].box.aligning(entry.groups, shifts: shifts, width: width, rtl: rtl, sections: sections)
             }
         }
-        consumeColumnAlignment(&cells, scopes: scopes)
-    }
-
-    func consumeColumnAlignment(_ cells: inout TableGrid, scopes: [String]) {
         for row in cells.rows.indices {
-            for column in cells.rows[row].indices where scopes.isEmpty || scopes[min(cells.rows[row][column].column, scopes.count - 1)] != "false" {
+            for column in cells.rows[row].indices where scopes.scope(cells.rows[row][column]) != .inherited {
                 cells.rows[row][column].box.alignment = []
             }
         }
