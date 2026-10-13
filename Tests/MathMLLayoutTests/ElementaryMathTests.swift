@@ -224,6 +224,26 @@ final class ElementaryMathTests: MathTestCase {
                         "<mstack><mscarries><mn dir='ltr'>12</mn></mscarries><mn dir='ltr'>345</mn></mstack>")
     }
 
+    func testDivisionBidiOperandsInheritAndOverrideWithoutMirroringFrames() throws {
+        // Unlike numeric operands, mixed bidi text changes its internal order. Explicit
+        // token directions reproduce that order under an LTR parent; frame separators
+        // must still draw the same parentheses, slashes, colon and equals sign.
+        for frame in LongDivision.allCases {
+            let attrs = "longdivstyle='\(frame.rawValue)'"
+            let divisor = "<mtext>+ 12 אב</mtext>"
+            let result = "<mtext>+ 34 العربية</mtext>"
+            let work = "<mn>72</mn><mscarries location='ne'><mtext>+ 56 אב</mtext></mscarries><mn>12</mn><msline/>"
+            let body = divisor + result + work
+            let directed = body.replacingOccurrences(of: "<mtext>", with: "<mtext dir='rtl'>")
+            try sameDrawing("<math dir='rtl'><mstyle><mlongdiv \(attrs)>\(body)</mlongdiv></mstyle></math>",
+                            "<mlongdiv \(attrs) dir='ltr'>\(directed)</mlongdiv>")
+            let overridden = body.replacingOccurrences(of: "<mtext>", with: "<mtext dir='ltr'>")
+            try sameDrawing("<mlongdiv \(attrs) dir='rtl'>\(overridden)</mlongdiv>",
+                            "<mlongdiv \(attrs) dir='ltr'>\(body)</mlongdiv>")
+            try assertCoversInk("<mlongdiv \(attrs) dir='rtl'>\(body)</mlongdiv>")
+        }
+    }
+
     func testRTLSpeechCoordinatesStayIdenticalToPhysicalLTRColumns() throws {
         let body = "<msgroup position='1' shift='-1'><mscarries position='1' location='nw' crossout='updiagonalstrike'>"
             + "<mn>1</mn><none/></mscarries><mn>12.3</mn><msline length='2' position='1'/><mn>4.56</mn></msgroup>"

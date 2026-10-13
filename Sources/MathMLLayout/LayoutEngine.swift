@@ -392,8 +392,15 @@ final class LayoutEngine {
         guard !attributes.isEmpty else { return outer }
         var context = outer
         let direction = attributes["dir"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if direction == "ltr" { context.direction = .leftToRight }
-        if direction == "rtl" { context.direction = .rightToLeft }
+        // A malformed value leaves both text and alignment direction inherited.
+        if direction == "ltr" {
+            context.direction = .leftToRight
+            context.alignmentRTL = false
+        }
+        if direction == "rtl" {
+            context.direction = .rightToLeft
+            context.alignmentRTL = true
+        }
         if node.name == "mstyle" {
             if let rowAlign = attributes["rowalign"] { context.tableRowAlign = rowAlign }
             if let multiplier = attributes["scriptsizemultiplier"].flatMap({ Double($0.trimmingCharacters(in: .whitespaces)) }),
@@ -434,7 +441,6 @@ final class LayoutEngine {
             context.variant = bold ? (italic ? .boldItalic : .bold) : (italic ? .italic : .normal)
         }
         if node.name == "mstyle", let groups = attributes["groupalign"] { context.tableGroupAlign = groups }
-        if let direction { context.alignmentRTL = direction == "rtl" }
         inheritLineStyle(node, &context)
         return context
     }
