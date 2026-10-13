@@ -5,11 +5,50 @@
 Input is treated as untrusted. A formula deeper than 64 levels, larger than 20,000 nodes, longer
 than 50,000 UTF-16 units of text, more than 50,000 points in any dimension, or with more than
 100,000 drawing items throws `MathLayoutError.limitExceeded`. So does one nested deeper than the
-calling thread's stack has room for, within those 64 levels: a thread other than the main one
-has 512 KB, which an unoptimized build spends in about twenty levels. Readings are bounded the
-same way and leave out what is past the bounds. `MathMLNode.parse(xml:)` refuses document type
-declarations in any encoding, so no entity expands and nothing external loads; it reads at most
-4 MiB.
+calling thread's stack has room for, within those 64 levels. Readings are bounded the same way
+and leave out what is past the bounds. `MathMLNode.parse(xml:)` refuses document type declarations
+in any encoding, so no entity expands and nothing external loads; it reads at most 4 MiB.
+
+### Worker stack coverage
+
+Layout runs on the calling thread. Single-child wrappers, line-breaking descent, and drawing-item
+traversal use heap cursors; inherited layout context uses copy-on-write storage. Structural
+elements and speech still recurse, with smaller frames. The stack guard retains a 128 KB reserve
+for the remaining work, font operations, and host callbacks. The engine does not enlarge a caller's
+stack or move layout to another thread.
+
+`WorkerDepthTests` asserts the following 64-level coverage on a thread with **exactly 512 KB** of
+stack, in debug and release. Each chain ends in `mi` containing `x`; structural siblings are `mn`
+containing `1`. Tests use the default math font (STIX Two Math on the measured system), 12-point
+style, default attributes, no images, and unconstrained width. Geometry, drawing-item counts,
+ink bounds, a 128×128-pixel rendering, and all five readings match an 8 MB reference worker,
+and repeated runs match each other.
+
+| Shape | Wrappers above the leaf |
+| --- | --- |
+| Single-child `mrow`, `msqrt`, `mstyle`, `mpadded`, or `semantics` | 63 |
+| `mfrac` nesting its numerator, `msup` nesting its base, or `mroot` nesting its radicand | 63 |
+| Single-cell `mtable` → `mtr` → `mtd` | 21 tables (63 element levels) |
+| `msub` nesting its subscript, or `munderover` nesting its base | 48 structural wrappers, then 15 outer single-child `mrow` wrappers |
+
+This is a tested matrix, not a guarantee for every shape at 64 levels. In particular, pure
+subscript and under-over chains consume more stack; combinations of attributes, fonts, stretched
+operators, width constraints, and host callbacks can change stack use. The guard may reject those
+within the depth ceiling. Tests also check rejection at 65 levels and safe success or rejection on
+smaller workers, including exact 128 KB and 256 KB stacks and the existing requested-stack sweep
+down to 16 KB.
+
+On arm64 macOS 27 with Apple Swift 6.4 (`swiftlang-6.4.0.34.1`), the on-demand measurement sweep
+reports these deepest successful layout-only pure chains, including the leaf:
+
+| Pure fixture | Debug levels | Release levels |
+| --- | --- | --- |
+| Subscript nested in its script | 60 | 64 |
+| Under-over nested in its base | 54 | 64 |
+| Other fixtures in the matrix above | 64 | 64 |
+
+See [testing.md](testing.md#worker-depth) for the commands; stack-sensitive results must be
+remeasured after compiler or platform changes.
 
 ## Limitations
 

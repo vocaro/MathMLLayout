@@ -11,8 +11,15 @@ extension LayoutEngine {
                   depth: Int) throws -> MathBox {
         try arity(node, 2)
         let inner = scriptContext(context, levels: context.display ? 0 : 1)
-        var numerator = try layout(node.children[0], inner, embellishment, depth: depth + 1)
-        var denominator = try layout(node.children[1], inner.with(cramped: true), depth: depth + 1)
+        let numerator = try layout(node.children[0], inner, embellishment, depth: depth + 1)
+        let denominator = try layout(node.children[1], inner.with(cramped: true), depth: depth + 1)
+        return assembleFraction(node, context, numerator: numerator, denominator: denominator)
+    }
+
+    @inline(never)
+    private func assembleFraction(_ node: MathMLNode, _ context: LayoutContext,
+                                  numerator: MathBox, denominator: MathBox) -> MathBox {
+        var numerator = numerator, denominator = denominator
         let standard = value(\.fractionRuleThickness, context)
         let thickness: CGFloat = switch node.attributes["linethickness"]?.trimmingCharacters(in: .whitespaces).lowercased() {
         case nil: standard
@@ -154,36 +161,52 @@ extension LayoutEngine {
         default: guard !children.isEmpty else { throw MathLayoutError.invalidMarkup(node.name) }
         }
         let base = try layout(children[0], context, embellishment, depth: depth + 1)
+        let pairs = try scriptPairs(node, context, depth: depth)
+        return attachScripts(base, post: pairs.post, pre: pairs.pre, context)
+    }
+
+    @inline(never)
+    private func scriptPairs(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws
+        -> (post: [(MathBox?, MathBox?)], pre: [(MathBox?, MathBox?)]) {
+        if node.name == "mmultiscripts" { return try multiscriptPairs(node, context, depth: depth) }
+        func script(_ child: MathMLNode, lower: Bool) throws -> MathBox? {
+            guard child.name != "none" else { try countNodes(); return nil }
+            let inner = scriptContext(context, cramped: lower ? true : nil)
+            return try layout(child, inner, depth: depth + 1)
+        }
+        let sub: MathBox? = try node.name == "msup" ? nil : script(node.children[1], lower: true)
+        let sup: MathBox? = try node.name == "msub" ? nil : script(node.children[node.name == "msup" ? 1 : 2], lower: false)
+        return ([(sub, sup)], [])
+    }
+
+    @inline(never)
+    private func multiscriptPairs(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws
+        -> (post: [(MathBox?, MathBox?)], pre: [(MathBox?, MathBox?)]) {
+        let children = node.children
         let subscriptContext = scriptContext(context, cramped: true), superscriptContext = scriptContext(context)
         func script(_ child: MathMLNode, lower: Bool) throws -> MathBox? {
             guard child.name != "none" else { try countNodes(); return nil }
             return try layout(child, lower ? subscriptContext : superscriptContext, depth: depth + 1)
         }
         var post: [(MathBox?, MathBox?)] = [], pre: [(MathBox?, MathBox?)] = []
-        switch node.name {
-        case "msub": post = try [(script(children[1], lower: true), nil)]
-        case "msup": post = try [(nil, script(children[1], lower: false))]
-        case "msubsup": post = try [(script(children[1], lower: true), script(children[2], lower: false))]
-        default:
-            var isPre = false
-            var pending: [MathMLNode] = []
-            for child in children.dropFirst() {
-                if child.name == "mprescripts" {
-                    // The marker and any incomplete pair it discards have been visited even
-                    // though none of them gets a box.
-                    try countNodes(1 + pending.count)
-                    isPre = true; pending = []; continue
-                }
-                pending.append(child)
-                if pending.count == 2 {
-                    let pair = try (script(pending[0], lower: true), script(pending[1], lower: false))
-                    if isPre { pre.append(pair) } else { post.append(pair) }
-                    pending = []
-                }
+        var isPre = false
+        var pending: [MathMLNode] = []
+        for child in children.dropFirst() {
+            if child.name == "mprescripts" {
+                // The marker and any incomplete pair it discards have been visited even
+                // though none of them gets a box.
+                try countNodes(1 + pending.count)
+                isPre = true; pending = []; continue
             }
-            if !pending.isEmpty { throw MathLayoutError.invalidMarkup(node.name) }
+            pending.append(child)
+            if pending.count == 2 {
+                let pair = try (script(pending[0], lower: true), script(pending[1], lower: false))
+                if isPre { pre.append(pair) } else { post.append(pair) }
+                pending = []
+            }
         }
-        return attachScripts(base, post: post, pre: pre, context)
+        if !pending.isEmpty { throw MathLayoutError.invalidMarkup(node.name) }
+        return (post, pre)
     }
 
     /// Places sub- and superscript pairs after (and before) a base. Shifts follow MathML Core
@@ -279,33 +302,14 @@ extension LayoutEngine {
     /// arrow over an expression) the gap towards its base. Core has no such case.
     func underOver(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment,
                    depth: Int) throws -> MathBox {
-        try arity(node, node.name == "munderover" ? 3 : 2)
-        let children = node.children
-        let baseNode = children[0]
-        let underNode = node.name == "mover" ? nil : children[1]
-        let overNode = node.name == "munder" ? nil : children[node.name == "mover" ? 1 : 2]
-        let coreFlags = embellishedCore(baseNode).map { operatorFlags($0, form: embellishment.form) } ?? []
-        if coreFlags.contains(.movablelimits), !context.display {
-            let base = try layout(baseNode, context, embellishment, depth: depth + 1)
-            let sub = try underNode.map { try layout($0, scriptContext(context, cramped: true), depth: depth + 1) }
-            let sup = try overNode.map { try layout($0, scriptContext(context), depth: depth + 1) }
-            return attachScripts(base, post: [(sub, sup)], pre: [], context)
+        let plan = try underOverPlan(node, context, embellishment)
+        if plan.coreFlags.contains(.movablelimits), !context.display {
+            return try movableLimits(plan.nodes[0]!, under: plan.nodes[1], over: plan.nodes[2],
+                                     context, embellishment, depth: depth)
         }
-        func isAccent(_ script: MathMLNode?, _ attribute: String) -> Bool {
-            guard let script else { return false }
-            return node.attributes.flag(attribute)
-                ?? embellishedCore(script).map { operatorFlags($0, form: nil).contains(.accent) } ?? false
-        }
-        let accent = isAccent(overNode, "accent"), accentUnder = isAccent(underNode, "accentunder")
-        let baseContext = accent ? context.with(cramped: true) : context
-        let overContext = scriptContext(context, levels: accent ? 0 : 1)
-        let underContext = scriptContext(context, levels: accentUnder ? 0 : 1, cramped: true)
-
-        // Non-stretchy children first; horizontal stretchy ones then cover the widest.
-        let nodes: [MathMLNode?] = [baseNode, underNode, overNode]
-        let contexts = [baseContext, underContext, overContext]
+        // Preparation returned before recursion, leaving only the heap plan and child boxes.
+        let nodes = plan.nodes, contexts = plan.contexts, stretchy = plan.stretchy
         var boxes: [MathBox?] = [nil, nil, nil]
-        let stretchy = nodes.map { $0.map(isHorizontallyStretchy) ?? false }
         for index in 0..<3 where !stretchy[index] {
             guard let child = nodes[index] else { continue }
             boxes[index] = try layout(child, contexts[index], index == 0 ? embellishment : .none, depth: depth + 1)
@@ -317,6 +321,60 @@ extension LayoutEngine {
             stretch.stretch = widest.map { .horizontal(width: $0) } ?? (index == 0 ? embellishment.stretch : nil)
             boxes[index] = try layout(child, contexts[index], stretch, depth: depth + 1)
         }
+        return assembleUnderOver(boxes, context, coreFlags: plan.coreFlags, stretchy: stretchy,
+                                 accent: plan.accent, accentUnder: plan.accentUnder)
+    }
+
+    private final class UnderOverPlan {
+        let nodes: [MathMLNode?]
+        let contexts: [LayoutContext]
+        let stretchy: [Bool]
+        let coreFlags: OperatorFlags
+        let accent: Bool
+        let accentUnder: Bool
+        init(nodes: [MathMLNode?], contexts: [LayoutContext], stretchy: [Bool], coreFlags: OperatorFlags,
+             accent: Bool, accentUnder: Bool) {
+            self.nodes = nodes; self.contexts = contexts; self.stretchy = stretchy; self.coreFlags = coreFlags
+            self.accent = accent; self.accentUnder = accentUnder
+        }
+    }
+
+    @inline(never)
+    private func underOverPlan(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment) throws -> UnderOverPlan {
+        try arity(node, node.name == "munderover" ? 3 : 2)
+        let children = node.children
+        let baseNode = children[0]
+        let underNode = node.name == "mover" ? nil : children[1]
+        let overNode = node.name == "munder" ? nil : children[node.name == "mover" ? 1 : 2]
+        let coreFlags = embellishedCore(baseNode).map { operatorFlags($0, form: embellishment.form) } ?? []
+        func isAccent(_ script: MathMLNode?, _ attribute: String) -> Bool {
+            guard let script else { return false }
+            return node.attributes.flag(attribute)
+                ?? embellishedCore(script).map { operatorFlags($0, form: nil).contains(.accent) } ?? false
+        }
+        let accent = isAccent(overNode, "accent"), accentUnder = isAccent(underNode, "accentunder")
+        let baseContext = accent ? context.with(cramped: true) : context
+        let overContext = scriptContext(context, levels: accent ? 0 : 1)
+        let underContext = scriptContext(context, levels: accentUnder ? 0 : 1, cramped: true)
+
+        let nodes: [MathMLNode?] = [baseNode, underNode, overNode]
+        return UnderOverPlan(nodes: nodes, contexts: [baseContext, underContext, overContext],
+                             stretchy: nodes.map { $0.map(isHorizontallyStretchy) ?? false }, coreFlags: coreFlags,
+                             accent: accent, accentUnder: accentUnder)
+    }
+
+    @inline(never)
+    private func movableLimits(_ baseNode: MathMLNode, under underNode: MathMLNode?, over overNode: MathMLNode?,
+                               _ context: LayoutContext, _ embellishment: Embellishment, depth: Int) throws -> MathBox {
+        let base = try layout(baseNode, context, embellishment, depth: depth + 1)
+        let sub = try underNode.map { try layout($0, scriptContext(context, cramped: true), depth: depth + 1) }
+        let sup = try overNode.map { try layout($0, scriptContext(context), depth: depth + 1) }
+        return attachScripts(base, post: [(sub, sup)], pre: [], context)
+    }
+
+    @inline(never)
+    private func assembleUnderOver(_ boxes: [MathBox?], _ context: LayoutContext,
+                                   coreFlags: OperatorFlags, stretchy: [Bool], accent: Bool, accentUnder: Bool) -> MathBox {
         let base = boxes[0]!
         let isLimits = coreFlags.contains(.largeop)
         let isStretchStack = !isLimits && stretchy[0]
@@ -382,8 +440,8 @@ extension LayoutEngine {
     /// or depth decremented past zero is zero (MathML 3, 3.3.6.2), so what follows the box is
     /// never placed before where it began. `lspace` and `voffset` may be negative.
     func padded(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment,
-                depth: Int) throws -> MathBox {
-        let content = try row(node.children, context, embellishment, depth: depth)
+                depth: Int, singleChild: MathBox? = nil) throws -> MathBox {
+        let content = try row(node.children, context, embellishment, depth: depth, singleChild: singleChild)
         let dimensions = (width: content.width, height: content.ascent, depth: content.descent)
         func resolve(_ name: String, _ current: CGFloat, reference: CGFloat, nonNegative: Bool = false) -> CGFloat {
             guard let attribute = node.attributes[name], let length = MathLength(attribute),
@@ -405,8 +463,8 @@ extension LayoutEngine {
 
     /// `menclose` notations: box, roundedbox, circle, the four sides, strikes, longdiv,
     /// actuarial and madruwb. Unknown notations are ignored, as MathML Core asks.
-    func enclose(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
-        var content = try row(node.children, context, depth: depth)
+    func enclose(_ node: MathMLNode, _ context: LayoutContext, depth: Int, singleChild: MathBox? = nil) throws -> MathBox {
+        var content = try row(node.children, context, depth: depth, singleChild: singleChild)
         let notations = Set((node.attributes["notation"] ?? "longdiv").split(whereSeparator: \.isWhitespace).map(String.init))
         if notations == ["radical"] { return radical(base: content, index: nil, context) }
         let stroke = value(\.overbarRuleThickness, context)
@@ -497,8 +555,8 @@ extension LayoutEngine {
     }
 
     /// `merror`: its content in a red frame.
-    func errorBox(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
-        let content = try row(node.children, context, depth: depth)
+    func errorBox(_ node: MathMLNode, _ context: LayoutContext, depth: Int, singleChild: MathBox? = nil) throws -> MathBox {
+        let content = try row(node.children, context, depth: depth, singleChild: singleChild)
         let stroke = max(value(\.overbarRuleThickness, context), 0.5), pad = context.fontSize * 0.1
         var box = MathBox(width: content.width + 2 * pad, ascent: content.ascent + pad, descent: content.descent + pad)
         box.add(content, at: CGPoint(x: pad, y: 0))
@@ -553,6 +611,18 @@ extension LayoutEngine {
             cells.append(row)
             labels.append(try label.map { try layout($0, rowContext, depth: depth + 2) })
         }
+        return assembleTable(node, context, cells: cells, labels: labels)
+    }
+
+    @inline(never)
+    private func assembleTable(_ node: MathMLNode, _ context: LayoutContext,
+                               cells: [[(box: MathBox, align: String?)]], labels: [MathBox?]) -> MathBox {
+        var cells = cells
+        let attributes = node.attributes
+        func list(_ name: String, in attributes: [String: String]) -> [String] {
+            (attributes[name] ?? "").split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
+        }
+        func pick(_ values: [String], _ index: Int) -> String? { values.isEmpty ? nil : values[min(index, values.count - 1)] }
         let columns = cells.map(\.count).max() ?? 0
         let ex = xHeight(context), em = context.fontSize
         func spacing(_ name: String, _ standard: CGFloat, count: Int) -> [CGFloat] {

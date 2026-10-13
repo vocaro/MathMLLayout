@@ -778,18 +778,16 @@ final class LineBreakingFuzzTests: MathTestCase {
         }
     }
 
-    /// The bound on depth counts levels, and a thread's stack is bytes: 63 levels of `munderover` were
-    /// 1.7 MB unoptimized and 600 KB optimized, on a thread that has 512 KB unless it is the main one.
-    /// A formula is refused when the stack is nearly spent, at whatever depth that is.
+    /// The depth ceiling counts levels while the stack guard counts bytes. Affordable shapes
+    /// may reach that ceiling on workers; others are refused when the stack is nearly spent.
     func testDeepFormulasAreRefusedWhereTheStackIsShort() {
         let style = Self.style(17, display: true)
         for name in ["mrow", "msqrt", "mfrac", "munderover", "menclose", "mtable", "mlongdiv"] {
             // As deep as the bound allows: a table is three levels, a long division two.
             let deep = Self.nest(name, depth: name == "mtable" ? 20 : name == "mlongdiv" ? 30 : 62)
             XCTAssertNil(Self.onThread(stack: 16 << 20) { _ = try MathLayout(deep, style: style, maximumWidth: 200) }, name)
-            // No build lays that many levels out in a quarter of a megabyte.
-            XCTAssertEqual(Self.onThread(stack: 256 << 10) { _ = try MathLayout(deep, style: style, maximumWidth: 200) } as? MathLayoutError,
-                           .limitExceeded, name)
+            let quarter = Self.onThread(stack: 256 << 10) { _ = try MathLayout(deep, style: style, maximumWidth: 200) }
+            XCTAssertTrue(quarter == nil || quarter as? MathLayoutError == .limitExceeded, name)
             // Whatever the stack, down to the least a thread may have: a layout or a refusal.
             for kilobytes in [16, 96, 144, 192, 384, 512, 1024] {
                 let error = Self.onThread(stack: kilobytes << 10) { _ = try MathLayout(deep, style: style) }

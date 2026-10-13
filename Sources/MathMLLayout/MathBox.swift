@@ -39,32 +39,79 @@ struct MathBox {
         items.append(.box(box, at: point))
     }
 
+    /// One cursor per nested drawing box. Only the active ancestry is retained, so wide
+    /// formulas do not put all their drawing items on a pending work stack.
+    private struct ItemCursor {
+        var items: [MathItem]
+        var index = 0
+        var origin: CGPoint
+        var ink: CGRect?
+    }
+
     /// The union of everything drawn, relative to the baseline origin; nil when nothing is.
     var inkBounds: CGRect? {
-        var result: CGRect?
-        func merge(_ rect: CGRect) { result = result.map { $0.union(rect) } ?? rect }
-        for item in items {
-            switch item {
-            case .glyphs(let run): if !run.ink.isNull { merge(run.ink) }
-            case .rect(let rect, _), .image(_, let rect, _): merge(rect)
-            case .path(let path, let lineWidth, _, _), .dashes(let path, let lineWidth, _, _):
-                merge(path.boundingBoxOfPath.insetBy(dx: -lineWidth / 2, dy: -lineWidth / 2))
-            case .box(let box, let point):
-                if let ink = box.inkBounds { merge(ink.offsetBy(dx: point.x, dy: point.y)) }
+        var cursors = [ItemCursor(items: items, origin: .zero)]
+        while !cursors.isEmpty {
+            let last = cursors.count - 1
+            if cursors[last].index == cursors[last].items.count {
+                let completed = cursors.removeLast()
+                guard !cursors.isEmpty else { return completed.ink }
+                if let ink = completed.ink {
+                    let translated = ink.offsetBy(dx: completed.origin.x, dy: completed.origin.y)
+                    let parent = cursors.count - 1
+                    cursors[parent].ink = cursors[parent].ink.map { $0.union(translated) } ?? translated
+                }
+                continue
             }
+            let item = cursors[last].items[cursors[last].index]
+            cursors[last].index += 1
+            let rect: CGRect
+            switch item {
+            case .glyphs(let run):
+                if run.ink.isNull { continue }
+                rect = run.ink
+            case .rect(let bounds, _), .image(_, let bounds, _): rect = bounds
+            case .path(let path, let width, _, _), .dashes(let path, let width, _, _):
+                rect = path.boundingBoxOfPath.insetBy(dx: -width / 2, dy: -width / 2)
+            case .box(let box, let point):
+                cursors.append(ItemCursor(items: box.items, origin: point))
+                continue
+            }
+            cursors[last].ink = cursors[last].ink.map { $0.union(rect) } ?? rect
         }
-        return result
+        return nil
     }
 
     var itemCount: Int {
-        items.reduce(0) { count, item in
-            if case .box(let box, _) = item { return count + 1 + box.itemCount }
-            return count + 1
+        var count = 0
+        var cursors = [ItemCursor(items: items, origin: .zero)]
+        while !cursors.isEmpty {
+            let last = cursors.count - 1
+            if cursors[last].index == cursors[last].items.count {
+                cursors.removeLast()
+                continue
+            }
+            let item = cursors[last].items[cursors[last].index]
+            cursors[last].index += 1
+            count += 1
+            if case .box(let box, _) = item {
+                cursors.append(ItemCursor(items: box.items, origin: .zero))
+            }
         }
+        return count
     }
 
     func draw(in context: CGContext, at origin: CGPoint) {
-        for item in items {
+        var cursors = [ItemCursor(items: items, origin: origin)]
+        while !cursors.isEmpty {
+            let last = cursors.count - 1
+            if cursors[last].index == cursors[last].items.count {
+                cursors.removeLast()
+                continue
+            }
+            let item = cursors[last].items[cursors[last].index]
+            let origin = cursors[last].origin
+            cursors[last].index += 1
             switch item {
             case .glyphs(let run):
                 context.setFillColor(run.color)
@@ -107,7 +154,8 @@ struct MathBox {
                 // Upright as it is: CoreGraphics puts an image's top row at the rect's greater y.
                 context.draw(image, in: rect.offsetBy(dx: origin.x, dy: origin.y))
             case .box(let box, let point):
-                box.draw(in: context, at: CGPoint(x: origin.x + point.x, y: origin.y + point.y))
+                cursors.append(ItemCursor(items: box.items,
+                                          origin: CGPoint(x: origin.x + point.x, y: origin.y + point.y)))
             }
         }
     }

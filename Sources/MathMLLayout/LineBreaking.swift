@@ -903,33 +903,53 @@ struct Paragraph {
     /// deep (the row of the fences, the pair, the row between them) where the same sum between
     /// fences written flat was one, and a line broke anywhere outside such a bracket, leaving a
     /// row all but empty, sooner than inside it.
+    private struct FlattenFrame {
+        let row: BreakableRow
+        let x: CGFloat
+        let depth: Int
+        let isUnary: Bool
+        let isAttached: Bool
+        let level: Int
+        var index = 0
+        var fences = 0
+    }
+
     private mutating func flatten(_ row: BreakableRow, at x: CGFloat, depth: Int, isUnary: Bool, isAttached: Bool,
                                   level: Int, _ breaks: inout [Break]) {
-        var fences = 0
-        for (index, child) in row.children.enumerated() {
+        // Layout can now finish deep rows on small stacks. Flattening must not reintroduce
+        // recursion afterwards: retain at most depth + 1 row cursors on the heap instead.
+        var pending = [FlattenFrame(row: row, x: x, depth: depth, isUnary: isUnary, isAttached: isAttached, level: level)]
+        while let last = pending.indices.last {
+            guard pending[last].index < pending[last].row.children.count else {
+                pending.removeLast()
+                continue
+            }
+            let frame = pending[last], row = frame.row, index = frame.index
+            let child = row.children[index]
+            pending[last].index += 1
             // What holds a row to its neighbour holds the row's first unit.
-            let isAttached = child.isAttached || index == 0 && isAttached
+            let attached = child.isAttached || index == 0 && frame.isAttached
             let fence = Self.fence(child)
-            if fence?.closes == true { fences = max(fences - 1, 0) }
+            if fence?.closes == true { pending[last].fences = max(pending[last].fences - 1, 0) }
+            let fences = pending[last].fences
+            // Save the caller's state before descent; this opening affects its next child.
+            if fence?.opens == true { pending[last].fences += 1 }
             if let id = child.id, ids[id] == nil { ids[id] = units.count }
             if let inner = child.box.row, inner.itemCount == child.box.items.count, !inner.children.isEmpty,
-               level < MathLimits.depth {
-                // A row that only wraps another, or is one operator, is no deeper than what it holds.
-                // Nor is one that is a bracket pair with what it holds, or all that a pair here holds:
-                // the pair is the level.
+               frame.level < MathLimits.depth {
+                // Transparent rows and bracket pairs retain the same penalty nesting as before.
                 let isHeld = index > 0 && index + 1 < row.children.count && Self.fence(row.children[index - 1])?.opens == true
                     && Self.fence(row.children[index + 1])?.closes == true
                 let deeper = inner.isOperator || row.children.count == 1 || isHeld || Self.isPair(inner) ? 0 : 1
-                flatten(inner, at: x + child.x, depth: depth + fences + deeper, isUnary: isUnary || child.isUnary,
-                        isAttached: isAttached, level: level + 1, &breaks)
+                pending.append(FlattenFrame(row: inner, x: frame.x + child.x, depth: frame.depth + fences + deeper,
+                                            isUnary: frame.isUnary || child.isUnary, isAttached: attached, level: frame.level + 1))
             } else {
                 if let point = child.point {
-                    breaks.append((units.count, point, depth + fences, isUnary || child.isUnary, row.visible[index]))
+                    breaks.append((units.count, point, frame.depth + fences, frame.isUnary || child.isUnary, row.visible[index]))
                 }
                 if units.isEmpty { lead = BreakPoint(kind: .none, linebreak: .auto, style: row.style) }
-                units.append(Unit(box: child.box, x: x + child.x, ink: child.box.inkBounds, isAttached: isAttached))
+                units.append(Unit(box: child.box, x: frame.x + child.x, ink: child.box.inkBounds, isAttached: attached))
             }
-            if fence?.opens == true { fences += 1 }
         }
     }
 
