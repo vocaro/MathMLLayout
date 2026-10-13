@@ -646,7 +646,7 @@ extension LayoutEngine {
         let part = wrapParts.count, budget = nextWrapWidth
         wrapParts.append((0, 0, 0))
         func align(_ row: Int, _ column: Int) -> IndentAlign {
-            let name = cells.rows[row][column].align ?? columnAlign.last.map { _ in columnAlign[min(column, columnAlign.count - 1)] }
+            let name = cells.rows[row][column].align ?? columnAlign.last.map { _ in columnAlign[min(cells.rows[row][column].column, columnAlign.count - 1)] }
             return name == "left" ? .left : name == "right" ? .right : .center
         }
         var paragraphs: [[Paragraph?]] = cells.rows.map { [Paragraph?](repeating: nil, count: $0.count) }
@@ -672,7 +672,6 @@ extension LayoutEngine {
             for column in cells.rows[row].indices {
                 let paragraph = paragraphs[row][column] ?? Paragraph(cells.rows[row][column].box)
                 paragraphs[row][column] = paragraph
-
             }
         }
         let least = cells.widths(gaps: gaps) { row, index, cell in

@@ -510,7 +510,7 @@ extension LayoutEngine {
 
     // MARK: Tables
 
-    /// `mtable`: a grid of baseline-aligned rows with `columnalign`, `rowspacing`,
+    /// `mtable`: a grid with vertically aligned rows with `columnalign`, `rowspacing`,
     /// `columnspacing`, lines and frame, centred on the math axis by default. `mlabeledtr`
     /// labels form a column at the side. Spanning cells reserve rectangles in a bounded grid.
     func table(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
@@ -521,6 +521,9 @@ extension LayoutEngine {
         // `displaystyle` where the surroundings' was.
         var cellContext = context
         cellContext.display = attributes.flag("displaystyle") ?? false
+        cellContext.trackAlignment = true
+        cellContext.alignmentBaseline = true
+        let tableGroups = AlignmentValues.columns(attributes["groupalign"] ?? context.tableGroupAlign)
         func list(_ name: String, in attributes: [String: String], fallback: String? = nil) -> [String] {
             (attributes[name] ?? fallback ?? "").split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
         }
@@ -542,58 +545,67 @@ extension LayoutEngine {
             cells = cached.cells; labels = cached.labels; sources = cached.sources; rowAxes = cached.rowAxes
         } else {
             let startNodes = visitedNodes, startWork = remainingTableWork
-        for (rowIndex, rowNode) in node.children.enumerated() {
-            let rowContext: LayoutContext
-            var cellNodes: [MathMLNode]
-            var label: MathMLNode?
-            switch rowNode.name {
-            case "mtr", "mlabeledtr":
-                // A row is a node as its cells are, though only they are laid out.
-                try visit(cellContext, depth: depth + 1)
-                rowContext = inherit(rowNode, cellContext)
-                cellNodes = rowNode.children
-                if rowNode.name == "mlabeledtr", !cellNodes.isEmpty { label = cellNodes.removeFirst() }
-            default:
-                rowContext = cellContext
-                cellNodes = [rowNode]
-            }
-            let rowAlign = list("columnalign", in: rowNode.attributes)
-            let rowVertical = ((rowNode.name == "mtr" || rowNode.name == "mlabeledtr")
-                ? vertical(rowNode.attributes["rowalign"]) : nil)
-                ?? vertical(pick(tableRowAlign, rowIndex)) ?? "baseline"
-            rowAxes.append(value(\.axisHeight, rowContext))
-            var rowSources: [TableCellSource] = []
-            for cell in cellNodes {
-                rowSources.append(TableCellSource(node: cell, context: rowContext, depth: depth + 2))
-                let box = try layout(cell, rowContext, depth: depth + 2)
-                let align = cell.attributes["columnalign"]?.trimmingCharacters(in: .whitespaces).lowercased()
-                let alignment = vertical(cell.attributes["rowalign"]) ?? rowVertical
-                let oldWork = cells.work
-                try cells.insert(box, row: rowIndex, rowSpan: TableGrid.span(cell.attributes["rowspan"]),
-                                 columnSpan: TableGrid.span(cell.attributes["columnspan"]), align: align, rowAlign: alignment,
-                                 workBudget: remainingTableWork)
-                try countTableWork(cells.work - oldWork)
-                // Row alignment lists address grid columns, including occupied ones.
-                let index = cells.rows[rowIndex].count - 1
-                cells.rows[rowIndex][index].axis = value(\.axisHeight, inherit(cell, rowContext))
-                if cells.rows[rowIndex][index].align == nil {
-                    cells.rows[rowIndex][index].align = pick(rowAlign, cells.rows[rowIndex][index].column)
+            for (rowIndex, rowNode) in node.children.enumerated() {
+                let rowContext: LayoutContext
+                var cellNodes: [MathMLNode]
+                var label: MathMLNode?
+                switch rowNode.name {
+                case "mtr", "mlabeledtr":
+                    // A row is a node as its cells are, though only they are laid out.
+                    try visit(cellContext, depth: depth + 1)
+                    rowContext = inherit(rowNode, cellContext)
+                    cellNodes = rowNode.children
+                    if rowNode.name == "mlabeledtr", !cellNodes.isEmpty { label = cellNodes.removeFirst() }
+                default:
+                    rowContext = cellContext
+                    cellNodes = [rowNode]
                 }
+                let rowAlign = list("columnalign", in: rowNode.attributes)
+                let rowGroups = AlignmentValues.columns(rowNode.attributes["groupalign"])
+                let rowVertical = ((rowNode.name == "mtr" || rowNode.name == "mlabeledtr")
+                    ? vertical(rowNode.attributes["rowalign"]) : nil)
+                    ?? vertical(pick(tableRowAlign, rowIndex)) ?? "baseline"
+                rowAxes.append(value(\.axisHeight, rowContext))
+                var rowSources: [TableCellSource] = []
+                for cell in cellNodes {
+                    rowSources.append(TableCellSource(node: cell, context: rowContext, depth: depth + 2))
+                    var box = try layout(cell, rowContext, depth: depth + 2)
+                    let rowSpan = try TableGrid.span(cell.attributes["rowspan"])
+                    let columnSpan = try TableGrid.span(cell.attributes["columnspan"])
+                    if rowSpan > 1 || columnSpan > 1 { box.alignment = [] }
+                    let align = cell.attributes["columnalign"]?.trimmingCharacters(in: .whitespaces).lowercased()
+                    let alignment = vertical(cell.attributes["rowalign"]) ?? rowVertical
+                    let oldWork = cells.work
+                    try cells.insert(box, row: rowIndex, rowSpan: rowSpan,
+                                     columnSpan: columnSpan, align: align, rowAlign: alignment,
+                                     workBudget: remainingTableWork)
+                    try countTableWork(cells.work - oldWork)
+                    // Row alignment lists address grid columns, including occupied ones.
+                    let index = cells.rows[rowIndex].count - 1
+                    let column = cells.rows[rowIndex][index].column
+                    cells.rows[rowIndex][index].groupAlign = cell.attributes["groupalign"].map { AlignmentValues.list($0) }
+                        ?? AlignmentValues.pick(rowGroups, column) ?? AlignmentValues.pick(tableGroups, column) ?? ["left"]
+                    cells.rows[rowIndex][index].axis = value(\.axisHeight, inherit(cell, rowContext))
+                    if cells.rows[rowIndex][index].align == nil {
+                        cells.rows[rowIndex][index].align = pick(rowAlign, cells.rows[rowIndex][index].column)
+                    }
+                }
+                sources.append(rowSources)
+                labels.append(try label.map {
+                    // Labels have their own gutter; neither their spans nor previous grid spans reserve
+                    // a position for the next label (MathML 3, 3.5.4.2).
+                    let rowSpan = min(try TableGrid.span($0.attributes["rowspan"]), cells.rows.count - rowIndex)
+                    _ = try TableGrid.span($0.attributes["columnspan"])
+                    // Label spans also touch row tracks, even though they do not occupy main-grid slots.
+                    try countTableWork(rowSpan)
+                    var labelBox = try layout($0, rowContext, depth: depth + 2)
+                    labelBox.alignment = []
+                    return TableCell(box: labelBox, align: nil,
+                                     rowAlign: vertical($0.attributes["rowalign"]) ?? rowVertical,
+                                     column: 0, rowSpan: rowSpan, columnSpan: 1,
+                                     axis: value(\.axisHeight, inherit($0, rowContext)))
+                })
             }
-            sources.append(rowSources)
-            labels.append(try label.map {
-                // Labels have their own gutter; neither their spans nor previous grid spans reserve
-                // a position for the next label (MathML 3, 3.5.4.2).
-                let rowSpan = min(try TableGrid.span($0.attributes["rowspan"]), cells.rows.count - rowIndex)
-                _ = try TableGrid.span($0.attributes["columnspan"])
-                // Label spans also touch row tracks, even though they do not occupy main-grid slots.
-                try countTableWork(rowSpan)
-                return TableCell(box: try layout($0, rowContext, depth: depth + 2), align: nil,
-                                 rowAlign: vertical($0.attributes["rowalign"]) ?? rowVertical,
-                                 column: 0, rowSpan: rowSpan, columnSpan: 1,
-                                 axis: value(\.axisHeight, inherit($0, rowContext)))
-            })
-        }
             tableMeasurements.keep(node, context, cells: cells, labels: labels, sources: sources,
                                    rowAxes: rowAxes, descendantNodes: visitedNodes - startNodes,
                                    tableWork: startWork - remainingTableWork)
@@ -616,6 +628,8 @@ extension LayoutEngine {
         let tableAlign = list("columnalign", in: attributes)
         let labelGap = length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em
         let labelWidth = labels.compactMap { $0?.box.width }.max().map { $0 + labelGap } ?? 0
+        try alignColumns(&cells, scopes: list("alignmentscope", in: attributes))
+        // Aligned cells are indivisible; forced breaks and spans retain ordinary wrapping.
         // Before the rows are measured: a table too wide for the line wraps its cells, which grow taller.
         let minimum = try wrapCells(&cells, sources: sources, columnAlign: tableAlign, gaps: columnGaps, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
         let widths = cells.widths(gaps: columnGaps) { _, _, cell in cell.box.width }

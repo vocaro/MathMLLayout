@@ -63,6 +63,10 @@ struct LayoutContext: Equatable {
     var decimalPoint: String?
     /// `rowalign` set by `mstyle` supplies only table defaults (MathML 3 §3.3.4).
     var tableRowAlign: String?
+    var trackAlignment = false
+    var alignmentRTL = false
+    var alignmentBaseline = true
+    var tableGroupAlign: String?
 }
 
 /// What an embellished operator learns from where it sits: its form from its position in a
@@ -147,6 +151,7 @@ final class LayoutEngine {
     let constants: MathConstants
     private var nodeCount = 0
     var visitedNodes: Int { nodeCount }
+    var alignmentSequence = 0
     private var textLength = 0
     private var tableWork = 0
     var remainingTableWork: Int {
@@ -223,6 +228,7 @@ final class LayoutEngine {
     /// `levels` script levels deeper.
     func scriptContext(_ context: LayoutContext, levels: Int = 1, cramped: Bool? = nil) -> LayoutContext {
         var result = context
+        result.alignmentBaseline = false
         result.display = false
         if levels != 0 { setScriptLevel(&result, context.scriptLevel + levels) }
         if let cramped { result.cramped = cramped }
@@ -273,6 +279,8 @@ final class LayoutEngine {
             let bold = attributes["fontweight"] == "bold", italic = attributes["fontstyle"] == "italic"
             context.variant = bold ? (italic ? .boldItalic : .bold) : (italic ? .italic : .normal)
         }
+        if node.name == "mstyle", let groups = attributes["groupalign"] { context.tableGroupAlign = groups }
+        if let direction = attributes["dir"]?.lowercased() { context.alignmentRTL = direction == "rtl" }
         inheritLineStyle(node, &context)
         return context
     }
@@ -405,14 +413,15 @@ final class LayoutEngine {
             box = try shown.map { try layout(children[$0], context, embellishment, depth: depth + 1) } ?? .empty()
         case "merror":
             box = try errorBox(node, context, depth: depth)
+        case "maligngroup", "malignmark":
+            box = alignmentElement(node, context)
         case let name where Self.empty.contains(name):
             box = .empty()
         default:
             throw MathLayoutError.unsupported(node.name)
         }
-        if let background = node.attributes["mathbackground"].flatMap(MathColor.parse) {
-            box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), background), at: 0)
-        }
+        finishAlignment(&box, node: node, context: context)
+        background(&box, node: node)
         if box.op?.has(.fence) == true, case .vertical = embellishment.stretch,
            isStretchy(node, form: embellishment.form, horizontal: false) {
             let isCoreGeometry = node.name == "mo" && !children.contains(where: { $0.name == "mglyph" })
@@ -463,6 +472,7 @@ final class LayoutEngine {
     /// Starts the counts of untrusted input again, to lay the same formula out once more.
     func restart() {
         nodeCount = 0
+        alignmentSequence = 0
         textLength = 0
         tableWork = 0
         narrowable = nil
@@ -754,6 +764,7 @@ final class LayoutEngine {
         var box = MathBox()
         var x: CGFloat = 0
         var offsets: [CGFloat] = []
+        var markEvents: [(child: Int, event: Int)] = []
         for (index, child) in boxes.enumerated() {
             var lspace = child.op?.lspace ?? 0, rspace = child.op?.rspace ?? 0
             if index == core {
@@ -766,12 +777,22 @@ final class LayoutEngine {
             }
             x += lspace
             offsets.append(x)
+            if !child.alignment.isEmpty, Self.alignmentMark(children[index]) != nil {
+                markEvents.append((index, box.alignment.count))
+            }
             box.add(child, at: CGPoint(x: x, y: 0))
             x += child.width + rspace
             box.ascent = index == 0 ? child.ascent : max(box.ascent, child.ascent)
             box.descent = index == 0 ? child.descent : max(box.descent, child.descent)
         }
         box.width = x
+        for mark in markEvents {
+            let right = Self.alignmentMark(children[mark.child])?.attributes["edge"]?.lowercased() == "right"
+            let neighbour = right ? mark.child - 1 : mark.child + 1
+            box.alignment[mark.event].x = boxes.indices.contains(neighbour)
+                ? offsets[neighbour] + (right ? boxes[neighbour].alignmentEdges.right : boxes[neighbour].alignmentEdges.left)
+                : offsets[mark.child]
+        }
         if boxes.count == 1 {
             box.italicCorrection = boxes[0].italicCorrection
             box.topAccentAttachment = boxes[0].topAccentAttachment
@@ -782,6 +803,7 @@ final class LayoutEngine {
             if spacesCore.left { box.op?.lspace = 0 }
             if spacesCore.right { box.op?.rspace = 0 }
         }
+        orderAlignment(boxes, box: &box)
         box.row = try breakableRow(children, boxes, at: offsets, unary: unary, box, context, depth: depth)
         return box
     }
@@ -852,6 +874,7 @@ final class LayoutEngine {
     /// says otherwise, and its width includes its italic correction (TeX's rule 17). An `mglyph`
     /// is not a character, so an `mi` of one stays upright even when its `alt` is drawn instead.
     private func token(_ node: MathMLNode, _ context: LayoutContext) throws -> MathBox {
+        try countNodes(node.children.lazy.filter { $0.name == "malignmark" }.count)
         var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", context)
         if node.name == "ms" {
             // The quotes are text, whatever they hold: only `mglyph`s have markers.
@@ -871,6 +894,7 @@ final class LayoutEngine {
             }
             box.topAccentAttachment = table.topAccentAttachment(glyph).map { font.points($0, size: size) }
         }
+        try tokenAlignment(&box, node: node, text: text, context: context)
         return box
     }
 
@@ -940,6 +964,7 @@ final class LayoutEngine {
     /// An `mo`: dictionary properties, the display size of large operators, and stretching.
     /// One with an `mglyph` is drawn as its author sized it, neither enlarged nor stretched.
     private func operatorBox(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment) throws -> MathBox {
+        try countNodes(node.children.lazy.filter { $0.name == "malignmark" }.count)
         var text = operatorText(node)
         let properties = properties(node, form: embellishment.form, context)
         if Self.hasGlyph(node) {
@@ -953,6 +978,7 @@ final class LayoutEngine {
         guard !Self.invisible.contains(text) else {
             var box = MathBox.empty()
             box.op = properties
+            try tokenAlignment(&box, node: node, text: text, context: context)
             return box
         }
         if let variant = context.variant { text = variant.apply(to: text) }
@@ -977,6 +1003,7 @@ final class LayoutEngine {
         // display-style large operators (MathML Core 3.2.4.3).
         if properties.has(.largeop), context.display { box = centered(box, on: value(\.axisHeight, context)) }
         box.op = properties
+        try tokenAlignment(&box, node: node, text: text, context: context)
         return box
     }
 

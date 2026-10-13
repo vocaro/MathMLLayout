@@ -10,6 +10,7 @@ struct TableCell {
     var rowSpan: Int
     var columnSpan: Int
     var axis: CGFloat = 0
+    var groupAlign: [String] = []
 }
 
 /// Sparse occupancy, bounded independently of the number of source nodes. A cell starts at the

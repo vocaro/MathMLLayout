@@ -15,6 +15,8 @@
   uses each cell's final size after wrapping; `axis` accounts for the cell's font size.
   Unspecified vertical alignment remains `baseline`
   ([MathML 3 §3.5](https://www.w3.org/TR/MathML3/chapter3.html#presm.mtable)).
+  LTR `maligngroup`/`malignmark` support `groupalign` and `alignmentscope`
+  ([alignment groups](alignment-groups.md)).
 - **Elementary math** (MathML 3 §3.6): `mstack`, `mlongdiv`, `msgroup`, `msrow`, `mscarries`,
   `mscarry`, `msline`: digit columns with `stackalign`, `charalign`, `charspacing`, `position` and
   `shift`; lines with their length, overhangs and thickness; carries with `location`, `crossout`

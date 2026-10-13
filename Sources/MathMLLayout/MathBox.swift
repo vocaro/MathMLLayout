@@ -22,6 +22,8 @@ struct MathBox {
     /// The source of a vertically stretched fence, for a pair that later stays on one output row.
     var fenceLayout: FenceLayout?
     var items: [MathItem] = []
+    /// Alignment events in source order, retained only inside a table cell.
+    var alignment: [AlignmentEvent] = []
 
     var height: CGFloat { ascent + descent }
 
@@ -32,8 +34,15 @@ struct MathBox {
     /// Adds `box` with its baseline origin at `point`. Its extents are not merged: callers set
     /// their own metrics.
     mutating func add(_ box: MathBox, at point: CGPoint) {
+        let index = items.count
+        alignment.append(contentsOf: box.alignment.map { event in
+            var event = event
+            event.x += point.x
+            event.path = box.items.isEmpty ? [index] : [index] + event.path
+            return event
+        })
         guard !box.items.isEmpty else { return }
-        if point == .zero, box.fenceLayout == nil, box.items.count == 1, case .box = box.items[0] {
+        if point == .zero, box.alignment.isEmpty, box.fenceLayout == nil, box.items.count == 1, case .box = box.items[0] {
             items.append(box.items[0]); return
         }
         // What is drawn keeps no row structure: that is for whoever may still break the row.

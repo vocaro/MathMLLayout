@@ -26,7 +26,7 @@ instead of overwriting an earlier cell. Sparse grid slots are not materialized.
 - **Line breaking.** No breaks inside `mpadded`, `mphantom`, `merror`, `munder`/`mover`/
   `munderover`, a script, or a row with a `mathbackground`; none between adjacent identifiers or
   inside a number. `indenttarget` must name a child of a row
-  being broken, on an earlier row. `malignmark` and `maligngroup` align nothing. Nested tables
+  being broken, on an earlier row. Nested tables
   in breakable cell rows narrow to their containing cell’s assigned width, retaining unbreakable
   content and fixed space for frames and labels. `mtext` with a right-to-left run, an image, or an `alt`
   drawn on a `mathbackground` of its own does not wrap.
@@ -49,6 +49,10 @@ instead of overwriting an earlier cell. Sparse grid slots are not materialized.
 - Table label columns remain independent gutters: `columnspan` on a label does not add grid
   columns. Stretchy operators in table cells do not stretch to match neighboring cells.
 
+- **Alignment groups.** LTR table columns implement `maligngroup`, explicit `malignmark`, and
+  inherited `groupalign` lists; see [alignment groups](alignment-groups.md). Aligned cells are
+  indivisible during automatic wrapping. Forced line breaks and non-default spans opt a cell
+  out of group alignment. RTL alignment and token marks mixed with `mglyph` are staged.
 - No kerning from the font's MathKernInfo.
 
 [Documentation index](../README.md#documentation)
