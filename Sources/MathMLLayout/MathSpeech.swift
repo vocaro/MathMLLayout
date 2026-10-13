@@ -204,182 +204,308 @@ private struct Speaker {
             decimalPoint = point
         }
         defer { decimalPoint = previousPoint }
+        switch node.name {
+        case "mi":
+            return readIdentifier(node, depth: depth)
+        case "mn", "mtext", "ms":
+            return readText(node, depth: depth)
+        case "mo":
+            return readOperator(node, depth: depth)
+        case "mglyph":
+            return readGlyph(node, depth: depth)
+        case "mfrac":
+            return readFraction(node, depth: depth)
+        case "msup":
+            return readSuperscript(node, depth: depth)
+        case "msub":
+            return readSubscript(node, depth: depth)
+        case "msubsup":
+            return readSubSuperscript(node, depth: depth)
+        case "msqrt":
+            return readSquareRoot(node, depth: depth)
+        case "mroot":
+            return readRoot(node, depth: depth)
+        case "munder", "mover", "munderover":
+            return readUnderOver(node, depth: depth)
+        case "mmultiscripts":
+            return readMultiscripts(node, depth: depth)
+        case "mtable":
+            return readTable(node, depth: depth)
+        case "mfenced":
+            return readFenced(node, depth: depth)
+        case "mstack":
+            return readStack(node, depth: depth)
+        case "mlongdiv":
+            return readLongDivision(node, depth: depth)
+        case "semantics", "maction":
+            return readSelected(node, depth: depth)
+        case "mphantom", "mspace", "none", "mprescripts", "annotation", "annotation-xml":
+            return readSilent(node, depth: depth)
+        default:
+            return readRow(node, depth: depth)
+        }
+    }
+
+    @inline(never)
+    private mutating func readIdentifier(_ node: MathMLNode, depth: Int) -> String {
+        return symbol(said(text(of: node)))
+    }
+
+    @inline(never)
+    private mutating func readText(_ node: MathMLNode, depth: Int) -> String {
+        return said(text(of: node))
+    }
+
+    @inline(never)
+    private mutating func readOperator(_ node: MathMLNode, depth: Int) -> String {
+        let value = said(text(of: node))
+        return ["\u{2061}", "\u{2062}", "\u{2063}", "\u{2064}"].contains(value) ? "" : symbol(value)
+    }
+
+    @inline(never)
+    private mutating func readGlyph(_ node: MathMLNode, depth: Int) -> String {
+        return isTextSpent ? "" : said(LayoutEngine.normalized(node.attributes["alt"] ?? ""))
+    }
+
+    @inline(never)
+    private mutating func readFraction(_ node: MathMLNode, depth: Int) -> String {
         let children = node.children
         func child(_ index: Int) -> String {
             children.indices.contains(index) ? reading(of: children[index], depth: depth + 1) : ""
         }
-        switch node.name {
-        case "mi":
-            return symbol(said(text(of: node)))
-        case "mn", "mtext", "ms":
-            return said(text(of: node))
-        case "mo":
-            let value = said(text(of: node))
-            return ["\u{2061}", "\u{2062}", "\u{2063}", "\u{2064}"].contains(value) ? "" : symbol(value)
-        case "mglyph":
-            return isTextSpent ? "" : said(LayoutEngine.normalized(node.attributes["alt"] ?? ""))
-        case "mfrac":
-            let simple = children.count == 2 && isSimple(children[0]) && isSimple(children[1])
-            return words.fraction(child(0), child(1), simple: simple)
-        case "msup":
-            let base = child(0), power = children.count > 1 ? children[1] : MathMLNode(name: "none")
-            let exponent = child(1)
-            guard !exponent.isEmpty else { return base }
-            switch (power.name, exponent) {
-            case ("mn", "2"): return words.squared(base)
-            case ("mn", "3"): return words.cubed(base)
-            default:
-                if let token = simpleToken(power), token.name == "mo", let primes = primeCount(token.text) {
-                    return words.primed(base, count: primes)
-                }
-                return words.power(base, exponent, simple: isSimple(power))
+        let simple = children.count == 2 && isSimple(children[0]) && isSimple(children[1])
+        return words.fraction(child(0), child(1), simple: simple)
+    }
+
+    @inline(never)
+    private mutating func readSuperscript(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        func child(_ index: Int) -> String {
+            children.indices.contains(index) ? reading(of: children[index], depth: depth + 1) : ""
+        }
+        let base = child(0), power = children.count > 1 ? children[1] : MathMLNode(name: "none")
+        let exponent = child(1)
+        guard !exponent.isEmpty else { return base }
+        switch (power.name, exponent) {
+        case ("mn", "2"): return words.squared(base)
+        case ("mn", "3"): return words.cubed(base)
+        default:
+            if let token = simpleToken(power), token.name == "mo", let primes = primeCount(token.text) {
+                return words.primed(base, count: primes)
             }
-        case "msub":
-            return words.subscripted(child(0), child(1))
-        case "msubsup":
-            let base = child(0), lower = child(1), upper = child(2)
-            if children.first.map(isLimitOperator) == true {
+            return words.power(base, exponent, simple: isSimple(power))
+        }
+    }
+
+    @inline(never)
+    private mutating func readSubscript(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        func child(_ index: Int) -> String {
+            children.indices.contains(index) ? reading(of: children[index], depth: depth + 1) : ""
+        }
+        return words.subscripted(child(0), child(1))
+    }
+
+    @inline(never)
+    private mutating func readSubSuperscript(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        func child(_ index: Int) -> String {
+            children.indices.contains(index) ? reading(of: children[index], depth: depth + 1) : ""
+        }
+        let base = child(0), lower = child(1), upper = child(2)
+        if children.first.map(isLimitOperator) == true {
+            return words.limits(base, from: lower, to: upper)
+        }
+        return words.power(words.subscripted(base, lower), upper,
+                           simple: children.count < 3 || isSimple(children[2]))
+    }
+
+    @inline(never)
+    private mutating func readSquareRoot(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        let closed = children.count != 1 || !isSimple(children[0])
+        return words.squareRoot(row(children, depth: depth + 1), closed: closed)
+    }
+
+    @inline(never)
+    private mutating func readRoot(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        func child(_ index: Int) -> String {
+            children.indices.contains(index) ? reading(of: children[index], depth: depth + 1) : ""
+        }
+        let radicand = child(0), index = child(1)
+        guard !radicand.isEmpty else { return "" }
+        guard !index.isEmpty else { return radicand }
+        let token = children.count > 1 ? simpleToken(children[1]) : nil
+        switch token?.name == "mn" ? index : "" {
+        case "2": return words.squareRoot(radicand, closed: true)
+        case "3": return words.cubeRoot(radicand)
+        default:
+            if let token,
+               ["mi", "mn"].contains(token.name), let ordinal = words.ordinalRoots[index] {
+                return words.ordinalRoot(radicand, ordinal: ordinal)
+            }
+            return words.root(radicand, index: index)
+        }
+    }
+
+    @inline(never)
+    private mutating func readUnderOver(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        func child(_ index: Int) -> String {
+            children.indices.contains(index) ? reading(of: children[index], depth: depth + 1) : ""
+        }
+        let base = child(0)
+        switch node.name {
+        case "munder", "mover":
+            let script = child(1), under = node.name == "munder"
+            guard !script.isEmpty else { return base }
+            if children.count > 1, let accent = accent(children[1], under: under,
+               explicit: node.attributes.flag(under ? "accentunder" : "accent")) {
+                return words.accent(accent, on: base)
+            }
+            return under ? words.under(base, script) : words.over(base, script)
+        default:
+            let lower = child(1), upper = child(2)
+            var result = base
+            let lowerAccent = children.count > 1
+                ? accent(children[1], under: true, explicit: node.attributes.flag("accentunder")) : nil
+            let upperAccent = children.count > 2
+                ? accent(children[2], under: false, explicit: node.attributes.flag("accent")) : nil
+            if lowerAccent == nil && upperAccent == nil {
                 return words.limits(base, from: lower, to: upper)
             }
-            return words.power(words.subscripted(base, lower), upper,
-                               simple: children.count < 3 || isSimple(children[2]))
-        case "msqrt":
-            let closed = children.count != 1 || !isSimple(children[0])
-            return words.squareRoot(row(children, depth: depth + 1), closed: closed)
-        case "mroot":
-            let radicand = child(0), index = child(1)
-            guard !radicand.isEmpty else { return "" }
-            guard !index.isEmpty else { return radicand }
-            let token = children.count > 1 ? simpleToken(children[1]) : nil
-            switch token?.name == "mn" ? index : "" {
-            case "2": return words.squareRoot(radicand, closed: true)
-            case "3": return words.cubeRoot(radicand)
-            default:
-                if let token,
-                   ["mi", "mn"].contains(token.name), let ordinal = words.ordinalRoots[index] {
-                    return words.ordinalRoot(radicand, ordinal: ordinal)
-                }
-                return words.root(radicand, index: index)
-            }
-        case "munder", "mover", "munderover":
-            let base = child(0)
-            switch node.name {
-            case "munder", "mover":
-                let script = child(1), under = node.name == "munder"
-                guard !script.isEmpty else { return base }
-                if children.count > 1, let accent = accent(children[1], under: under,
-                   explicit: node.attributes.flag(under ? "accentunder" : "accent")) {
-                    return words.accent(accent, on: base)
-                }
-                return under ? words.under(base, script) : words.over(base, script)
-            default:
-                let lower = child(1), upper = child(2)
-                var result = base
-                let lowerAccent = children.count > 1
-                    ? accent(children[1], under: true, explicit: node.attributes.flag("accentunder")) : nil
-                let upperAccent = children.count > 2
-                    ? accent(children[2], under: false, explicit: node.attributes.flag("accent")) : nil
-                if lowerAccent == nil && upperAccent == nil {
-                    return words.limits(base, from: lower, to: upper)
-                }
-                if !lower.isEmpty { result = lowerAccent.map { words.accent($0, on: result) } ?? words.under(result, lower) }
-                if !upper.isEmpty { result = upperAccent.map { words.accent($0, on: result) } ?? words.over(result, upper) }
-                return result
-            }
-        case "mmultiscripts":
-            // Base, right pairs, then left pairs, each in source order. In the LTR
-            // layout, right pairs go outward and left pairs go toward the base.
-            // A silent none still occupies a subscript or superscript slot.
-            var parts = [child(0)], prescript = false, superscript = false
-            for item in children.dropFirst() {
-                guard count < MathLimits.nodes else { break }
-                if item.name == "mprescripts" {
-                    count += 1
-                    prescript = true
-                    superscript = false
-                    continue
-                }
-                if item.name == "none" {
-                    count += 1
-                } else {
-                    let position: MathScriptPosition = prescript
-                        ? (superscript ? .leftSuperscript : .leftSubscript)
-                        : (superscript ? .rightSuperscript : .rightSubscript)
-                    let script = reading(of: item, depth: depth + 1)
-                    // A silent or bounded-out expression must not leave a dangling label.
-                    if !script.isEmpty {
-                        parts.append(words.script(script, position: position, simple: isSimple(item)))
-                    }
-                }
-                superscript.toggle()
-            }
-            return words.phrase(parts)
-        case "mtable":
-            // A row is not read as an element of its own, so it is counted here.
-            var parts = [words.table(rows: children.count)]
-            for (index, row) in children.enumerated() where count < MathLimits.nodes {
-                count += 1
-                parts += [words.row(index + 1), list(row.children, depth: depth + 2)]
-            }
-            return words.phrase(parts)
-        case "mfenced":
-            let open = fence(node.attributes["open"] ?? "(")
-            let raw = said(node.attributes["separators"] ?? ",")
-            let separators = Array(raw.filter { !$0.isWhitespace })
-            var parts = [open]
-            for (index, item) in children.enumerated() where count < MathLimits.nodes {
-                let value = reading(of: item, depth: depth + 1)
-                guard !value.isEmpty else { continue }
-                if index > 0, !separators.isEmpty {
-                    parts.append(symbol(String(separators[min(index - 1, separators.count - 1)])))
-                }
-                parts.append(value)
-            }
-            parts.append(fence(node.attributes["close"] ?? ")"))
-            return words.phrase(parts)
-        case "mstack":
-            var rows: [StackRow] = []
-            gather(children, depth: depth + 1, into: &rows)
-            let alignment = MathStackAlignment(attribute: node.attributes["stackalign"])
-            let opening = words.stack(rows: rows.count { isDigits($0.node) })
-            return words.phrase([opening, words.alignment(alignment)] + read(rows[...], alignment: alignment) + [words.endStack])
-        case "mlongdiv":
-            // MathML 3 §3.6.2: the divisor, the result, then a stack whose first row of digits is the
-            // dividend. The result is named after the dividend, the order a division is said in.
-            let alignment = MathStackAlignment(attribute: node.attributes["stackalign"])
-            let frame = LongDivision(attribute: node.attributes["longdivstyle"])
-            let divisor = children.indices.contains(0) ? divisionOperand(children[0], depth: depth + 1, alignment: alignment) : ""
-            let result: String
-            if children.indices.contains(1), children[1].name == "mn", frame.hasResultOnTop {
-                result = digits((children[1], depth + 1, 0), alignment: alignment)
-            } else {
-                result = children.indices.contains(1) ? divisionOperand(children[1], depth: depth + 1, alignment: alignment) : ""
-            }
-            var rows: [StackRow] = []
-            gather(children.dropFirst(2), depth: depth + 1, into: &rows)
-            let dividend = rows.firstIndex { isDigits($0.node) } ?? rows.endIndex
-            let working = rows.dropFirst(min(dividend + 1, rows.count))
-            var parts = [words.longDivision(rows: working.count { isDigits($0.node) }),
-                         words.spatial.frames[frame] ?? "", words.alignment(alignment)]
-            if !divisor.isEmpty { parts.append(words.divisor(divisor)) }
-            // Borrows may be marked above the dividend; they are read before it, as they are written.
-            parts += read(rows[..<dividend], alignment: alignment)
-            if dividend < rows.endIndex { parts.append(words.dividend(digits(rows[dividend], alignment: alignment))) }
-            if !result.isEmpty { parts.append(words.result(result)) }
-            return words.phrase(parts + read(working, alignment: alignment) + [words.endLongDivision])
-        case "semantics", "maction":
-            // The child layout draws, which need not be the first: an annotation may come before
-            // it, and `selection` may name another.
-            let shown = LayoutEngine.shownIndex(node)
-            // The annotations passed over to find it count as layout counts them: past the bound
-            // the rest of the formula is left out.
-            if node.name == "semantics" { count += shown ?? children.count }
-            return shown.map { reading(of: children[$0], depth: depth + 1) } ?? ""
-        case "mphantom", "mspace", "none", "mprescripts", "annotation", "annotation-xml":
-            return ""
-        default:
-            return row(children, depth: depth + 1)
+            if !lower.isEmpty { result = lowerAccent.map { words.accent($0, on: result) } ?? words.under(result, lower) }
+            if !upper.isEmpty { result = upperAccent.map { words.accent($0, on: result) } ?? words.over(result, upper) }
+            return result
         }
+    }
+
+    @inline(never)
+    private mutating func readMultiscripts(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        func child(_ index: Int) -> String {
+            children.indices.contains(index) ? reading(of: children[index], depth: depth + 1) : ""
+        }
+        // Base, right pairs, then left pairs, each in source order. In the LTR
+        // layout, right pairs go outward and left pairs go toward the base.
+        // A silent none still occupies a subscript or superscript slot.
+        var parts = [child(0)], prescript = false, superscript = false
+        for item in children.dropFirst() {
+            guard count < MathLimits.nodes else { break }
+            if item.name == "mprescripts" {
+                count += 1
+                prescript = true
+                superscript = false
+                continue
+            }
+            if item.name == "none" {
+                count += 1
+            } else {
+                let position: MathScriptPosition = prescript
+                    ? (superscript ? .leftSuperscript : .leftSubscript)
+                    : (superscript ? .rightSuperscript : .rightSubscript)
+                let script = reading(of: item, depth: depth + 1)
+                // A silent or bounded-out expression must not leave a dangling label.
+                if !script.isEmpty {
+                    parts.append(words.script(script, position: position, simple: isSimple(item)))
+                }
+            }
+            superscript.toggle()
+        }
+        return words.phrase(parts)
+    }
+
+    @inline(never)
+    private mutating func readTable(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        // A row is not read as an element of its own, so it is counted here.
+        var parts = [words.table(rows: children.count)]
+        for (index, row) in children.enumerated() where count < MathLimits.nodes {
+            count += 1
+            parts += [words.row(index + 1), list(row.children, depth: depth + 2)]
+        }
+        return words.phrase(parts)
+    }
+
+    @inline(never)
+    private mutating func readFenced(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        let open = fence(node.attributes["open"] ?? "(")
+        let raw = said(node.attributes["separators"] ?? ",")
+        let separators = Array(raw.filter { !$0.isWhitespace })
+        var parts = [open]
+        for (index, item) in children.enumerated() where count < MathLimits.nodes {
+            let value = reading(of: item, depth: depth + 1)
+            guard !value.isEmpty else { continue }
+            if index > 0, !separators.isEmpty {
+                parts.append(symbol(String(separators[min(index - 1, separators.count - 1)])))
+            }
+            parts.append(value)
+        }
+        parts.append(fence(node.attributes["close"] ?? ")"))
+        return words.phrase(parts)
+    }
+
+    @inline(never)
+    private mutating func readStack(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        var rows: [StackRow] = []
+        gather(children, depth: depth + 1, into: &rows)
+        let alignment = MathStackAlignment(attribute: node.attributes["stackalign"])
+        let opening = words.stack(rows: rows.count { isDigits($0.node) })
+        return words.phrase([opening, words.alignment(alignment)] + read(rows[...], alignment: alignment) + [words.endStack])
+    }
+
+    @inline(never)
+    private mutating func readLongDivision(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        // MathML 3 §3.6.2: the divisor, the result, then a stack whose first row of digits is the
+        // dividend. The result is named after the dividend, the order a division is said in.
+        let alignment = MathStackAlignment(attribute: node.attributes["stackalign"])
+        let frame = LongDivision(attribute: node.attributes["longdivstyle"])
+        let divisor = children.indices.contains(0) ? divisionOperand(children[0], depth: depth + 1, alignment: alignment) : ""
+        let result: String
+        if children.indices.contains(1), children[1].name == "mn", frame.hasResultOnTop {
+            result = digits((children[1], depth + 1, 0), alignment: alignment)
+        } else {
+            result = children.indices.contains(1) ? divisionOperand(children[1], depth: depth + 1, alignment: alignment) : ""
+        }
+        var rows: [StackRow] = []
+        gather(children.dropFirst(2), depth: depth + 1, into: &rows)
+        let dividend = rows.firstIndex { isDigits($0.node) } ?? rows.endIndex
+        let working = rows.dropFirst(min(dividend + 1, rows.count))
+        var parts = [words.longDivision(rows: working.count { isDigits($0.node) }),
+                     words.spatial.frames[frame] ?? "", words.alignment(alignment)]
+        if !divisor.isEmpty { parts.append(words.divisor(divisor)) }
+        // Borrows may be marked above the dividend; they are read before it, as they are written.
+        parts += read(rows[..<dividend], alignment: alignment)
+        if dividend < rows.endIndex { parts.append(words.dividend(digits(rows[dividend], alignment: alignment))) }
+        if !result.isEmpty { parts.append(words.result(result)) }
+        return words.phrase(parts + read(working, alignment: alignment) + [words.endLongDivision])
+    }
+
+    @inline(never)
+    private mutating func readSelected(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        // The child layout draws, which need not be the first: an annotation may come before
+        // it, and `selection` may name another.
+        let shown = LayoutEngine.shownIndex(node)
+        // The annotations passed over to find it count as layout counts them: past the bound
+        // the rest of the formula is left out.
+        if node.name == "semantics" { count += shown ?? children.count }
+        return shown.map { reading(of: children[$0], depth: depth + 1) } ?? ""
+    }
+
+    @inline(never)
+    private mutating func readSilent(_ node: MathMLNode, depth: Int) -> String {
+        return ""
+    }
+
+    @inline(never)
+    private mutating func readRow(_ node: MathMLNode, depth: Int) -> String {
+        let children = node.children
+        return row(children, depth: depth + 1)
     }
 
     // MARK: Elementary math

@@ -63,3 +63,19 @@ commands, and reporting limits are documented in [external-validation.md](extern
 The optional [CI workflow](../.github/workflows/external-validation.yml) can be called by normal
 CI or invoked manually after configuring a macOS 27/Xcode 27 runner with label `mathml-xcode27`.
 It does not assume that a hosted macOS 26 runner can execute this package.
+
+## Worker depth
+
+`WorkerDepthTests` allocates pthread stacks explicitly, with guard pages and an assertion of the
+actual size. This avoids Darwin's extra allocation for a requested `Thread.stackSize` or
+`pthread_attr_setstacksize`. The asserted coverage and limitations are in
+[limits.md](limits.md#worker-stack-coverage).
+
+The optional sweep reports the deepest successful pure chain in each fixture; it does not replace
+the assertions of the documented 64-level mixed-shape matrix.
+
+```sh
+MATHML_MEASURE_WORKER_DEPTH=1 swift test --jobs 2 --filter WorkerDepthTests
+MATHML_MEASURE_WORKER_DEPTH=1 swift test --jobs 2 -c release \
+  -Xswiftc -enable-testing --filter WorkerDepthTests
+```
