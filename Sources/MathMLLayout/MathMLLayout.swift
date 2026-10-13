@@ -10,8 +10,8 @@ import Foundation
 ///
 /// An `mglyph` in a token marks its place in `text` with one U+FFFC OBJECT REPLACEMENT
 /// CHARACTER, in document order: `<mi>a<mglyph src="s" alt="t"/>b</mi>` is the text "a\u{FFFC}b"
-/// with one `mglyph` child. Other element children (`malignmark`) leave no mark. A host that
-/// builds nodes from its own DOM should do the same. Where it does not, `mglyph` children beyond
+/// with one `mglyph` child. An embedded `malignmark` records its UTF-16 position in
+/// `tokenTextOffset`. A host that builds nodes from its own DOM should do the same. Where it does not, `mglyph` children beyond
 /// the markers go after the text, in order, and a marker with no `mglyph` left for it is ignored.
 public struct MathMLNode: Equatable, Sendable {
     /// Local name in the MathML namespace, e.g. `mfrac`.
@@ -20,8 +20,37 @@ public struct MathMLNode: Equatable, Sendable {
     public var attributes: [String: String]
     public var children: [MathMLNode]
     public var text: String
-    public init(name: String, attributes: [String: String] = [:], children: [MathMLNode] = [], text: String = "") {
-        self.name = name; self.attributes = attributes; self.children = children; self.text = text
+    /// An embedded `malignmark`'s position in its parent token's raw UTF-16 text.
+    /// nil places a programmatically constructed marker at the end of the token.
+    public var tokenTextOffset: Int?
+    public init(name: String, attributes: [String: String] = [:], children: [MathMLNode] = [], text: String = "", tokenTextOffset: Int? = nil) {
+        self.name = name; self.attributes = attributes; self.children = children; self.text = text; self.tokenTextOffset = tokenTextOffset
+    }
+}
+
+/// An `mglyph` image and its intrinsic size in points, independent of its pixel dimensions.
+/// `width` and `height` in the markup override this size; a single dimension preserves its
+/// aspect ratio. Percentages and unitless multiples refer to this size.
+public struct MathImage: Sendable {
+    public let image: CGImage
+    public let logicalSize: CGSize
+
+    /// Pixels per point. For example, a 40-by-20 image at scale 2 occupies 20-by-10 points.
+    /// A nonpositive or nonfinite scale, or a resulting size that is nonpositive or nonfinite,
+    /// falls back to one pixel per point.
+    public init(_ image: CGImage, scale: CGFloat = 1) {
+        let pixels = CGSize(width: image.width, height: image.height)
+        self.init(image, logicalSize: scale.isFinite && scale > 0
+                  ? CGSize(width: pixels.width / scale, height: pixels.height / scale) : pixels)
+    }
+
+    /// An explicit intrinsic size in points, which may have a different aspect ratio from the
+    /// pixels. If either dimension is nonpositive or nonfinite, both fall back to pixel dimensions.
+    public init(_ image: CGImage, logicalSize: CGSize) {
+        self.image = image
+        self.logicalSize = logicalSize.width.isFinite && logicalSize.width > 0
+            && logicalSize.height.isFinite && logicalSize.height > 0
+            ? logicalSize : CGSize(width: image.width, height: image.height)
     }
 }
 
@@ -30,22 +59,37 @@ public struct MathMLNode: Equatable, Sendable {
 /// Layout calls it on the thread that lays out, at most once for each distinct `src` in a
 /// formula, and passes `src` as written: resolving it against the document's base URL is left
 /// to the host, and so is refusing what the document may not read, since `src` is as untrusted
-/// as the markup. An image is one pixel to the point unless the `mglyph` gives a `width` or
-/// `height`. Returning nil draws the `mglyph`'s `alt` text instead.
+/// as the markup. Returning nil draws the `mglyph`'s `alt` text instead.
+///
+/// The original initializer uses one pixel per point. `resolving(_:)` also accepts intrinsic
+/// sizing metadata in a `MathImage`. The markup's `width` and `height` take precedence over
+/// that size, and one dimension preserves its aspect ratio. All images obey the extent bound.
 ///
 /// A closure has no value to compare, so two providers are equal only when one is a copy of the
 /// other: keep one and reuse it, so that equal styles stay equal.
 public struct MathImageProvider: Sendable, Equatable {
     /// Boxed, so that copies share an identity.
     private final class Storage: Sendable {
-        let image: @Sendable (String) -> CGImage?
-        init(_ image: @escaping @Sendable (String) -> CGImage?) { self.image = image }
+        let image: @Sendable (String) -> MathImage?
+        init(_ image: @escaping @Sendable (String) -> MathImage?) { self.image = image }
     }
     private let storage: Storage
 
-    public init(_ image: @escaping @Sendable (_ source: String) -> CGImage?) { storage = Storage(image) }
+    /// Supplies images at one pixel per point, preserving the original provider behavior.
+    public init(_ image: @escaping @Sendable (_ source: String) -> CGImage?) {
+        storage = Storage { image($0).map { MathImage($0) } }
+    }
 
-    func image(_ source: String) -> CGImage? { storage.image(source) }
+    private init(storage: Storage) { self.storage = storage }
+
+    /// Supplies images with scale or logical-size metadata. This factory keeps existing
+    /// initializer trailing closures, including `{ _ in nil }`, unambiguous.
+    public static func resolving(_ image: @escaping @Sendable (_ source: String) -> MathImage?) -> MathImageProvider {
+        MathImageProvider(storage: Storage(image))
+    }
+
+    func image(_ source: String) -> CGImage? { resolvedImage(source)?.image }
+    func resolvedImage(_ source: String) -> MathImage? { storage.image(source) }
 
     public static func == (lhs: MathImageProvider, rhs: MathImageProvider) -> Bool { lhs.storage === rhs.storage }
 }
@@ -59,7 +103,8 @@ public struct MathStyle: Equatable, Sendable {
     /// PostScript name of an OpenType MATH font. nil, or a font that is not installed, uses
     /// the platform's STIX Two Math.
     public var fontName: String?
-    /// The images of `mglyph` elements. nil draws each one's `alt` text.
+    /// Images for `mglyph` elements with `src`; nil uses their `alt` text. Legacy font/index
+    /// glyphs resolve independently of this provider.
     public var imageProvider: MathImageProvider?
     public init(fontSize: CGFloat, color: CGColor, isDisplay: Bool = false, fontName: String? = nil,
                 imageProvider: MathImageProvider? = nil) {
@@ -80,7 +125,7 @@ public enum MathLayoutError: Error, Equatable, Sendable {
 
 /// A laid-out formula. Immutable and thread-safe: lay out off the main thread, draw anywhere.
 ///
-/// It is one row unless the markup forces a line break or `maximumWidth` requires one. Its box
+/// It is one row unless the markup forces a line break or a host width or `math maxwidth` requires one. Its box
 /// covers everything it draws, and each row's box everything that row draws, as laid out. A
 /// bitmap context moves each glyph onto its pixel grid and on macOS thickens it, so a host that
 /// clips to a box allows two device pixels around it (see doc/line-breaking.md, "Clipping").
@@ -94,7 +139,7 @@ public final class MathLayout: @unchecked Sendable {
     public let ascent: CGFloat
     public let descent: CGFloat
     /// The lines of the formula, top to bottom. One, unless the markup forces a break or
-    /// `maximumWidth` requires one.
+    /// a host width or `math maxwidth` requires one.
     public let rows: [Row]
     /// How far the math axis is above the baseline, at the style's font size (the MATH table's
     /// AxisHeight).
@@ -103,7 +148,8 @@ public final class MathLayout: @unchecked Sendable {
     /// overflows. When it is more than the `maximumWidth` given, a row is wider than that, and a
     /// host scales the formula. Tables, fractions, radicals and enclosures count as they were laid
     /// out: wrapped as far as the width given asked, and where a row overflows all the same, as far
-    /// as they go, so that a formula laid out again at this width fits it.
+    /// as they go, so that a formula laid out again at this width fits it. A smaller authored
+    /// `maxwidth` must also be removed or enlarged for that retry; this report does not override it.
     public let widestUnbreakableWidth: CGFloat
 
     /// One line of a formula.
@@ -138,6 +184,9 @@ public final class MathLayout: @unchecked Sendable {
     /// markup forces them (`linebreak="newline"`, whatever the width) and otherwise at operators,
     /// at relations sooner than sums and at sums sooner than products (MathML 3, 3.1.7). Only a
     /// unit that cannot break makes a row wider: see `widestUnbreakableWidth`.
+    /// A top-level `math`'s valid `maxwidth` can further narrow either host width, never enlarge
+    /// it. Percentages and unitless multiples use the finite host `maximumWidth` as reference;
+    /// absolute and font-relative lengths also work with an unbounded host. See `doc/line-breaking.md`.
     public init(_ root: MathMLNode, style: MathStyle, maximumWidth: CGFloat = .infinity,
                 firstRowMaximumWidth: CGFloat? = nil) throws {
         let lines = try LayoutEngine.lines(root, style: style, maximumWidth: maximumWidth,

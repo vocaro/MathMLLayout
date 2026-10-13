@@ -1,8 +1,10 @@
 import Foundation
 
 /// Shared logical column geometry for drawing and speech. Column zero is the
-/// alignment reference; columns increase to the right, including punctuation.
-enum MathStackAlignment: String, CaseIterable, Sendable {
+/// alignment reference; columns increase to the right, including punctuation, in both
+/// LTR and RTL contexts (MathML 3, 3.6). Positive position/shift moves towards tens,
+/// physically left; stackalign and charalign name physical sides, independent of dir.
+public enum MathStackAlignment: String, CaseIterable, Sendable {
     case left, center, right, decimalPoint = "decimalpoint"
 
     init(attribute: String?) {

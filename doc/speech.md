@@ -3,10 +3,22 @@
 See [Speech.swift](examples/Speech.swift) for the complete Swift example.
 
 `accessibilityDescription(locale:)` reads a formula in English, French, German, Spanish or Italian
-(`MathReading.languages`), whatever the locale's region. For any other language it returns the
-English reading with `language` set to `"en"`, so the voice can match the words.
+(`MathReading.languages`). It also selects the narrow British English `en-GB` variant;
+`MathReading.supportedLocales` lists the built-in voice tags. Selection tries the exact supported
+language/script/region/variant tag, then its base language, then a whole English reading.
+`MathReading.language` reports the selected tag, so the host's voice can match the words.
+For example, `en-GB` selects British bracket names, `fr-CA` selects `fr`, and `ja-JP` selects `en`.
+No unsupported regional sibling is guessed. Base-language requests keep their existing readings.
 `accessibilityDescription` is the English reading. Stacks and long divisions are read row by row with logical column positions,
 and an `mglyph` by its author-supplied `alt`. Text and image descriptions are not translated.
+
+## Adding vocabularies and regional overrides
+
+An immutable `MathVocabularyCatalog(vocabularies:)` adds complete language providers or explicit
+regional overrides for a call to `accessibilityDescription(locale:vocabularies:)`. Providers
+implement `MathVocabulary`; `MathRegionalVocabulary` explicitly forwards complete vocabulary and
+compositions to its `Base`, with selective overrides. The [extension contract](speech-locales.md)
+records required terminology, composition hooks, matching rules, fixtures, and evidence for `en-GB`.
 
 ## Structural readings
 
@@ -47,7 +59,10 @@ its left. For decimal alignment, the decimal separator (or the implied separator
 the first number) occupies column zero before position offsets. Right alignment uses the
 boundary after the last cell as its reference. Center alignment uses the middle cell,
 or the cell to the right of the middle for an even count. These are the same logical
-coordinates used by drawing, independent of font or physical widths.
+coordinates used by drawing, independent of font or physical widths. Elementary columns
+always progress left to right under MathML 3, including within `dir="rtl"`; their speech
+coordinates and compass locations retain the same convention in both directions. See
+[elementary direction](elementary-direction.md).
 
 `position` and every group's incremental `shift` accumulate, including shifts past lines
 and nested groups. Numbers directly in a stack row are spelled digit by digit, naming

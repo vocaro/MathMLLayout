@@ -40,12 +40,15 @@ This requires negating CoreGraphics y-up top/bottom coordinates. Fraction/script
 come directly from upstream numeric expressions, not from `MathFont` or regenerated screenshots.
 The 1-point upstream tolerance is retained; it exceeds the 0.25-point raster quantization.
 
-The manifest records specific exclusion policies for CSS/DOM integration, table spans,
-MathKernInfo, unary/lone operators, delimiter sizing, and stretchy-arrow labels. The latter
+The manifest records specific exclusion policies for CSS/DOM integration,
+MathKernInfo, unary/lone operators, delimiter sizing, and stretchy-arrow labels. MathKernInfo
+now has synthetic reader and independent placement tests in `MathKernTests`; the pinned WPT
+subset has not yet been extended to import its kerning cases. The latter
 choices remain documented in [markup.md](markup.md) and tested by the existing operator/script
 suite. One symbolic radical-width assertion awaits a separate reviewed port. This subset does
 not enumerate every unselected WPT test; its exclusion records are not a denominator for a
-conformance percentage.
+conformance percentage. Table spans are covered by the native `TableSpanTests`; no upstream
+span test is included in this pinned numeric subset.
 
 The eight limit-placement discrepancies from [#54](https://github.com/vocaro/MathMLLayout/issues/54)
 now pass their unchanged upstream expectations. `reviewed-outcomes.json` is currently empty.

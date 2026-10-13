@@ -855,6 +855,137 @@ final class LineBreakingTests: MathTestCase {
         }
     }
 
+    func testIndentTargetPreservesNestedWrapperOrigins() throws {
+        // 3.2.5.2.3 references the element's left side, not its first child's left side.
+        // A leading operator with explicit space distinguishes the two positions.
+        for wrapper in ["mrow", "mstyle"] {
+            let body = mi("alpha") + "<\(wrapper) id='group'><mrow>"
+                + mo("=", "lspace='2em'") + mi("beta") + "</mrow></\(wrapper)>"
+                + mo("=", "linebreak='newline' indentalign='id' indenttarget='group'") + mi("x")
+            let result = try broken(body)
+            XCTAssertEqual(result.rows.count, 2)
+            XCTAssertEqual(result.rows[1].origin.x, try width(mi("alpha")), accuracy: 0.01, wrapper)
+        }
+    }
+
+    func testIndentTargetUsesWrapperFirstFragmentAfterDiscardingLeadingSpace() throws {
+        let body = mi("alpha") + "<mstyle><mrow id='group'>"
+            + mo("=", "linebreak='newline' indentshift='3em' lspace='2em'") + mi("beta") + "</mrow></mstyle>"
+            + mo("=", "linebreak='newline' indentalign='id' indenttarget='group'") + mi("x")
+        let result = try broken(body, width: 400)
+        XCTAssertEqual(result.rows.count, 3)
+        XCTAssertEqual(result.rows[1].origin.x, 3 * em, accuracy: 0.01)
+        XCTAssertEqual(result.rows[2].origin.x, result.rows[1].origin.x, accuracy: 0.01)
+    }
+
+    func testIndentTargetUsesFinallyAlignedNestedCoordinates() throws {
+        for alignment in ["center", "right"] {
+            for limit in [CGFloat.infinity, 400] {
+                // Leave room after a right-aligned target; a renderer may drop indentation
+                // when the continuation cannot fit there (3.2.5.2.3).
+                let aboveTail = limit.isFinite ? "alphabetagamma" : "y"
+                let belowTail = limit.isFinite ? "x" : "alphabetagamma"
+                let body = "<mstyle indentalignfirst='\(alignment)' indentshiftfirst='1em'><mrow>"
+                    + mi("x") + "<mstyle><mrow>" + red("=", "id='nested'") + mi(aboveTail)
+                    + "</mrow></mstyle>"
+                    + blue("=", "linebreak='newline' indentalign='left' indentalignlast='id' indenttarget='nested' indentshiftlast='1em'")
+                    + mi(belowTail) + "</mrow></mstyle>"
+                let result = try broken(body, width: limit)
+                XCTAssertEqual(result.rows.count, 2)
+                let above = try XCTUnwrap(ink(result.rows[0], .red))
+                let below = try XCTUnwrap(ink(result.rows[1], .blue))
+                XCTAssertEqual(result.rows[1].origin.x + below.minX,
+                               result.rows[0].origin.x + above.minX + em, accuracy: 0.6,
+                               "\(alignment), \(limit)")
+                if alignment == "right", !limit.isFinite {
+                    // A longer ID continuation extends the chosen frame. Recentring against
+                    // its new right edge would move the anchor again without a finite solution.
+                    XCTAssertGreaterThan(result.width, result.rows[0].origin.x + result.rows[0].width)
+                }
+            }
+        }
+    }
+
+    func testIndentTargetInsideOpaqueStyleAndPhantomRows() throws {
+        for wrapper in ["mstyle mathbackground='white'", "mphantom"] {
+            let closing = wrapper.hasPrefix("mstyle") ? "mstyle" : "mphantom"
+            let body = mi("alpha") + "<\(wrapper)><mrow>" + mi("beta") + mo("=", "id='hidden'")
+                + mi("gamma") + "</mrow></\(closing)>"
+                + mo("=", "linebreak='newline' indentalign='id' indenttarget='hidden'") + mi("x")
+            let result = try broken(body)
+            XCTAssertEqual(result.rows.count, 2)
+            XCTAssertEqual(result.rows[1].origin.x, try width(mi("alpha")) + (try width(mi("beta"))) + thick,
+                           accuracy: 0.01, wrapper)
+        }
+    }
+
+    func testNestedIndentTargetFollowsResizedFenceCoordinates() throws {
+        let tall = "<mfrac><mfrac><mi>a</mi><mi>b</mi></mfrac><mfrac><mi>c</mi><mi>d</mi></mfrac></mfrac>"
+        let body = mo("(") + mi("x") + mo(")") + "<mstyle><mrow>"
+            + red("=", "id='after-fence'") + mi("y") + "</mrow></mstyle>"
+            + blue("=", "linebreak='newline' indentalign='id' indenttarget='after-fence'") + tall
+        let result = try broken(body, width: 400)
+        XCTAssertEqual(result.rows.count, 2)
+        let above = try XCTUnwrap(ink(result.rows[0], .red))
+        let below = try XCTUnwrap(ink(result.rows[1], .blue))
+        XCTAssertEqual(result.rows[0].origin.x + above.minX,
+                       result.rows[1].origin.x + below.minX, accuracy: 0.6)
+    }
+
+    func testOpaqueIndentTargetsPreserveNegativeChildOffsets() throws {
+        let opening = mi("alpha") + mo("=", "linebreak='newline' linebreakstyle='after' indentshift='3em'")
+        let target = "<mrow><mspace width='-1em'/>" + red("=", "id='negative'") + mi("x") + "</mrow>"
+        let continuation = blue("=", "linebreak='newline' indentalign='id' indenttarget='negative'") + mi("y")
+        let visible = try broken(opening + "<mstyle mathbackground='white'>" + target + "</mstyle>" + continuation,
+                                 width: 400)
+        XCTAssertEqual(visible.rows.count, 3)
+        let above = try XCTUnwrap(ink(visible.rows[1], .red))
+        let below = try XCTUnwrap(ink(visible.rows[2], .blue))
+        XCTAssertEqual(visible.rows[1].origin.x + above.minX,
+                       visible.rows[2].origin.x + below.minX, accuracy: 0.6)
+        let hidden = try broken(opening + "<mphantom>" + target + "</mphantom>" + continuation, width: 400)
+        XCTAssertEqual(hidden.rows.count, 3)
+        let transparent = try broken(opening + target + continuation, width: 400)
+        XCTAssertEqual(hidden.rows[2].origin.x, transparent.rows[2].origin.x, accuracy: 0.01)
+    }
+
+    func testUnavailableAndAmbiguousIndentTargetsRevertToAuto() throws {
+        let continuation = mo("=", "linebreak='newline' indentalign='id' indenttarget='target'") + mi("x")
+        for body in [
+            mi("alpha") + mo("=", "id='target'") + mi("beta") + continuation + "<mi id='target'>z</mi>",
+            mi("alpha") + "<mfrac><mi id='target'>x</mi><mi>y</mi></mfrac>" + continuation,
+            mi("alpha") + continuation + "<mi id='target'>z</mi>",
+            mi("alpha") + continuation,
+        ] {
+            let result = try broken(body, display: true)
+            XCTAssertEqual(result.rows.count, 2)
+            XCTAssertEqual(result.rows[1].origin.x, em, accuracy: 0.01)
+        }
+    }
+
+    func testIndentTargetCanReachMoreThanSearchWindowRowsAbove() throws {
+        let first = mi("alpha") + "<mrow><mstyle>" + mo("=", "id='early'") + mi("beta") + "</mstyle></mrow>"
+        let middle = (0..<100).map { index in
+            mo("+", "linebreak='newline'") + "<mi id='unrelated\(index)'>x</mi>"
+        }.joined()
+        let last = mo("=", "linebreak='newline' indentalignlast='id' indenttarget='early'") + mi("x")
+        let result = try broken(first + middle + last, width: 400)
+        XCTAssertEqual(result.rows.count, 102)
+        XCTAssertEqual(try XCTUnwrap(result.rows.last).origin.x,
+                       try width(mi("alpha")) + thick, accuracy: 0.01)
+    }
+
+    func testAutomaticIndentTargetsInsideNestedStyles() throws {
+        let prefix = mi("y") + "<mstyle><mrow>" + mo("=", "id='relation'") + mi("z") + "</mrow></mstyle>"
+        let body = "<mstyle indentalign='id' indenttarget='relation'>" + prefix + mo("+") + sum(names) + "</mstyle>"
+        let result = try broken(body, width: 160)
+        XCTAssertGreaterThan(result.rows.count, 3)
+        for row in result.rows.dropFirst() {
+            XCTAssertEqual(row.origin.x, try width(mi("y")) + thick, accuracy: 0.01)
+            XCTAssertLessThanOrEqual(row.origin.x + row.width, 160.001)
+        }
+    }
+
     // MARK: Text and tables
 
     func testLongTextWrapsAtItsSpaces() throws {
@@ -890,8 +1021,8 @@ final class LineBreakingTests: MathTestCase {
         // A no-break space keeps its words together, and so does `linebreak="nobreak"` above the text.
         XCTAssertEqual(try broken("<mtext>alpha\u{A0}beta gamma</mtext>", width: 0).rows.count, 2)
         XCTAssertEqual(try broken("<mstyle linebreak=\"nobreak\"><mtext>alpha beta gamma</mtext></mstyle>", width: 0).rows.count, 1)
-        // Right-to-left text stays whole: its words are drawn last first.
-        XCTAssertEqual(try broken("<mtext>שלום עולם טוב</mtext>", width: 0).rows.count, 1)
+        // RTL breaks consume logical words in order; each selected line resolves its visual order.
+        XCTAssertEqual(try broken("<mtext>שלום עולם טוב</mtext>", width: 0).rows.count, 3)
         // Other tokens do not break at spaces.
         XCTAssertEqual(try broken("<mi>alpha beta</mi><mn>1 000 000</mn><ms>a b</ms>", width: 0).rows.count, 1)
     }
@@ -993,9 +1124,9 @@ final class LineBreakingTests: MathTestCase {
     func testWhatIsNotARowIsOneUnit() throws {
         let inner = sum(Array(names.prefix(4)))
         let natural = try width(inner)
-        // A phantom, a row with a background, padding, a limit: a line breaks around them, not inside.
+        // Nondefault padding and under/over annotations keep their geometry atomic.
         for body in [
-            "<mphantom>\(inner)</mphantom>", "<mrow mathbackground=\"yellow\">\(inner)</mrow>", "<mpadded>\(inner)</mpadded>",
+            "<mpadded width=\"+1em\">\(inner)</mpadded>",
             "<munder><mrow>\(inner)</mrow><mo>⏟</mo></munder>", "<mover><mrow>\(inner)</mrow><mo>¯</mo></mover>",
         ] {
             let layout = try broken(mi("x") + mo("=") + body + mo("+") + mi("y"), width: 0)
@@ -1004,11 +1135,166 @@ final class LineBreakingTests: MathTestCase {
             XCTAssertGreaterThanOrEqual(layout.widestUnbreakableWidth, natural, body)
         }
         let phantom = try broken("<mphantom>\(inner)</mphantom>", width: 0)
-        XCTAssertEqual(phantom.rows.count, 1)
-        XCTAssertEqual(phantom.width, natural, accuracy: 0.01)
+        XCTAssertEqual(phantom.rows.count, 4)
+        XCTAssertLessThan(phantom.width, natural)
         XCTAssertNil(ink(phantom), "and a phantom still draws nothing")
         // The same row bare breaks at every operator.
         XCTAssertEqual(try broken(mi("x") + mo("=") + "<mrow>\(inner)</mrow>" + mo("+") + mi("y"), width: 0).rows.count, 6)
+    }
+
+    // MARK: Wrapper semantics
+
+    func testDefaultPaddingMatchesAnInferredRowAcrossBreaks() throws {
+        let contents = sum(Array(names.prefix(4)))
+        for limit in [CGFloat.infinity, 0, 110, 200] {
+            let before = mi("f") + mo("=")
+            let after = mo("+") + mi("j")
+            let expected = try broken(before + "<mrow>\(contents)</mrow>" + after, width: limit)
+            let padded = try broken(before + "<mpadded>\(contents)</mpadded>" + after, width: limit)
+            assertWidths(padded, expected.rows.map(\.width))
+            XCTAssertEqual(padded.rows.map(\.origin), expected.rows.map(\.origin))
+            XCTAssertEqual(ink(padded), ink(expected))
+        }
+        let forced = mi("f") + mo("+", "linebreak=\"newline\"") + mi("j")
+        let expected = try broken("<mrow>\(forced)</mrow>")
+        assertWidths(try broken("<mpadded>\(forced)</mpadded>"), expected.rows.map(\.width))
+    }
+
+    func testPhantomKeepsVisibleGeometryWithoutDrawingAnyFragments() throws {
+        // Include overhangs, a background, duplicates and visible substitutions at forced breaks.
+        let cases = [
+            sum(["j", "f", "alpha", "beta"]),
+            mi("f") + red("+", "linebreak=\"newline\" linebreakstyle=\"duplicate\"") + mi("j"),
+            mi("f") + mo("\u{2062}", "linebreak=\"newline\" linebreakmultchar=\"×\"") + mi("j"),
+            "<mpadded><mrow mathbackground=\"blue\">" + sum(["a", "b", "c"]) + "</mrow></mpadded>",
+            "<mfenced>" + sum(["a", "b", "c", "d"]) + "</mfenced>",
+            "<merror>" + sum(["a", "b", "c"]) + "</merror>",
+        ]
+        for contents in cases {
+            for limit in [CGFloat.infinity, 0, 70] {
+                let expected = try broken("<mrow>\(contents)</mrow>", width: limit)
+                let hidden = try broken("<mphantom>\(contents)</mphantom>", width: limit)
+                assertWidths(hidden, expected.rows.map(\.width), contents)
+                XCTAssertEqual(hidden.rows.map(\.origin), expected.rows.map(\.origin), contents)
+                XCTAssertEqual(hidden.rows.map(\.ascent), expected.rows.map(\.ascent), contents)
+                XCTAssertEqual(hidden.rows.map(\.descent), expected.rows.map(\.descent), contents)
+                XCTAssertEqual(hidden.widestUnbreakableWidth, expected.widestUnbreakableWidth, accuracy: 0.01)
+                for row in hidden.rows { XCTAssertNil(ink(row), contents) }
+            }
+        }
+    }
+
+    func testPhantomTextRetainsOperandSpacing() throws {
+        let text = "<mtext>left right</mtext>"
+        for limit in [CGFloat.infinity, 0, 50] {
+            let expected = try broken(mi("a") + mo("+") + "<mrow>\(text)</mrow>", width: limit)
+            let hidden = try broken(mi("a") + mo("+") + "<mphantom>\(text)</mphantom>", width: limit)
+            assertWidths(hidden, expected.rows.map(\.width))
+            XCTAssertEqual(hidden.rows.map(\.origin), expected.rows.map(\.origin))
+        }
+    }
+
+    func testPhantomDoesNotHideItsVisibleNeighbours() throws {
+        let contents = mi("a") + red("+", "linebreak=\"newline\"") + mi("b")
+        let hidden = try broken(blue("=") + "<mpadded><mphantom>\(contents)</mphantom></mpadded>" + blue("+"))
+        XCTAssertEqual(hidden.rows.count, 2)
+        XCTAssertEqual(rows(hidden, drawing: .red), [])
+        XCTAssertEqual(rows(hidden, drawing: .blue), [0, 1])
+        let decorated = try broken(mi("a") + "<mphantom mathbackground=\"blue\"><mo mathcolor=\"red\">+</mo></mphantom>" + mi("b"))
+        XCTAssertEqual(decorated.width, try width(mi("a") + mo("+") + mi("b")), accuracy: 0.01)
+        XCTAssertNotNil(ink(decorated.rows[0], .blue))
+        XCTAssertNil(ink(decorated.rows[0], .red))
+    }
+
+    func testNaturalErrorAndBackgroundGeometry() throws {
+        let contents = sum(["a", "b", "c"])
+        let plain = try broken("<mrow>\(contents)</mrow>")
+        let background = try broken("<mrow mathbackground=\"blue\">\(contents)</mrow>")
+        XCTAssertEqual(background.width, plain.width, accuracy: 0.01)
+        XCTAssertEqual(background.ascent, plain.ascent, accuracy: 0.01)
+        XCTAssertEqual(background.descent, plain.descent, accuracy: 0.01)
+        let error = try broken("<merror>\(contents)</merror>")
+        let pad = em * 0.1
+        XCTAssertEqual(error.width, plain.width + 2 * pad, accuracy: 0.01)
+        XCTAssertEqual(error.ascent, plain.ascent + pad, accuracy: 0.01)
+        XCTAssertEqual(error.descent, plain.descent + pad, accuracy: 0.01)
+        XCTAssertNotNil(ink(error.rows[0], .red))
+        XCTAssertNotNil(ink(background.rows[0], .blue))
+    }
+
+    func testErrorAndBackgroundWrapInsideOneIntactDecoration() throws {
+        let contents = sum(Array(names.prefix(4)))
+        let forcedContents = mi("f") + mo("+", "linebreak=\"newline\"") + mi("j")
+        for wrapper in ["merror", "mrow mathbackground=\"blue\""] {
+            let closing = wrapper == "merror" ? "merror" : "mrow"
+            let natural = try broken("<\(wrapper)>\(contents)</\(closing)>")
+            let narrow = try broken("<\(wrapper)>\(contents)</\(closing)>", width: 130)
+            XCTAssertEqual(narrow.rows.count, 1, "the decorated stack is one host row")
+            XCTAssertLessThanOrEqual(narrow.width, 130.001)
+            XCTAssertGreaterThan(narrow.ascent + narrow.descent, natural.ascent + natural.descent)
+            let bounds = try XCTUnwrap(ink(narrow.rows[0]))
+            XCTAssertGreaterThanOrEqual(bounds.minX, -0.5)
+            XCTAssertLessThanOrEqual(bounds.maxX, narrow.width + 0.5)
+            XCTAssertGreaterThanOrEqual(bounds.minY, -narrow.descent - 0.5)
+            XCTAssertLessThanOrEqual(bounds.maxY, narrow.ascent + 0.5)
+            let forced = try broken("<\(wrapper)>\(forcedContents)</\(closing)>")
+            let inline = try broken(forcedContents)
+            XCTAssertEqual(forced.rows.count, 1)
+            XCTAssertGreaterThanOrEqual(forced.ascent + forced.descent, inline.ascent + inline.descent)
+            XCTAssertNotNil(ink(forced.rows[0], wrapper == "merror" ? .red : .blue))
+        }
+        let nested = try broken("<mrow mathbackground=\"blue\"><merror><mpadded>\(forcedContents)</mpadded></merror></mrow>")
+        XCTAssertEqual(nested.rows.count, 1)
+        XCTAssertNotNil(ink(nested.rows[0], .red))
+        XCTAssertNotNil(ink(nested.rows[0], .blue))
+    }
+
+    func testNestedWrapperRetriesStayWithinBudgetAndReproduceReportedWidth() throws {
+        let contents = sum(Array(names.prefix(4)))
+        let body = "<mrow mathbackground=\"blue\"><merror><mpadded><mphantom>\(contents)</mphantom></mpadded></merror></mrow>"
+        let root = try node(body)
+        let style = MathStyle(fontSize: em, color: black)
+        let narrow = try LayoutEngine.lines(root, style: style, maximumWidth: 40, firstRowMaximumWidth: nil)
+        XCTAssertLessThanOrEqual(narrow.layoutPasses, LayoutEngine.maximumWrappingPasses)
+        let exact = try LayoutEngine.lines(root, style: style, maximumWidth: narrow.widestUnbreakable, firstRowMaximumWidth: nil)
+        XCTAssertLessThanOrEqual(exact.layoutPasses, LayoutEngine.maximumWrappingPasses)
+        for row in exact.rows {
+            XCTAssertLessThanOrEqual(row.origin.x + row.box.width, narrow.widestUnbreakable + 0.001)
+        }
+    }
+
+    func testWrapperBudgetsStillRejectExcessiveGeometry() throws {
+        let forced = mo("+", "linebreak=\"newline\"")
+        // Absolute lengths are capped at 1000em: three gaps exceed the 50,000-point limit.
+        let content = "<mstyle lineleading=\"50000pt\">" + ["a", "b", "c", "d"].map(mi).joined(separator: forced) + "</mstyle>"
+        for wrapper in ["mpadded", "mphantom", "merror", "mrow mathbackground=\"blue\""] {
+            let closing = wrapper.hasPrefix("mrow") ? "mrow" : wrapper
+            XCTAssertThrowsError(try broken("<\(wrapper)>\(content)</\(closing)>")) {
+                XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+            }
+        }
+        var deep = "<mi>a</mi>"
+        for _ in 0..<MathLimits.depth { deep = "<mphantom><mpadded>\(deep)</mpadded></mphantom>" }
+        XCTAssertThrowsError(try broken(deep, width: 40)) {
+            XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+        }
+    }
+
+    func testExplicitPaddingAndUnderOverRemainAtomicAtForcedBreaks() throws {
+        let contents = mi("a") + mo("+", "linebreak=\"newline\"") + mi("b")
+        for wrapper in ["width=\"+0em\"", "lspace=\"1em\"", "height=\"200%\"", "voffset=\"-0.5em\""] {
+            XCTAssertEqual(try broken("<mpadded \(wrapper)>\(contents)</mpadded>", width: 0).rows.count, 1)
+        }
+        for body in [
+            "<munder><mrow>\(contents)</mrow><mo>⏟</mo></munder>",
+            "<mover><mrow>\(contents)</mrow><mo>¯</mo></mover>",
+            "<munderover><mrow>\(contents)</mrow><mi>lower</mi><mi>upper</mi></munderover>",
+        ] {
+            let natural = try broken(body)
+            let narrow = try broken(body, width: 0)
+            XCTAssertEqual(narrow.rows.count, 1)
+            XCTAssertEqual(ink(narrow), ink(natural))
+        }
     }
 
     // MARK: Inline formulas and hosts
@@ -1151,13 +1437,17 @@ final class LineBreakingTests: MathTestCase {
         }, larger: {
             try exercise(large, width: whole.width)
         })
-        // Ids and targets everywhere, and a forced break at every operator: still bounded.
+        // Ids and targets everywhere, with different distant targets and a forced break at
+        // every operator: lookup stays bounded rather than walking thousands of earlier lines.
         let targeted = MathMLNode(name: "math", attributes: ["indentalign": "id", "indenttarget": "t0"], children: (0..<3_000).flatMap {
             [MathMLNode(name: "mi", attributes: ["id": "t\($0)"], text: "x"),
-             MathMLNode(name: "mo", attributes: ["linebreak": "newline", "indenttarget": "t\($0)"], text: "+")]
+             MathMLNode(name: "mo", attributes: ["linebreak": "newline", "indenttarget": "t\($0 / 2)"], text: "+")]
         } + [MathMLNode(name: "mi", text: "x")])
         let rows = try MathLayout(targeted, style: MathStyle(fontSize: 1, color: black), maximumWidth: 40)
         XCTAssertEqual(rows.rows.count, 3_001)
+        let measured = try LayoutEngine.lines(targeted, style: MathStyle(fontSize: 1, color: black),
+                                              maximumWidth: 40, firstRowMaximumWidth: nil)
+        XCTAssertLessThanOrEqual(measured.layoutPasses, LayoutEngine.maximumWrappingPasses)
     }
 }
 

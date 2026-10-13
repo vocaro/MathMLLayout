@@ -3,7 +3,7 @@ import CoreText
 import Foundation
 
 /// Where a carry goes around the character it annotates (MathML 3, 3.6.5.2): a compass point.
-enum CarryLocation: String, CaseIterable, Sendable {
+public enum CarryLocation: String, CaseIterable, Sendable {
     case w, nw, n, ne, e, se, s, sw
 
     init?(attribute: String?) {
@@ -146,7 +146,7 @@ private struct Stack {
 }
 
 /// `longdivstyle` (3.6.2.2): where the divisor and the result go around the dividend.
-enum LongDivision: String, CaseIterable, Sendable {
+public enum LongDivision: String, CaseIterable, Sendable {
     case leftTop = "lefttop", stackedRightRight = "stackedrightright"
     case mediumStackedRightRight = "mediumstackedrightright", shortStackedRightRight = "shortstackedrightright"
     case rightTop = "righttop", leftSlashRight = "left/\\right", leftParenRight = "left)(right"
@@ -164,6 +164,10 @@ enum LongDivision: String, CaseIterable, Sendable {
     var hasResultOnTop: Bool { self == .leftTop || self == .rightTop || self == .stackedLeftLineTop }
 }
 
+/// Elementary columns, operators, carries and frame sides always progress LTR, even in an RTL
+/// context (MathML 3, 3.6, 3.6.4, 3.6.5). Inherited direction applies inside token/carry
+/// contents; it never changes their logical columns, compass points or physical placement.
+///
 /// Elementary math (MathML 3, 3.6): `mstack` and `mlongdiv` with their `msgroup`, `msrow`,
 /// `mscarries`, `mscarry` and `msline` children. MathML Core leaves these out, so the rules are
 /// MathML 3's, with choices of this engine's where it says nothing: the leading between rows,
@@ -211,8 +215,7 @@ extension LayoutEngine {
         MathStackAlignment.columns(node, name)
     }
 
-    /// A token's characters for the grid: whitespace collapsed and trimmed, without the marker
-    /// that stands for an `mglyph` child. A column of digits draws no image.
+    /// A token's plain characters, for recognizing a decimal separator outside an `mn`.
     private static func characters(_ node: MathMLNode) -> String {
         normalized(node.text.replacingOccurrences(of: "\u{FFFC}", with: ""))
             .trimmingCharacters(in: CharacterSet(charactersIn: " "))
@@ -298,8 +301,8 @@ extension LayoutEngine {
 
     /// A row of digits (3.6.4): each character of an `mn` takes a column, any other element
     /// takes one, `none` leaves one empty, and an `mstyle` only styles its children, which are
-    /// the row's. The digits of a number are laid out as numbers of one character, so they keep
-    /// the `mn`'s attributes and count as nodes and text like any token.
+    /// the row's. Each `mglyph` in a number takes one column, including its entire fallback.
+    /// The cells keep the `mn`'s attributes and size their columns like its characters.
     private func digitRow(_ children: [MathMLNode], position: Int, _ style: StackStyle, _ context: LayoutContext,
                           depth: Int) throws -> StackLine {
         var line = StackLine(kind: .digits, em: context.fontSize, color: context.color)
@@ -319,15 +322,33 @@ extension LayoutEngine {
                 case "mn":
                     var attributes = child.attributes
                     attributes["mathbackground"] = nil
-                    let text = Self.characters(child)
+                    // These children are walked without `layout`: count them once, at their
+                    // own depth, even if they do not draw (e.g. a `malignmark`).
+                    for _ in child.children { try visit(context, depth: depth + 1) }
+                    let (text, glyphs) = try Self.pairedGlyphText(of: child)
                     if text.isEmpty { try visit(context, depth: depth) }
-                    for character in text {
-                        let digit = String(character)
-                        let cell = try layout(MathMLNode(name: "mn", attributes: attributes, text: digit), context, depth: depth)
-                        // A space in a number (between groups of three, say) is a column as wide as a space.
+                    var remaining = glyphs[...]
+                    let runs = text.unicodeScalars.split(separator: Self.glyphMarker, omittingEmptySubsequences: false)
+                    func cell(_ text: String, glyph: MathMLNode? = nil) throws {
+                        let node = MathMLNode(name: "mn", attributes: attributes, children: glyph.map { [$0] } ?? [],
+                                              text: text)
+                        // The source children were visited above. Charge this numeric column,
+                        // then resolve its synthetic token without charging the same glyph twice.
+                        try visit(context, depth: depth)
+                        let box = try token(node, inherit(node, context), countingGlyphs: false)
+                        // A space in a number (between groups of three, say) sizes an empty column.
                         line.digits.insert(line.cells.count)
-                        line.cells.append(digit == " " ? .empty(width: textBox(digit, inherit(child, context)).width) : cell)
-                        if point == nil, StackStyle.isDecimalPoint(digit, decimalPoint) { point = line.cells.count - 1 }
+                        line.cells.append(text == " " ? .empty(width: textBox(text, inherit(child, context)).width) : box)
+                        // Images and their `alt`s are atomic cells, never decimal separators.
+                        if glyph == nil, point == nil, StackStyle.isDecimalPoint(text, decimalPoint) {
+                            point = line.cells.count - 1
+                        }
+                    }
+                    for (index, run) in runs.enumerated() {
+                        if index > 0, let glyph = remaining.popFirst() {
+                            try cell(String(Self.glyphMarker), glyph: glyph)
+                        }
+                        for character in String(run) { try cell(String(character)) }
                     }
                 default:
                     // The element paints its own background.
@@ -956,7 +977,10 @@ extension LayoutEngine {
             var x: CGFloat = 0
             let space = 0.25 * em
             func sign(_ text: String) {
-                let glyph = textBox(text, context)
+                var signContext = context
+                // Separators belong to this physical frame, not to a bidi operand.
+                signContext.direction = .leftToRight
+                let glyph = textBox(text, signContext)
                 box.add(glyph, at: CGPoint(x: x, y: -row.baseline))
                 placed.append(CGRect(x: x, y: row.baseline - glyph.ascent, width: glyph.width, height: glyph.height))
                 top = min(top, row.baseline - glyph.ascent); bottom = max(bottom, row.baseline + glyph.descent)

@@ -326,6 +326,7 @@ final class LineBreakingFuzzTests: MathTestCase {
         /// A glyph and its font, or a rule, path or image.
         var kind: Int
         var isToken: Bool
+        var isBidiText = false
         var y: CGFloat
     }
 
@@ -340,13 +341,16 @@ final class LineBreakingFuzzTests: MathTestCase {
             case .glyphs(let run):
                 var character: UniChar = 0x20, space: CGGlyph = 0
                 if !CTFontGetGlyphsForCharacters(run.font, &character, &space, 1) { space = 0 }
-                let isToken = run.color.components.map { $0.count == 4 && $0[0] == 0 && $0[1] == 0 && $0[2] == 1 } ?? false
+                // violations() marks only bidi mtext cyan. All other formula marks retain
+                // their exact ordered-conservation assertion, even in a mixed bidi formula.
+                let isBidiText = run.color.components.map { $0.count == 4 && $0[0] == 0 && $0[1] == 1 && $0[2] == 1 } ?? false
+                let isToken = isBidiText || (run.color.components.map { $0.count == 4 && $0[0] == 0 && $0[1] == 0 && $0[2] == 1 } ?? false)
                 let font = (CTFontCopyPostScriptName(run.font) as String).hashValue & 0xFFFF
                 // A whole pair may select different glyphs or path pieces at its new height. Its
                 // token scripts still appear once in order, but their vertical attachment can move.
                 if inCore { continue }
-                for (glyph, position) in zip(run.glyphs, run.positions) where space == 0 || glyph != space {
-                    marks.append(Mark(kind: font << 16 | Int(glyph), isToken: isToken,
+                for (glyph, position) in zip(run.glyphs, run.positions) where glyph != .max && (space == 0 || glyph != space) {
+                    marks.append(Mark(kind: font << 16 | Int(glyph), isToken: isToken, isBidiText: isBidiText,
                                       y: inFence ? 0 : origin.y + position.y))
                 }
             case .rect: marks.append(Mark(kind: -1, isToken: false, y: inFence ? 0 : origin.y))
@@ -370,7 +374,7 @@ final class LineBreakingFuzzTests: MathTestCase {
     static func isSubsequence(_ part: [Mark], of whole: [Mark]) -> Bool {
         var index = 0
         for mark in whole where index < part.count {
-            if mark.kind == part[index].kind, abs(mark.y - part[index].y) < 1e-6 { index += 1 }
+            if mark.kind == part[index].kind, mark.isBidiText == part[index].isBidiText, abs(mark.y - part[index].y) < 1e-6 { index += 1 }
         }
         return index == part.count
     }
@@ -385,8 +389,20 @@ final class LineBreakingFuzzTests: MathTestCase {
         var indents = false
         /// `linebreakstyle="duplicate"` or `linebreakmultchar` somewhere: breaking may draw more.
         var adds = false
+        /// Bidi mtext deliberately changes visual order across lines. Conservation then checks
+        /// glyph multiplicity, while the pinned BidiTextTests assert the exact per-line order.
+        var bidiText = false
 
         init(_ node: MathMLNode) {
+            if node.name == "mtext" {
+                bidiText = node.text.unicodeScalars.contains { scalar in
+                    switch scalar.value {
+                    case 0x0590...0x08FF, 0x202A...0x202E, 0x2066...0x2069, 0xFB1D...0xFDFF,
+                         0xFE70...0xFEFF, 0x10800...0x10FFF, 0x1E800...0x1EFFF: true
+                    default: false
+                    }
+                }
+            }
             for (name, value) in node.attributes {
                 let value = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 if name == "linebreak", value == "newline" || value == "indentingnewline" { forces = true }
@@ -396,6 +412,7 @@ final class LineBreakingFuzzTests: MathTestCase {
             for child in node.children {
                 let inner = Facts(child)
                 forces = forces || inner.forces; indents = indents || inner.indents; adds = adds || inner.adds
+                bidiText = bidiText || inner.bidiText
             }
         }
     }
@@ -429,7 +446,14 @@ final class LineBreakingFuzzTests: MathTestCase {
 
     /// Lays `root` out at one width and returns what does not hold of the result, each with the
     /// name of the property; empty when all is well or the formula is refused as it may be.
-    static func violations(_ root: MathMLNode, style: MathStyle, width: CGFloat, first: CGFloat?, thorough: Bool = true) -> [String] {
+    static func violations(_ input: MathMLNode, style: MathStyle, width: CGFloat, first: CGFloat?, thorough: Bool = true) -> [String] {
+        func tagged(_ node: MathMLNode) -> MathMLNode {
+            var result = node
+            if node.name == "mtext", Facts(node).bidiText { result.attributes["mathcolor"] = "#00ffff" }
+            result.children = node.children.map(tagged)
+            return result
+        }
+        let root = tagged(input)
         var found: [String] = []
         let facts = Facts(root)
         let (limit, firstLimit) = limits(width, first)
@@ -489,12 +513,24 @@ final class LineBreakingFuzzTests: MathTestCase {
                 if !facts.indents, row.origin != .zero { found.append("one row's origin: \(row.origin)") }
             }
         }
-        // Nothing is lost, repeated or reordered: the tokens are drawn as the unbroken formula draws them,
+        func conserved(_ values: [Mark]) -> [Mark] {
+            guard facts.bidiText else { return values }
+            let ordered = values.filter { !$0.isBidiText }
+            let text = values.filter(\.isBidiText).sorted {
+                if $0.kind != $1.kind { return $0.kind < $1.kind }
+                if $0.isToken != $1.isToken { return !$0.isToken }
+                return $0.y < $1.y
+            }
+            return ordered + text
+        }
+        // Nothing is lost or repeated. Text visual order can change with bidi line boundaries;
+        // those cases preserve multiplicity, with exact order asserted by BidiTextTests.
+        // Other tokens are drawn as the unbroken formula draws them,
         // whatever wraps inside it. Only a repeated operator repeats one, the script it is embellished with.
         let drawn = marks(lines.rows.map(\.box))
         if let unbroken = try? LayoutEngine(fontName: style.fontName).layoutRoot(root, style: style) {
-            let tokens = marks([unbroken]).filter(\.isToken).map { Mark(kind: $0.kind, isToken: true, y: 0) }
-            let shown = drawn.filter(\.isToken).map { Mark(kind: $0.kind, isToken: true, y: 0) }
+            let tokens = conserved(marks([unbroken]).filter(\.isToken).map { Mark(kind: $0.kind, isToken: true, isBidiText: $0.isBidiText, y: 0) })
+            let shown = conserved(drawn.filter(\.isToken).map { Mark(kind: $0.kind, isToken: true, isBidiText: $0.isBidiText, y: 0) })
             if facts.adds ? !isSubsequence(tokens, of: shown) : shown != tokens { found.append("tokens: \(shown.count) drawn of \(tokens.count)") }
         }
         guard thorough else { return found }
@@ -511,7 +547,7 @@ final class LineBreakingFuzzTests: MathTestCase {
         if let box = try? wrapping.layoutRoot(root, style: style) {
             let paragraph = Paragraph(box, fontSize: LayoutEngine.fontSize(style))
             let rows = paragraph.rows(limit: limit, first: firstLimit, auto: (.left, 0))
-            let before = marks([box], preservingFences: true), after = marks(rows.map(\.box), preservingFences: true)
+            let before = conserved(marks([box], preservingFences: true)), after = conserved(marks(rows.map(\.box), preservingFences: true))
             if !isSubsequence(before, of: after) { found.append("units: \(after.count) marks in rows of \(before.count)") }
             if !facts.adds, before.count != after.count { found.append("units: \(after.count) marks in rows, \(before.count) unbroken") }
             if rows.contains(where: { !$0.x.isFinite || $0.x < 0 }) { found.append("units: a row at \(rows.map(\.x))") }
@@ -778,18 +814,16 @@ final class LineBreakingFuzzTests: MathTestCase {
         }
     }
 
-    /// The bound on depth counts levels, and a thread's stack is bytes: 63 levels of `munderover` were
-    /// 1.7 MB unoptimized and 600 KB optimized, on a thread that has 512 KB unless it is the main one.
-    /// A formula is refused when the stack is nearly spent, at whatever depth that is.
+    /// The depth ceiling counts levels while the stack guard counts bytes. Affordable shapes
+    /// may reach that ceiling on workers; others are refused when the stack is nearly spent.
     func testDeepFormulasAreRefusedWhereTheStackIsShort() {
         let style = Self.style(17, display: true)
         for name in ["mrow", "msqrt", "mfrac", "munderover", "menclose", "mtable", "mlongdiv"] {
             // As deep as the bound allows: a table is three levels, a long division two.
             let deep = Self.nest(name, depth: name == "mtable" ? 20 : name == "mlongdiv" ? 30 : 62)
             XCTAssertNil(Self.onThread(stack: 16 << 20) { _ = try MathLayout(deep, style: style, maximumWidth: 200) }, name)
-            // No build lays that many levels out in a quarter of a megabyte.
-            XCTAssertEqual(Self.onThread(stack: 256 << 10) { _ = try MathLayout(deep, style: style, maximumWidth: 200) } as? MathLayoutError,
-                           .limitExceeded, name)
+            let quarter = Self.onThread(stack: 256 << 10) { _ = try MathLayout(deep, style: style, maximumWidth: 200) }
+            XCTAssertTrue(quarter == nil || quarter as? MathLayoutError == .limitExceeded, name)
             // Whatever the stack, down to the least a thread may have: a layout or a refusal.
             for kilobytes in [16, 96, 144, 192, 384, 512, 1024] {
                 let error = Self.onThread(stack: kilobytes << 10) { _ = try MathLayout(deep, style: style) }

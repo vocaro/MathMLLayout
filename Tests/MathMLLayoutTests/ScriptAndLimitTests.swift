@@ -135,33 +135,34 @@ final class ScriptAndLimitTests: XCTestCase {
     }
 
     func testScriptsFollowTheBaseWithItsItalicCorrection() throws {
+        // Compound scripts have zero corner kerning, isolating italic correction here.
         // An upright base: both scripts start where it ends.
-        let upright = try inks("<msubsup><mi mathvariant=\"normal\">H</mi><mn mathcolor=\"blue\">1</mn><mn mathcolor=\"red\">1</mn></msubsup>")
+        let upright = try inks("<msubsup><mi mathvariant=\"normal\">H</mi><mn mathcolor=\"blue\">11</mn><mn mathcolor=\"red\">11</mn></msubsup>")
         XCTAssertEqual(try XCTUnwrap(upright[.blue]).minX, try XCTUnwrap(upright[.red]).minX, accuracy: 0.3)
         XCTAssertGreaterThan(try XCTUnwrap(upright[.blue]).minX, try XCTUnwrap(upright[.black]).maxX - 0.3)
         // A slanted base: the subscript tucks in by the italic correction, the superscript does not.
         for base in ["<mi>f</mi>", "<mi>V</mi>", "<mi>T</mi>", "<mrow><mi>f</mi></mrow>"] {
-            let found = try inks("<msubsup>\(base)<mn mathcolor=\"blue\">1</mn><mn mathcolor=\"red\">1</mn></msubsup>")
+            let found = try inks("<msubsup>\(base)<mn mathcolor=\"blue\">11</mn><mn mathcolor=\"red\">11</mn></msubsup>")
             let correction = try innerBox(base).italicCorrection
             XCTAssertGreaterThan(correction, 0.2, base)
             XCTAssertEqual(try XCTUnwrap(found[.red]).minX - (try XCTUnwrap(found[.blue])).minX, correction, accuracy: 0.3, base)
         }
         // An integral's limits as scripts lean with it.
         for display in [false, true] {
-            let integral = try inks("<msubsup><mo>∫</mo><mn mathcolor=\"blue\">0</mn><mn mathcolor=\"red\">1</mn></msubsup>", display: display)
+            let integral = try inks("<msubsup><mo>∫</mo><mn mathcolor=\"blue\">0</mn><mn mathcolor=\"red\">11</mn></msubsup>", display: display)
             XCTAssertGreaterThan(try XCTUnwrap(integral[.red]).minX, try XCTUnwrap(integral[.blue]).minX + 1, "display \(display)")
         }
     }
 
     func testAScriptedBoxIsItsPartsPlusTheSpaceAfterAScript() throws {
         let x = try innerBox("<mi mathvariant=\"normal\">x</mi>").width
-        let two = try innerBox("<mstyle scriptlevel=\"1\"><mn>2</mn></mstyle>").width, wide = try innerBox("<mstyle scriptlevel=\"1\"><mn>1000</mn></mstyle>").width
+        let two = try innerBox("<mstyle scriptlevel=\"1\"><mn>22</mn></mstyle>").width, wide = try innerBox("<mstyle scriptlevel=\"1\"><mn>1000</mn></mstyle>").width
         let space = constant(\.spaceAfterScript)
         let base = "<mi mathvariant=\"normal\">x</mi>"
-        XCTAssertEqual(try innerBox("<msup>\(base)<mn>2</mn></msup>").width, x + two + space, accuracy: 0.01)
-        XCTAssertEqual(try innerBox("<msub>\(base)<mn>2</mn></msub>").width, x + two + space, accuracy: 0.01)
-        XCTAssertEqual(try innerBox("<msubsup>\(base)<mn>2</mn><mn>1000</mn></msubsup>").width, x + wide + space, accuracy: 0.01, "the wider script")
-        XCTAssertEqual(try innerBox("<msubsup>\(base)<mn>1000</mn><mn>2</mn></msubsup>").width, x + wide + space, accuracy: 0.01)
+        XCTAssertEqual(try innerBox("<msup>\(base)<mn>22</mn></msup>").width, x + two + space, accuracy: 0.01)
+        XCTAssertEqual(try innerBox("<msub>\(base)<mn>22</mn></msub>").width, x + two + space, accuracy: 0.01)
+        XCTAssertEqual(try innerBox("<msubsup>\(base)<mn>22</mn><mn>1000</mn></msubsup>").width, x + wide + space, accuracy: 0.01, "the wider script")
+        XCTAssertEqual(try innerBox("<msubsup>\(base)<mn>1000</mn><mn>22</mn></msubsup>").width, x + wide + space, accuracy: 0.01)
     }
 
     // MARK: Multiscripts

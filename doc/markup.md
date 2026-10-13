@@ -6,7 +6,17 @@
   `mover`, `munder`, `munderover`.
 - **Fractions and roots:** `mfrac` (including `linethickness` and `bevelled`), `msqrt`, `mroot`.
 - **Fences and enclosures:** `mfenced`, `menclose`.
-- **Tables:** `mtable`, `mtr`, `mtd`, `mlabeledtr`.
+- **Tables:** `mtable`, `mtr`, `mtd`, `mlabeledtr`, with `rowalign` (`top`, `bottom`,
+  `center`, `baseline`, `axis`) and `columnalign`. A table's `rowalign` list applies by row,
+  repeating its last value; a row's single value overrides it and a cell's overrides the row.
+  An enclosing `mstyle` can set the table's default `rowalign` list; an explicit table value
+  overrides that default. Nested style changes apply within their own scope.
+  Labels inherit their row's vertical alignment and accept their own cell override. Alignment
+  uses each cell's final size after wrapping; `axis` accounts for the cell's font size.
+  Unspecified vertical alignment remains `baseline`
+  ([MathML 3 §3.5](https://www.w3.org/TR/MathML3/chapter3.html#presm.mtable)).
+  LTR `maligngroup`/`malignmark` support `groupalign` and `alignmentscope`
+  ([alignment groups](alignment-groups.md)).
 - **Elementary math** (MathML 3 §3.6): `mstack`, `mlongdiv`, `msgroup`, `msrow`, `mscarries`,
   `mscarry`, `msline`: digit columns with `stackalign`, `charalign`, `charspacing`, `position` and
   `shift`; lines with their length, overhangs and thickness; carries with `location`, `crossout`
@@ -15,6 +25,16 @@
 `mo` follows an operator dictionary for form, spacing, stretchiness, large operators and fences.
 Stretchy operators use the font's MATH variants and assemblies. Attributes include `displaystyle`,
 `scriptlevel`, `mathvariant`, `mathsize`, `mathcolor`, `columnalign` and table spacing.
+
+Tables honor `rowspan` and `columnspan` using the [MathML 3 table model](https://www.w3.org/TR/MathML3/chapter3.html#presm.mtd).
+Later cells skip occupied positions; shorter rows leave empty slots. A spanning cell measures
+and aligns within all its tracks and their internal spacing. Single-track cells set initial
+track sizes; a spanning deficit is shared equally across its tracks. Baseline-aligned row spans
+anchor to the first row and distribute any missing depth across covered rows. `top`, `bottom`
+and `center` align within the full spanning rectangle. Labels have an independent gutter and
+may span rows without consuming main-grid positions. Internal solid and dashed rules stop
+at spanning rectangles, including their share of adjacent gaps; rule caps and frames stay
+inside table bounds. See [bounds and malformed-span handling](limits.md).
 
 Layout follows MathML Core with TeX's choices where it leaves room: a unary minus after `=` or
 `(`, and a delimiter factor and shortfall so `f(x)` keeps plain parentheses. Text is an operand

@@ -31,6 +31,7 @@ final class ElementaryMathTests: MathTestCase {
         var box = MathBox()
         /// Top row first, then left to right.
         var glyphs: [Glyph] = []
+        var images: [CGRect] = []
         var rules: [(rect: CGRect, color: CGColor)] = []
         var segments: [Segment] = []
 
@@ -57,21 +58,25 @@ final class ElementaryMathTests: MathTestCase {
     private var constants: MathConstants { MathFont.named(nil).constants }
 
     /// The element's own box, as the engine hands it to the row around it.
-    private func stackBox(_ element: MathMLNode) throws -> MathBox {
+    private func stackBox(_ element: MathMLNode, images: MathImageProvider? = nil) throws -> MathBox {
         let context = LayoutContext(fontSize: em, unclampedSize: em, minSize: 0.6 * em, display: false, color: black)
-        return try LayoutEngine(fontName: nil).layout(element, context, depth: 0)
+        let engine = LayoutEngine(fontName: nil)
+        engine.imageProvider = images
+        return try engine.layout(element, context, depth: 0)
     }
 
     private func stackBox(_ body: String) throws -> MathBox { try stackBox(node(body).children[0]) }
 
-    private func drawing(_ element: MathMLNode) throws -> Drawing {
-        var drawing = Drawing(box: try stackBox(element))
+    private func drawing(_ element: MathMLNode, images: MathImageProvider? = nil) throws -> Drawing {
+        var drawing = Drawing(box: try stackBox(element, images: images))
         collect(drawing.box, at: .zero, into: &drawing)
         drawing.glyphs.sort { ($0.origin.y, -$0.origin.x) > ($1.origin.y, -$1.origin.x) }
         return drawing
     }
 
-    private func drawing(_ body: String) throws -> Drawing { try drawing(node(body).children[0]) }
+    private func drawing(_ body: String, images: MathImageProvider? = nil) throws -> Drawing {
+        try drawing(node(body).children[0], images: images)
+    }
 
     private func collect(_ box: MathBox, at origin: CGPoint, into drawing: inout Drawing) {
         func moved(_ point: CGPoint) -> CGPoint { CGPoint(x: point.x + origin.x, y: point.y + origin.y) }
@@ -87,6 +92,8 @@ final class ElementaryMathTests: MathTestCase {
                                                 size: CTFontGetSize(run.font), origin: at, advance: advances[index].width,
                                                 ink: rects[index].offsetBy(dx: at.x, dy: at.y), color: run.color))
                 }
+            } else if case .image(_, let rect, _) = item {
+                drawing.images.append(rect.offsetBy(dx: origin.x, dy: origin.y))
             } else if case .rect(let rect, let color) = item {
                 drawing.rules.append((rect.offsetBy(dx: origin.x, dy: origin.y), color))
             } else if case .path(let path, _, let color, _) = item {
@@ -129,6 +136,255 @@ final class ElementaryMathTests: MathTestCase {
         XCTAssertLessThanOrEqual(drawn.maxX, result.width + 0.5, body, file: file, line: line)
         XCTAssertLessThanOrEqual(drawn.maxY, result.ascent + 0.5, body, file: file, line: line)
         XCTAssertGreaterThanOrEqual(drawn.minY, -result.descent - 0.5, body, file: file, line: line)
+    }
+
+    // MARK: Direction in elementary math
+
+    /// MathML 3's elementary exception: columns and carries remain LTR in RTL contexts.
+    private func sameDrawing(_ lhs: String, _ rhs: String, file: StaticString = #filePath, line: UInt = #line) throws {
+        let a = try drawing(lhs), b = try drawing(rhs)
+        equal(a.box.width, b.box.width, file: file, line: line)
+        equal(a.box.ascent, b.box.ascent, file: file, line: line)
+        equal(a.box.descent, b.box.descent, file: file, line: line)
+        XCTAssertEqual(a.glyphs.map(\.name), b.glyphs.map(\.name), file: file, line: line)
+        for (x, y) in zip(a.glyphs, b.glyphs) {
+            equal(x.origin.x, y.origin.x, file: file, line: line)
+            equal(x.origin.y, y.origin.y, file: file, line: line)
+        }
+        XCTAssertEqual(a.rules.map(\.rect), b.rules.map(\.rect), file: file, line: line)
+        XCTAssertEqual(a.segments.count, b.segments.count, file: file, line: line)
+        for (x, y) in zip(a.segments, b.segments) {
+            XCTAssertEqual(x.from, y.from, file: file, line: line)
+            XCTAssertEqual(x.to, y.to, file: file, line: line)
+            XCTAssertEqual(x.isCurve, y.isCurve, file: file, line: line)
+        }
+    }
+
+    func testRTLColumnsKeepPhysicalAlignmentPositionsAndDecimalPoint() throws {
+        for alignment in MathStackAlignment.allCases {
+            for charAlignment in ["left", "center", "right"] {
+                let body = "<msgroup position='1' shift='-1'><msrow><mo>+</mo><none/><mn>12.3</mn></msrow>"
+                    + "<msrow position='-1'><mn>4.56</mn></msrow><msline length='3' position='1' "
+                    + "leftoverhang='0.3em' rightoverhang='0.1em'/></msgroup>"
+                let attrs = "stackalign='\(alignment.rawValue)' charalign='\(charAlignment)'"
+                try sameDrawing("<mstack \(attrs) dir='ltr'>\(body)</mstack>", "<mstack \(attrs) dir='rtl'>\(body)</mstack>")
+                try assertCoversInk("<mstack \(attrs) dir='rtl'>\(body)</mstack>")
+            }
+        }
+        let arabic = "<mstack><mn>١٢٫٣</mn><mn>٤٫٥٦</mn><msline/></mstack>"
+        try sameDrawing("<mstyle dir='rtl'>\(arabic)</mstyle>", "<mstyle dir='ltr'>\(arabic)</mstyle>")
+        let decimal = "<mstack><mn>12,3</mn><msrow position='1'><mn>4,56</mn></msrow></mstack>"
+        try sameDrawing("<math dir='rtl' decimalpoint=','>\(decimal)</math>",
+                        "<math dir='ltr' decimalpoint=','>\(decimal)</math>")
+    }
+
+    func testRTLCompassCarriesCrossoutsAndOverhangsKeepPhysicalSides() throws {
+        for location in CarryLocation.allCases {
+            let body = "<mscarries position='1' location='\(location.rawValue)' "
+                + "crossout='updiagonalstrike downdiagonalstrike verticalstrike horizontalstrike'>"
+                + "<mn>1</mn><mscarry location='e' crossout='none'><mn>2</mn></mscarry></mscarries>"
+                + "<mn>345</mn><msline leftoverhang='0.7em' rightoverhang='0.2em'/>"
+            try sameDrawing("<mstack dir='ltr'>\(body)</mstack>", "<mstack dir='rtl'>\(body)</mstack>")
+            try assertCoversInk("<mstack dir='rtl'>\(body)</mstack>")
+        }
+    }
+
+    func testEveryDivisionFrameKeepsOperandsAndSeparatorsOnNamedSidesInRTL() throws {
+        for frame in LongDivision.allCases {
+            let body = "<mn>3</mn><mn>24</mn><mn>72</mn><msgroup shift='-1'><mn>6</mn>"
+                + "<msline length='1'/><mn>12</mn><mn>12</mn><msline/><mn>0</mn></msgroup>"
+            let attrs = "longdivstyle='\(frame.rawValue)'"
+            try sameDrawing("<mlongdiv \(attrs) dir='ltr'>\(body)</mlongdiv>",
+                            "<mlongdiv \(attrs) dir='rtl'>\(body)</mlongdiv>")
+            try assertCoversInk("<mlongdiv \(attrs) dir='rtl'>\(body)</mlongdiv>")
+        }
+    }
+
+    /// Mixed bidi tokens use their base direction inside a single physical grid column.
+    func testArabicHebrewTokenAndCarryDirectionsInheritAndOverride() throws {
+        for text in ["+ 12 אב", "+ 12 العربية"] {
+            let token = "<mtext>\(text)</mtext>"
+            try sameDrawing("<math dir='rtl'><mstack><msgroup><msrow>\(token)</msrow></msgroup></mstack></math>",
+                            "<mstack><mtext dir='rtl'>\(text)</mtext></mstack>")
+            try sameDrawing("<mstack dir='rtl'><msrow dir='ltr'>\(token)</msrow></mstack>",
+                            "<mstack dir='ltr'>\(token)</mstack>")
+            try sameDrawing("<mstack dir='rtl'><mstyle dir='ltr'>\(token)</mstyle></mstack>",
+                            "<mstack dir='ltr'>\(token)</mstack>")
+            try sameDrawing("<mstack dir='rtl'><mscarries><mscarry dir='ltr'>\(token)</mscarry></mscarries><mn>1</mn></mstack>",
+                            "<mstack dir='ltr'><mscarries><mscarry>\(token)</mscarry></mscarries><mn>1</mn></mstack>")
+            let rtl = try drawing("<mstack dir='rtl'>\(token)</mstack>")
+            let ltr = try drawing("<mstack dir='ltr'>\(token)</mstack>")
+            XCTAssertNotEqual(rtl.glyphs.map(\.name), ltr.glyphs.map(\.name), "base direction affects mixed token order")
+            try assertCoversInk("<mstack dir='rtl'><mscarries>\(token)</mscarries>\(token)</mstack>")
+        }
+        // Invalid values inherit, while numeric tokens remain LTR even with an override.
+        try sameDrawing("<mstack dir='rtl'><mtext dir='invalid'>+ 12 אב</mtext></mstack>",
+                        "<mstack dir='rtl'><mtext>+ 12 אב</mtext></mstack>")
+        try sameDrawing("<mstack><mscarries><mn dir='rtl'>12</mn></mscarries><mn dir='rtl'>345</mn></mstack>",
+                        "<mstack><mscarries><mn dir='ltr'>12</mn></mscarries><mn dir='ltr'>345</mn></mstack>")
+    }
+
+    func testRTLSpeechCoordinatesStayIdenticalToPhysicalLTRColumns() throws {
+        let body = "<msgroup position='1' shift='-1'><mscarries position='1' location='nw' crossout='updiagonalstrike'>"
+            + "<mn>1</mn><none/></mscarries><mn>12.3</mn><msline length='2' position='1'/><mn>4.56</mn></msgroup>"
+        for alignment in MathStackAlignment.allCases {
+            let lhs = try node("<mstack dir='ltr' stackalign='\(alignment.rawValue)'>\(body)</mstack>")
+            let rhs = try node("<mstack dir='rtl' stackalign='\(alignment.rawValue)'>\(body)</mstack>")
+            for language in MathReading.languages {
+                XCTAssertEqual(lhs.accessibilityDescription(locale: Locale(identifier: language)).text,
+                               rhs.accessibilityDescription(locale: Locale(identifier: language)).text)
+            }
+        }
+        for frame in LongDivision.allCases {
+            let content = "<mn>3</mn><mn>24</mn><mn>72</mn>\(body)"
+            let lhs = try node("<mlongdiv dir='ltr' longdivstyle='\(frame.rawValue)'>\(content)</mlongdiv>")
+            let rhs = try node("<mlongdiv dir='rtl' longdivstyle='\(frame.rawValue)'>\(content)</mlongdiv>")
+            XCTAssertEqual(lhs.accessibilityDescription, rhs.accessibilityDescription)
+        }
+    }
+
+    // MARK: Image columns
+
+    private func imageProvider(width: Int = 30, height: Int = 12) -> MathImageProvider {
+        let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        let image = context.makeImage()!
+        return MathImageProvider { $0 == "digit" ? image : nil }
+    }
+
+    func testNumberImageKeepsItsColumnAndSizesIt() throws {
+        let image = #"<mglyph src="digit" alt="two"/>"#
+        let body = "<mstack charspacing='2px'><msrow><mn>1\(image)3</mn></msrow><mn>456</mn></mstack>"
+        let result = try drawing(body, images: imageProvider())
+        XCTAssertEqual(result.row(0).map(\.name), ["one", "three"])
+        let rect = try XCTUnwrap(result.images.first)
+        equal(rect.width, 30); equal(rect.height, 12)
+        equal(rect.minX, try result.glyph("one").right + 2)
+        equal(try result.glyph("three").origin.x, rect.maxX + 2)
+        equal(try result.glyph("five").right, rect.maxX)
+        equal(try result.glyph("four").origin.x, try result.glyph("one").origin.x)
+        equal(try result.glyph("six").origin.x, try result.glyph("three").origin.x)
+    }
+
+    func testImageFallbackStaysAtomicAndDoesNotBecomeADecimalPoint() throws {
+        for images in [nil, MathImageProvider { _ in nil }] {
+            let result = try drawing(#"<mstack charspacing="2px"><mn>1<mglyph src="digit" alt="23.4"/>5</mn><mn>678</mn></mstack>"#,
+                                     images: images)
+            XCTAssertTrue(result.images.isEmpty)
+            equal(try result.glyph("six").origin.x, try result.glyph("one").origin.x)
+            equal(try result.glyph("seven").right, try result.glyph("four").right)
+            equal(try result.glyph("eight").origin.x, try result.glyph("five").origin.x)
+            // No column spacing inside the fallback, only on either side of the whole cell.
+            equal(try result.glyph("three").origin.x, try result.glyph("two").right)
+            equal(try result.glyph("five").origin.x, try result.glyph("four").right + 2)
+        }
+    }
+
+    func testMultipleImageColumnsKeepDecimalPositionAndGroupShift() throws {
+        let image = #"<mglyph src="digit" alt="two"/>"#
+        let result = try drawing("<mstack charspacing='2px'><msgroup shift='1'><mn>1\(image)\(image).3</mn>"
+                                + "<msrow position='-1'><mn>456.7</mn></msrow></msgroup></mstack>", images: imageProvider())
+        XCTAssertEqual(result.images.count, 2)
+        equal(result.images[1].minX, result.images[0].maxX + 2)
+        equal(try result.glyph("period", 0).origin.x, try result.glyph("period", 1).origin.x)
+        equal(try result.glyph("three").origin.x, try result.glyph("seven").origin.x)
+        equal(try result.glyph("five").right, result.images[0].maxX)
+        equal(try result.glyph("six").right, result.images[1].maxX)
+    }
+
+    func testImageSizesAndValignUseTheNumberContext() throws {
+        let result = try drawing(#"<mstack charspacing="0"><mn mathsize="200%">1<mglyph src="digit" width="1em" height="0.5em" valign="-4px" mathsize="10%"/>3</mn></mstack>"#,
+                                 images: imageProvider())
+        let rect = try XCTUnwrap(result.images.first)
+        equal(rect.width, 40); equal(rect.height, 20)
+        equal(rect.minY, try result.glyph("one").origin.y - 4)
+        equal(try result.glyph("three").origin.x, rect.maxX)
+    }
+
+    func testCarryAndBackgroundsFollowTheImageColumn() throws {
+        let result = try drawing(##"<mstack charspacing="2px"><mscarries><none/><mn>9</mn><none/></mscarries><msrow mathbackground="red"><mn mathbackground="blue">1<mglyph src="digit" mathbackground="#00ff00"/>3</mn></msrow></mstack>"##,
+                                 images: imageProvider())
+        let rect = try XCTUnwrap(result.images.first)
+        equal(try result.glyph("nine").middle, rect.midX)
+        let green = try XCTUnwrap(result.rules.first { ($0.color.components ?? []).prefix(3) == [0, 1, 0] })
+        XCTAssertEqual(green.rect, rect)
+        for background in result.rules where background.rect != rect {
+            XCTAssertTrue(background.rect.contains(rect))
+        }
+        XCTAssertGreaterThanOrEqual(result.box.ascent, try result.glyph("nine").ink.maxY)
+    }
+
+    func testLongDivisionWorkingRowsPreserveImageColumnsAndContainInk() throws {
+        for form in LongDivision.allCases {
+            let result = try drawing("<mlongdiv longdivstyle='\(form.rawValue)'><mn>2</mn><mn>4</mn>"
+                                    + #"<mn>1<mglyph src="digit" width="45px" height="50px" valign="-20px"/>3</mn>"#
+                                    + "<msrow position='1'><mn>456</mn></msrow></mlongdiv>", images: imageProvider())
+            XCTAssertEqual(result.images.count, 1, form.rawValue)
+            let rect = try XCTUnwrap(result.images.first)
+            equal(try result.glyph("three").origin.x, rect.maxX + 2)
+            let bounds = try XCTUnwrap(result.box.inkBounds)
+            XCTAssertGreaterThanOrEqual(bounds.minX, -0.01)
+            XCTAssertLessThanOrEqual(bounds.maxX, result.box.width + 0.01)
+            XCTAssertGreaterThanOrEqual(bounds.minY, -result.box.descent - 0.01)
+            XCTAssertLessThanOrEqual(bounds.maxY, result.box.ascent + 0.01)
+        }
+    }
+
+    func testHostBuiltNumberPairsMissingAndExtraMarkers() throws {
+        let glyph = MathMLNode(name: "mglyph", attributes: ["src": "digit"])
+        let number = MathMLNode(name: "mn", children: [glyph, glyph], text: "1\u{FFFC}3")
+        let result = try drawing(MathMLNode(name: "mstack", children: [number]), images: imageProvider())
+        XCTAssertEqual(result.images.count, 2)
+        XCTAssertLessThan(try result.glyph("one").right, result.images[0].minX)
+        XCTAssertLessThan(result.images[0].maxX, try result.glyph("three").origin.x)
+        XCTAssertGreaterThan(result.images[1].minX, try result.glyph("three").right)
+        let extra = MathMLNode(name: "mn", children: [glyph], text: "\u{FFFC}1\u{FFFC}")
+        XCTAssertEqual(try drawing(MathMLNode(name: "mstack", children: [extra]), images: imageProvider()).images.count, 1)
+    }
+
+    func testImageCharalignAndZeroSizeKeepAtomicColumns() throws {
+        for (alignment, factor) in [("left", CGFloat(0)), ("center", 0.5), ("right", 1)] {
+            let result = try drawing("<mstack charalign='\(alignment)' charspacing='0'><mn>1"
+                                    + #"<mglyph src="digit" width="10px"/>3</mn><mn>4<mglyph src="digit" width="40px"/>6</mn></mstack>"#,
+                                     images: imageProvider())
+            XCTAssertEqual(result.images.count, 2)
+            equal(result.images[0].minX, result.images[1].minX + 30 * factor)
+        }
+        let result = try drawing(#"<mstack charspacing="0"><mn>1<mglyph src="digit" width="0px"/>3</mn><mn>456</mn></mstack>"#,
+                                 images: imageProvider())
+        XCTAssertTrue(result.images.isEmpty)
+        equal(try result.glyph("one").origin.x, try result.glyph("four").origin.x)
+        equal(try result.glyph("three").origin.x, try result.glyph("six").origin.x)
+        XCTAssertGreaterThan(try result.glyph("three").origin.x, try result.glyph("one").right)
+    }
+
+    func testNumberImageChildrenRespectTheirDepth() throws {
+        let glyph = MathMLNode(name: "mglyph", attributes: ["alt": "1"])
+        let stack = MathMLNode(name: "mstack", children: [MathMLNode(name: "mn", children: [glyph])])
+        let context = LayoutContext(fontSize: em, unclampedSize: em, minSize: 12, display: false, color: black)
+        XCTAssertNoThrow(try LayoutEngine(fontName: nil).layout(stack, context, depth: MathLimits.depth - 4))
+        XCTAssertThrowsError(try LayoutEngine(fontName: nil).layout(stack, context, depth: MathLimits.depth - 3)) {
+            XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+        }
+    }
+
+    func testNumberImageChildrenAndFallbackTextUseLayoutBudgets() throws {
+        let glyph = MathMLNode(name: "mglyph", attributes: ["src": "digit", "alt": "1"])
+        let number = MathMLNode(name: "mn", children: [glyph])
+        let token = MathMLNode(name: "mn", children: [MathMLNode(name: "malignmark")], text: "1")
+        for child in [number, token] {
+            let tree = MathMLNode(name: "mstack", children: Array(repeating: child, count: MathLimits.nodes / 2))
+            for images in [nil, imageProvider(width: 1, height: 1)] {
+                XCTAssertThrowsError(try stackBox(tree, images: images)) {
+                    XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+                }
+            }
+        }
+        let long = MathMLNode(name: "mglyph", attributes: ["alt": String(repeating: "1", count: MathLimits.textLength + 1)])
+        XCTAssertThrowsError(try stackBox(MathMLNode(name: "mstack", children: [MathMLNode(name: "mn", children: [long])]))) {
+            XCTAssertEqual($0 as? MathLayoutError, .limitExceeded)
+        }
     }
 
     // MARK: Columns

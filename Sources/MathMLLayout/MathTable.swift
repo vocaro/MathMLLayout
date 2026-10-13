@@ -137,6 +137,7 @@ struct MathTable: Sendable {
     private var italicsCorrection = 0
     private var topAccentAttachment = 0
     private var variants = 0
+    private var kerns: [CGGlyph: [MathKern?]] = [:]
 
     init?(data: [UInt8], unitsPerEm: CGFloat) {
         bytes = data
@@ -148,6 +149,7 @@ struct MathTable: Sendable {
         if glyphInfo > 0, contains(glyphInfo, length: 8) {
             italicsCorrection = subtable(glyphInfo, uint16(glyphInfo))
             topAccentAttachment = subtable(glyphInfo, uint16(glyphInfo + 2))
+            kerns = readKerns(at: subtable(glyphInfo, uint16(glyphInfo + 6)))
         }
         variants = Int(uint16(8))
         if variants > 0, !contains(variants, length: 10) { variants = 0 }
@@ -155,7 +157,7 @@ struct MathTable: Sendable {
 
     private func subtable(_ base: Int, _ offset: UInt16) -> Int { offset == 0 ? 0 : base + Int(offset) }
 
-    func contains(_ offset: Int, length: Int) -> Bool { offset >= 0 && length >= 0 && offset + length <= bytes.count }
+    func contains(_ offset: Int, length: Int) -> Bool { offset >= 0 && length >= 0 && offset <= bytes.count && length <= bytes.count - offset }
     func uint16(_ offset: Int) -> UInt16 {
         guard contains(offset, length: 2) else { return 0 }
         return UInt16(bytes[offset]) << 8 | UInt16(bytes[offset + 1])
@@ -202,6 +204,69 @@ struct MathTable: Sendable {
     func italicsCorrection(_ glyph: CGGlyph) -> CGFloat? { glyphValue(glyph, table: italicsCorrection) }
     func topAccentAttachment(_ glyph: CGGlyph) -> CGFloat? { glyphValue(glyph, table: topAccentAttachment) }
 
+    /// Height-dependent corner correction, in design units. Missing or malformed data is zero.
+    func kern(_ glyph: CGGlyph, corner: MathKernCorner, height: CGFloat) -> CGFloat {
+        guard height.isFinite, let tables = kerns[glyph], let table = tables[corner.rawValue] else { return 0 }
+        return table.value(at: height)
+    }
+
+    private func readKerns(at offset: Int) -> [CGGlyph: [MathKern?]] {
+        guard offset > 0, contains(offset, length: 4) else { return [:] }
+        let count = Int(uint16(offset + 2)), recordsEnd = offset + 4 + count * 8
+        guard contains(offset + 4, length: count * 8) else { return [:] }
+        let coverage = subtable(offset, uint16(offset))
+        guard coverage >= recordsEnd, contains(coverage, length: 4) else { return [:] }
+        let coverageCount = Int(uint16(coverage + 2))
+        var glyphs: [CGGlyph] = []
+        var coverageEnd = coverage + 4
+        switch uint16(coverage) {
+        case 1:
+            guard coverageCount == count, contains(coverage + 4, length: count * 2) else { return [:] }
+            coverageEnd += count * 2
+            for index in 0..<count {
+                let glyph = uint16(coverage + 4 + index * 2)
+                guard glyphs.last.map({ $0 < glyph }) ?? true else { return [:] }
+                glyphs.append(glyph)
+            }
+        case 2:
+            guard contains(coverage + 4, length: coverageCount * 6) else { return [:] }
+            coverageEnd += coverageCount * 6
+            for index in 0..<coverageCount {
+                let record = coverage + 4 + index * 6
+                let start = uint16(record), end = uint16(record + 2)
+                guard start <= end, Int(uint16(record + 4)) == glyphs.count,
+                      glyphs.last.map({ $0 < start }) ?? true,
+                      glyphs.count + Int(end) - Int(start) + 1 <= count else { return [:] }
+                glyphs.append(contentsOf: start...end)
+            }
+            guard glyphs.count == count else { return [:] }
+        default: return [:]
+        }
+        let records = (0..<count).map { index in
+            (0..<4).map { subtable(offset, uint16(offset + 4 + index * 8 + $0 * 2)) }
+        }
+        // Shared corner tables are parsed once. Distinct tables must not overlap each other or
+        // coverage; this also bounds total allocation and work for malicious overlapping offsets.
+        let offsets = Set(records.flatMap { $0 }.filter { $0 >= recordsEnd }).sorted()
+        var tables: [Int: MathKern] = [:]
+        for (index, table) in offsets.enumerated() {
+            guard contains(table, length: 2) else { continue }
+            let heightCount = Int(uint16(table))
+            let end = table + 2 + (heightCount * 2 + 1) * 4
+            guard contains(table + 2, length: (heightCount * 2 + 1) * 4),
+                  end <= (index + 1 < offsets.count ? offsets[index + 1] : bytes.count),
+                  end <= coverage || table >= coverageEnd else { continue }
+            let heights = (0..<heightCount).map { CGFloat(int16(table + 2 + $0 * 4)) }
+            guard zip(heights, heights.dropFirst()).allSatisfy({ $0 < $1 }) else { continue }
+            let values = (0...heightCount).map { CGFloat(int16(table + 2 + heightCount * 4 + $0 * 4)) }
+            // Device/variation corrections are ignored, as for other MathValueRecords.
+            tables[table] = MathKern(heights: heights, values: values)
+        }
+        var result: [CGGlyph: [MathKern?]] = [:]
+        for (index, glyph) in glyphs.enumerated() { result[glyph] = records[index].map { tables[$0] } }
+        return result
+    }
+
     var minConnectorOverlap: CGFloat { variants > 0 ? CGFloat(uint16(variants)) : 0 }
 
     /// The vertical or horizontal construction of `glyph`, if the font has one.
@@ -235,5 +300,24 @@ struct MathTable: Sendable {
             }
         }
         return result.variants.isEmpty && result.parts.isEmpty ? nil : result
+    }
+}
+
+/// Offset order in a MathKernInfoRecord.
+enum MathKernCorner: Int, CaseIterable {
+    case topRight, topLeft, bottomRight, bottomLeft
+}
+
+private struct MathKern: Sendable {
+    let heights: [CGFloat]
+    let values: [CGFloat]
+
+    func value(at height: CGFloat) -> CGFloat {
+        var low = 0, high = heights.count
+        while low < high {
+            let middle = (low + high) / 2
+            if height < heights[middle] { high = middle } else { low = middle + 1 }
+        }
+        return values[low]
     }
 }

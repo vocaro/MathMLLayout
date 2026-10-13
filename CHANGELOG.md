@@ -1,11 +1,20 @@
 # Release notes
 
+## Unreleased
+
+- Wrap plain bidirectional `mtext` in logical order with per-line shaping and inherited text paragraph direction.
+
 ## 0.2.0
 
 Line breaking, `mglyph`, elementary math and localized readings
 ([#1](https://github.com/vocaro/MathMLLayout/issues/1)). The 0.1.0 API still compiles.
 
 ### Added
+
+- LTR table columns align `maligngroup` groups and explicit `malignmark` points, including
+  inherited `groupalign` lists and decimal alignment. RTL, wrapping and span policies are
+  documented in [table alignment groups](doc/alignment-groups.md)
+  ([#76](https://github.com/vocaro/MathMLLayout/issues/76)).
 
 - Long single arrows `⟵`, `⟶` and `⟷` use the font's short-arrow assemblies when their own
   glyph has none. Drawn horizontal shafts use the font's rule thickness, with a half-point minimum

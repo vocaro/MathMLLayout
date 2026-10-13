@@ -1,4 +1,5 @@
 import CoreGraphics
+import Darwin
 import Foundation
 @testable import MathMLLayout
 import XCTest
@@ -410,9 +411,9 @@ final class FuzzTests: MathTestCase {
         }
     }
 
-    /// The stack between `MathLayout.init` and the image provider's call for an `mglyph` at the
-    /// bottom of the deepest nesting of `wrap` that lays out.
-    private func stackUse(_ wrap: (MathMLNode) -> MathMLNode) -> UInt {
+    /// Stack consumed from the pthread's top to an image-provider callback at the bottom
+    /// of the deepest supplied tree that lays out, including the caller's frames.
+    private static func stackUse(_ trees: [MathMLNode]) -> UInt {
         final class Lowest: @unchecked Sendable { var address = UInt.max }
         let lowest = Lowest()
         let provider = MathImageProvider { _ in
@@ -420,30 +421,24 @@ final class FuzzTests: MathTestCase {
             withUnsafeMutablePointer(to: &marker) { lowest.address = min(lowest.address, UInt(bitPattern: $0)) }
             return nil
         }
-        let style = MathStyle(fontSize: 20, color: black, imageProvider: provider)
-        let leaf = n("mtext", [:], [n("mglyph", ["src": "s", "alt": "a"])])
-        for levels in stride(from: MathLimits.depth, to: 0, by: -1) {
-            let tree = (0..<levels).reduce(leaf) { inner, _ in wrap(inner) }
-            var marker = 0
-            let top = withUnsafeMutablePointer(to: &marker) { UInt(bitPattern: $0) }
+        let style = MathStyle(fontSize: 20, color: CGColor(gray: 0, alpha: 1), imageProvider: provider)
+        for tree in trees {
+            lowest.address = UInt.max
+            let top = UInt(bitPattern: pthread_get_stackaddr_np(pthread_self()))
             if (try? MathLayout(tree, style: style)) != nil, lowest.address < top { return top - lowest.address }
         }
         return 0
     }
 
-    /// `MathLimits.depth` is what bounds the stack layout uses, on threads with half a megabyte of
-    /// it. A stack's children take more frames to reach than other elements', so they must count
-    /// for more: nested as deep as it lays out, elementary math may use no more stack than the
-    /// rest of the engine does.
-    func testNestedStacksUseNoMoreStackThanOtherElements() {
+    /// Structural elements have different frame sizes. Each must leave room for host callbacks
+    /// on workers, even when a more affordable shape reaches the depth ceiling.
+    func testNestedStacksLeaveRoomForHostCallbacks() {
         let none = n("none")
         let others: [(MathMLNode) -> MathMLNode] = [
             { self.n("munderover", [:], [$0, self.one, self.one]) }, { self.n("menclose", ["notation": "longdiv"], [$0]) },
             { self.n("mtable", [:], [self.n("mtr", [:], [self.n("mtd", [:], [$0])])]) }, { self.n("mpadded", [:], [$0]) },
             { self.n("mfrac", [:], [$0, self.one]) }, { self.n("msqrt", [:], [$0]) },
         ]
-        let bound = others.map(stackUse).max()!
-        XCTAssertGreaterThan(bound, 0)
         let elementary: [(String, (MathMLNode) -> MathMLNode)] = [
             ("mstack", { self.n("mstack", [:], [$0]) }),
             ("divisor", { self.n("mlongdiv", [:], [$0, none, self.one]) }),
@@ -455,11 +450,22 @@ final class FuzzTests: MathTestCase {
             ("mscarries", { self.n("mscarries", [:], [$0]) }),
             ("mscarry", { self.n("mscarry", [:], [$0, self.one]) }),
         ]
-        for (name, wrap) in elementary {
-            let used = stackUse(wrap)
-            XCTAssertGreaterThan(used, 0, name)
-            XCTAssertLessThanOrEqual(used, bound, "\(name) nested to the depth bound")
+        let leaf = n("mtext", [:], [n("mglyph", ["src": "s", "alt": "a"])])
+        let cases = (others.enumerated().map { ("structural \($0.offset)", $0.element) } + elementary).map { name, wrap in
+            (name, stride(from: MathLimits.depth, to: 0, by: -1).map { levels in
+                (0..<levels).reduce(leaf) { inner, _ in wrap(inner) }
+            })
         }
+        XCTAssertNil(LineBreakingFuzzTests.onThread(stack: 512 << 10) {
+            // The 128 KB reserve is checked at element entry. The token/font/provider path
+            // spends some of it afterwards; this fixture must still leave at least half.
+            let available = UInt(pthread_get_stacksize_np(pthread_self()) - MathLimits.stackMargin / 2)
+            for (name, trees) in cases {
+                let used = Self.stackUse(trees)
+                XCTAssertGreaterThan(used, 0, name)
+                XCTAssertLessThanOrEqual(used, available, "\(name) nested to the affordable depth")
+            }
+        })
     }
 
     /// One stack may span as many columns as a formula may have nodes. A formula of such stacks

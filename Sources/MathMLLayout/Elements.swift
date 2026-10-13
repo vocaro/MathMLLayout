@@ -11,8 +11,15 @@ extension LayoutEngine {
                   depth: Int) throws -> MathBox {
         try arity(node, 2)
         let inner = scriptContext(context, levels: context.display ? 0 : 1)
-        var numerator = try layout(node.children[0], inner, embellishment, depth: depth + 1)
-        var denominator = try layout(node.children[1], inner.with(cramped: true), depth: depth + 1)
+        let numerator = try layout(node.children[0], inner, embellishment, depth: depth + 1)
+        let denominator = try layout(node.children[1], inner.with(cramped: true), depth: depth + 1)
+        return assembleFraction(node, context, numerator: numerator, denominator: denominator)
+    }
+
+    @inline(never)
+    private func assembleFraction(_ node: MathMLNode, _ context: LayoutContext,
+                                  numerator: MathBox, denominator: MathBox) -> MathBox {
+        var numerator = numerator, denominator = denominator
         let standard = value(\.fractionRuleThickness, context)
         let thickness: CGFloat = switch node.attributes["linethickness"]?.trimmingCharacters(in: .whitespaces).lowercased() {
         case nil: standard
@@ -154,41 +161,58 @@ extension LayoutEngine {
         default: guard !children.isEmpty else { throw MathLayoutError.invalidMarkup(node.name) }
         }
         let base = try layout(children[0], context, embellishment, depth: depth + 1)
+        let pairs = try scriptPairs(node, context, depth: depth)
+        return attachScripts(base, post: pairs.post, pre: pairs.pre, context)
+    }
+
+    @inline(never)
+    private func scriptPairs(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws
+        -> (post: [(MathBox?, MathBox?)], pre: [(MathBox?, MathBox?)]) {
+        if node.name == "mmultiscripts" { return try multiscriptPairs(node, context, depth: depth) }
+        func script(_ child: MathMLNode, lower: Bool) throws -> MathBox? {
+            guard child.name != "none" else { try countNodes(); return nil }
+            let inner = scriptContext(context, cramped: lower ? true : nil)
+            return try layout(child, inner, depth: depth + 1)
+        }
+        let sub: MathBox? = try node.name == "msup" ? nil : script(node.children[1], lower: true)
+        let sup: MathBox? = try node.name == "msub" ? nil : script(node.children[node.name == "msup" ? 1 : 2], lower: false)
+        return ([(sub, sup)], [])
+    }
+
+    @inline(never)
+    private func multiscriptPairs(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws
+        -> (post: [(MathBox?, MathBox?)], pre: [(MathBox?, MathBox?)]) {
+        let children = node.children
         let subscriptContext = scriptContext(context, cramped: true), superscriptContext = scriptContext(context)
         func script(_ child: MathMLNode, lower: Bool) throws -> MathBox? {
             guard child.name != "none" else { try countNodes(); return nil }
             return try layout(child, lower ? subscriptContext : superscriptContext, depth: depth + 1)
         }
         var post: [(MathBox?, MathBox?)] = [], pre: [(MathBox?, MathBox?)] = []
-        switch node.name {
-        case "msub": post = try [(script(children[1], lower: true), nil)]
-        case "msup": post = try [(nil, script(children[1], lower: false))]
-        case "msubsup": post = try [(script(children[1], lower: true), script(children[2], lower: false))]
-        default:
-            var isPre = false
-            var pending: [MathMLNode] = []
-            for child in children.dropFirst() {
-                if child.name == "mprescripts" {
-                    // The marker and any incomplete pair it discards have been visited even
-                    // though none of them gets a box.
-                    try countNodes(1 + pending.count)
-                    isPre = true; pending = []; continue
-                }
-                pending.append(child)
-                if pending.count == 2 {
-                    let pair = try (script(pending[0], lower: true), script(pending[1], lower: false))
-                    if isPre { pre.append(pair) } else { post.append(pair) }
-                    pending = []
-                }
+        var isPre = false
+        var pending: [MathMLNode] = []
+        for child in children.dropFirst() {
+            if child.name == "mprescripts" {
+                // The marker and any incomplete pair it discards have been visited even
+                // though none of them gets a box.
+                try countNodes(1 + pending.count)
+                isPre = true; pending = []; continue
             }
-            if !pending.isEmpty { throw MathLayoutError.invalidMarkup(node.name) }
+            pending.append(child)
+            if pending.count == 2 {
+                let pair = try (script(pending[0], lower: true), script(pending[1], lower: false))
+                if isPre { pre.append(pair) } else { post.append(pair) }
+                pending = []
+            }
         }
-        return attachScripts(base, post: post, pre: pre, context)
+        if !pending.isEmpty { throw MathLayoutError.invalidMarkup(node.name) }
+        return (post, pre)
     }
 
     /// Places sub- and superscript pairs after (and before) a base. Shifts follow MathML Core
     /// 3.4.3, which is TeX's rule 18 in OpenType terms. A base's width includes its italic
-    /// correction, so subscripts tuck under by that much and superscripts do not.
+    /// correction, so subscripts tuck under by that much and superscripts do not. Single-glyph
+    /// pairs additionally use the font's height-dependent OpenType MATH corner kerning.
     func attachScripts(_ base: MathBox, post: [(MathBox?, MathBox?)], pre: [(MathBox?, MathBox?)],
                        _ context: LayoutContext) -> MathBox {
         let pairs = post + pre
@@ -238,18 +262,25 @@ extension LayoutEngine {
                 ascent = max(ascent, superShift + sup.ascent); descent = max(descent, sup.descent - superShift)
             }
         }
-        for (sub, sup) in pre {
-            let width = max(sub?.width ?? 0, sup?.width ?? 0)
-            place(sub, sup, subX: x + width - (sub?.width ?? 0), supX: x + width - (sup?.width ?? 0))
+        for (index, (sub, sup)) in pre.enumerated() {
+            let adjacent = index == pre.count - 1
+            let subKern = adjacent ? sub.map { scriptKern(base, $0, shift: -subShift, upper: false, before: true) } ?? 0 : 0
+            let supKern = adjacent ? sup.map { scriptKern(base, $0, shift: superShift, upper: true, before: true) } ?? 0 : 0
+            let width = max(0, (sub?.width ?? 0) + subKern, (sup?.width ?? 0) + supKern)
+            place(sub, sup, subX: x + width - (sub?.width ?? 0) - subKern,
+                  supX: x + width - (sup?.width ?? 0) - supKern)
             x += width + space
         }
         box.add(base, at: CGPoint(x: x, y: 0))
         if breaks { parts.append(BreakableRow.Child(box: base, x: x, isAttached: !parts.isEmpty)) }
         x += base.width
         for (index, (sub, sup)) in post.enumerated() {
-            let subX = x - (index == 0 ? base.italicCorrection : 0)
-            place(sub, sup, subX: subX, supX: x)
-            x = max(x, subX + (sub?.width ?? 0), x + (sup?.width ?? 0)) + space
+            let subKern = index == 0 ? sub.map { scriptKern(base, $0, shift: -subShift, upper: false, before: false) } ?? 0 : 0
+            let supKern = index == 0 ? sup.map { scriptKern(base, $0, shift: superShift, upper: true, before: false) } ?? 0 : 0
+            let subX = x - (index == 0 ? base.italicCorrection : 0) + subKern
+            let supX = x + supKern
+            place(sub, sup, subX: subX, supX: supX)
+            x = max(x, subX + (sub?.width ?? 0), supX + (sup?.width ?? 0)) + space
         }
         box.width = x
         box.ascent = ascent
@@ -257,6 +288,28 @@ extension LayoutEngine {
         box.op = base.op
         if breaks { box.row = BreakableRow(children: parts, itemCount: box.items.count, context) }
         return box
+    }
+
+    /// Opposite corners are sampled at the script's touching ink edge and the base's ink edge.
+    /// Only an unmodified, single glyph of this math font supplies a corner. Compound boxes
+    /// and positioned/assembled glyphs retain the existing zero-kern placement.
+    func scriptKern(_ base: MathBox, _ script: MathBox, shift: CGFloat, upper: Bool, before: Bool) -> CGFloat {
+        guard let table = font.table,
+              let baseGlyph = singleGlyph(base), let scriptGlyph = singleGlyph(script),
+              case .glyphs(let baseRun) = base.items[0], case .glyphs(let scriptRun) = script.items[0],
+              baseRun.positions == [.zero], scriptRun.positions == [.zero],
+              !baseRun.ink.isNull, !scriptRun.ink.isNull else { return 0 }
+        let baseSize = CTFontGetSize(baseRun.font), scriptSize = CTFontGetSize(scriptRun.font)
+        guard baseSize > 0, scriptSize > 0 else { return 0 }
+        let baseCorner: MathKernCorner = upper ? (before ? .topLeft : .topRight) : (before ? .bottomLeft : .bottomRight)
+        let scriptCorner: MathKernCorner = upper ? (before ? .bottomRight : .bottomLeft) : (before ? .topRight : .topLeft)
+        let scriptEdge = upper ? scriptRun.ink.minY : scriptRun.ink.maxY
+        let baseEdge = upper ? baseRun.ink.maxY : baseRun.ink.minY
+        func sum(at height: CGFloat) -> CGFloat {
+            font.points(table.kern(baseGlyph, corner: baseCorner, height: height * font.unitsPerEm / baseSize), size: baseSize)
+                + font.points(table.kern(scriptGlyph, corner: scriptCorner, height: (height - shift) * font.unitsPerEm / scriptSize), size: scriptSize)
+        }
+        return min(sum(at: shift + scriptEdge), sum(at: baseEdge))
     }
 
     // MARK: Under and over
@@ -279,33 +332,14 @@ extension LayoutEngine {
     /// arrow over an expression) the gap towards its base. Core has no such case.
     func underOver(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment,
                    depth: Int) throws -> MathBox {
-        try arity(node, node.name == "munderover" ? 3 : 2)
-        let children = node.children
-        let baseNode = children[0]
-        let underNode = node.name == "mover" ? nil : children[1]
-        let overNode = node.name == "munder" ? nil : children[node.name == "mover" ? 1 : 2]
-        let coreFlags = embellishedCore(baseNode).map { operatorFlags($0, form: embellishment.form) } ?? []
-        if coreFlags.contains(.movablelimits), !context.display {
-            let base = try layout(baseNode, context, embellishment, depth: depth + 1)
-            let sub = try underNode.map { try layout($0, scriptContext(context, cramped: true), depth: depth + 1) }
-            let sup = try overNode.map { try layout($0, scriptContext(context), depth: depth + 1) }
-            return attachScripts(base, post: [(sub, sup)], pre: [], context)
+        let plan = try underOverPlan(node, context, embellishment)
+        if plan.coreFlags.contains(.movablelimits), !context.display {
+            return try movableLimits(plan.nodes[0]!, under: plan.nodes[1], over: plan.nodes[2],
+                                     context, embellishment, depth: depth)
         }
-        func isAccent(_ script: MathMLNode?, _ attribute: String) -> Bool {
-            guard let script else { return false }
-            return node.attributes.flag(attribute)
-                ?? embellishedCore(script).map { operatorFlags($0, form: nil).contains(.accent) } ?? false
-        }
-        let accent = isAccent(overNode, "accent"), accentUnder = isAccent(underNode, "accentunder")
-        let baseContext = accent ? context.with(cramped: true) : context
-        let overContext = scriptContext(context, levels: accent ? 0 : 1)
-        let underContext = scriptContext(context, levels: accentUnder ? 0 : 1, cramped: true)
-
-        // Non-stretchy children first; horizontal stretchy ones then cover the widest.
-        let nodes: [MathMLNode?] = [baseNode, underNode, overNode]
-        let contexts = [baseContext, underContext, overContext]
+        // Preparation returned before recursion, leaving only the heap plan and child boxes.
+        let nodes = plan.nodes, contexts = plan.contexts, stretchy = plan.stretchy
         var boxes: [MathBox?] = [nil, nil, nil]
-        let stretchy = nodes.map { $0.map(isHorizontallyStretchy) ?? false }
         for index in 0..<3 where !stretchy[index] {
             guard let child = nodes[index] else { continue }
             boxes[index] = try layout(child, contexts[index], index == 0 ? embellishment : .none, depth: depth + 1)
@@ -317,6 +351,60 @@ extension LayoutEngine {
             stretch.stretch = widest.map { .horizontal(width: $0) } ?? (index == 0 ? embellishment.stretch : nil)
             boxes[index] = try layout(child, contexts[index], stretch, depth: depth + 1)
         }
+        return assembleUnderOver(boxes, context, coreFlags: plan.coreFlags, stretchy: stretchy,
+                                 accent: plan.accent, accentUnder: plan.accentUnder)
+    }
+
+    private final class UnderOverPlan {
+        let nodes: [MathMLNode?]
+        let contexts: [LayoutContext]
+        let stretchy: [Bool]
+        let coreFlags: OperatorFlags
+        let accent: Bool
+        let accentUnder: Bool
+        init(nodes: [MathMLNode?], contexts: [LayoutContext], stretchy: [Bool], coreFlags: OperatorFlags,
+             accent: Bool, accentUnder: Bool) {
+            self.nodes = nodes; self.contexts = contexts; self.stretchy = stretchy; self.coreFlags = coreFlags
+            self.accent = accent; self.accentUnder = accentUnder
+        }
+    }
+
+    @inline(never)
+    private func underOverPlan(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment) throws -> UnderOverPlan {
+        try arity(node, node.name == "munderover" ? 3 : 2)
+        let children = node.children
+        let baseNode = children[0]
+        let underNode = node.name == "mover" ? nil : children[1]
+        let overNode = node.name == "munder" ? nil : children[node.name == "mover" ? 1 : 2]
+        let coreFlags = embellishedCore(baseNode).map { operatorFlags($0, form: embellishment.form) } ?? []
+        func isAccent(_ script: MathMLNode?, _ attribute: String) -> Bool {
+            guard let script else { return false }
+            return node.attributes.flag(attribute)
+                ?? embellishedCore(script).map { operatorFlags($0, form: nil).contains(.accent) } ?? false
+        }
+        let accent = isAccent(overNode, "accent"), accentUnder = isAccent(underNode, "accentunder")
+        let baseContext = accent ? context.with(cramped: true) : context
+        let overContext = scriptContext(context, levels: accent ? 0 : 1)
+        let underContext = scriptContext(context, levels: accentUnder ? 0 : 1, cramped: true)
+
+        let nodes: [MathMLNode?] = [baseNode, underNode, overNode]
+        return UnderOverPlan(nodes: nodes, contexts: [baseContext, underContext, overContext],
+                             stretchy: nodes.map { $0.map(isHorizontallyStretchy) ?? false }, coreFlags: coreFlags,
+                             accent: accent, accentUnder: accentUnder)
+    }
+
+    @inline(never)
+    private func movableLimits(_ baseNode: MathMLNode, under underNode: MathMLNode?, over overNode: MathMLNode?,
+                               _ context: LayoutContext, _ embellishment: Embellishment, depth: Int) throws -> MathBox {
+        let base = try layout(baseNode, context, embellishment, depth: depth + 1)
+        let sub = try underNode.map { try layout($0, scriptContext(context, cramped: true), depth: depth + 1) }
+        let sup = try overNode.map { try layout($0, scriptContext(context), depth: depth + 1) }
+        return attachScripts(base, post: [(sub, sup)], pre: [], context)
+    }
+
+    @inline(never)
+    private func assembleUnderOver(_ boxes: [MathBox?], _ context: LayoutContext,
+                                   coreFlags: OperatorFlags, stretchy: [Bool], accent: Bool, accentUnder: Bool) -> MathBox {
         let base = boxes[0]!
         let isLimits = coreFlags.contains(.largeop)
         let isStretchStack = !isLimits && stretchy[0]
@@ -382,8 +470,14 @@ extension LayoutEngine {
     /// or depth decremented past zero is zero (MathML 3, 3.3.6.2), so what follows the box is
     /// never placed before where it began. `lspace` and `voffset` may be negative.
     func padded(_ node: MathMLNode, _ context: LayoutContext, _ embellishment: Embellishment,
-                depth: Int) throws -> MathBox {
-        let content = try row(node.children, context, embellishment, depth: depth)
+                depth: Int, singleChild: MathBox? = nil) throws -> MathBox {
+        let content = try row(node.children, context, embellishment, depth: depth, singleChild: singleChild)
+        // Default padding is an inferred row, including its spacing and break opportunities.
+        // Explicit dimensions/offsets remain atomic: their interaction with fragmentation is
+        // unspecified by MathML 3, 3.3.6.3.
+        if !["width", "height", "depth", "lspace", "voffset"].contains(where: { node.attributes[$0] != nil }) {
+            return content
+        }
         let dimensions = (width: content.width, height: content.ascent, depth: content.descent)
         func resolve(_ name: String, _ current: CGFloat, reference: CGFloat, nonNegative: Bool = false) -> CGFloat {
             guard let attribute = node.attributes[name], let length = MathLength(attribute),
@@ -405,8 +499,8 @@ extension LayoutEngine {
 
     /// `menclose` notations: box, roundedbox, circle, the four sides, strikes, longdiv,
     /// actuarial and madruwb. Unknown notations are ignored, as MathML Core asks.
-    func enclose(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
-        var content = try row(node.children, context, depth: depth)
+    func enclose(_ node: MathMLNode, _ context: LayoutContext, depth: Int, singleChild: MathBox? = nil) throws -> MathBox {
+        var content = try row(node.children, context, depth: depth, singleChild: singleChild)
         let notations = Set((node.attributes["notation"] ?? "longdiv").split(whereSeparator: \.isWhitespace).map(String.init))
         if notations == ["radical"] { return radical(base: content, index: nil, context) }
         let stroke = value(\.overbarRuleThickness, context)
@@ -497,9 +591,11 @@ extension LayoutEngine {
     }
 
     /// `merror`: its content in a red frame.
-    func errorBox(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
-        let content = try row(node.children, context, depth: depth)
+    func errorBox(_ node: MathMLNode, _ context: LayoutContext, depth: Int, singleChild: MathBox? = nil) throws -> MathBox {
+        var content = try row(node.children, context, depth: depth, singleChild: singleChild)
         let stroke = max(value(\.overbarRuleThickness, context), 0.5), pad = context.fontSize * 0.1
+        // Keep one frame around the whole stack rather than dropping error decoration.
+        content = wrapped(content, beside: 2 * pad, align: .left) ?? content
         var box = MathBox(width: content.width + 2 * pad, ascent: content.ascent + pad, descent: content.descent + pad)
         box.add(content, at: CGPoint(x: pad, y: 0))
         let frame = CGRect(x: stroke / 2, y: -box.descent + stroke / 2, width: box.width - stroke, height: box.height - stroke)
@@ -510,9 +606,9 @@ extension LayoutEngine {
 
     // MARK: Tables
 
-    /// `mtable`: a grid of baseline-aligned rows with `columnalign`, `rowspacing`,
+    /// `mtable`: a grid with vertically aligned rows with `columnalign`, `rowspacing`,
     /// `columnspacing`, lines and frame, centred on the math axis by default. `mlabeledtr`
-    /// labels form a column at the side. Spanning cells occupy one cell.
+    /// labels form a column at the side. Spanning cells reserve rectangles in a bounded grid.
     func table(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
         guard depth + 2 < MathLimits.depth else { throw MathLayoutError.limitExceeded }
         let attributes = node.attributes
@@ -521,39 +617,115 @@ extension LayoutEngine {
         // `displaystyle` where the surroundings' was.
         var cellContext = context
         cellContext.display = attributes.flag("displaystyle") ?? false
+        cellContext.trackAlignment = true
+        cellContext.alignmentBaseline = true
+        let tableGroups = AlignmentValues.columns(attributes["groupalign"] ?? context.tableGroupAlign)
+        func list(_ name: String, in attributes: [String: String], fallback: String? = nil) -> [String] {
+            (attributes[name] ?? fallback ?? "").split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
+        }
+        func pick(_ values: [String], _ index: Int) -> String? { values.isEmpty ? nil : values[min(index, values.count - 1)] }
+        func vertical(_ value: String?) -> String? {
+            guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                  ["top", "bottom", "center", "baseline", "axis"].contains(value) else { return nil }
+            return value
+        }
+        let tableRowAlign = list("rowalign", in: attributes, fallback: context.tableRowAlign)
+        var rowAxes: [CGFloat] = []
+        var cells = try TableGrid(rowCount: node.children.count)
+        var labels: [TableCell?] = []
+        var sources: [[TableCellSource]] = []
+        let cached = isCellRebuild ? tableMeasurements.lookup(node, context) : nil
+        if let cached {
+            try countCellRebuildNodes(cached.descendantNodes)
+            try countTableWork(cached.tableWork)
+            cells = cached.cells; labels = cached.labels; sources = cached.sources; rowAxes = cached.rowAxes
+            // A fresh cell engine has its own sequence. Cached source priorities must not
+            // collide with new siblings or another cache hit in that same engine.
+            for row in cells.rows.indices {
+                for index in cells.rows[row].indices {
+                    restampAlignment(&cells.rows[row][index].box)
+                }
+            }
+        } else {
+            let startNodes = visitedNodes, startWork = remainingTableWork
+            for (rowIndex, rowNode) in node.children.enumerated() {
+                let rowContext: LayoutContext
+                var cellNodes: [MathMLNode]
+                var label: MathMLNode?
+                switch rowNode.name {
+                case "mtr", "mlabeledtr":
+                    // A row is a node as its cells are, though only they are laid out.
+                    try visit(cellContext, depth: depth + 1)
+                    rowContext = inherit(rowNode, cellContext)
+                    cellNodes = rowNode.children
+                    if rowNode.name == "mlabeledtr", !cellNodes.isEmpty { label = cellNodes.removeFirst() }
+                default:
+                    rowContext = cellContext
+                    cellNodes = [rowNode]
+                }
+                let rowAlign = list("columnalign", in: rowNode.attributes)
+                let rowGroups = AlignmentValues.columns(rowNode.attributes["groupalign"])
+                let rowVertical = ((rowNode.name == "mtr" || rowNode.name == "mlabeledtr")
+                    ? vertical(rowNode.attributes["rowalign"]) : nil)
+                    ?? vertical(pick(tableRowAlign, rowIndex)) ?? "baseline"
+                rowAxes.append(value(\.axisHeight, rowContext))
+                var rowSources: [TableCellSource] = []
+                for cell in cellNodes {
+                    rowSources.append(TableCellSource(node: cell, context: rowContext, depth: depth + 2))
+                    var box = try layout(cell, rowContext, depth: depth + 2)
+                    let rowSpan = try TableGrid.span(cell.attributes["rowspan"])
+                    let columnSpan = try TableGrid.span(cell.attributes["columnspan"])
+                    if rowSpan > 1 || columnSpan > 1 { box.alignment = [] }
+                    let align = cell.attributes["columnalign"]?.trimmingCharacters(in: .whitespaces).lowercased()
+                    let alignment = vertical(cell.attributes["rowalign"]) ?? rowVertical
+                    let oldWork = cells.work
+                    try cells.insert(box, row: rowIndex, rowSpan: rowSpan,
+                                     columnSpan: columnSpan, align: align, rowAlign: alignment,
+                                     workBudget: remainingTableWork)
+                    try countTableWork(cells.work - oldWork)
+                    // Row alignment lists address grid columns, including occupied ones.
+                    let index = cells.rows[rowIndex].count - 1
+                    let column = cells.rows[rowIndex][index].column
+                    cells.rows[rowIndex][index].groupAlign = cell.attributes["groupalign"].map { AlignmentValues.list($0) }
+                        ?? AlignmentValues.pick(rowGroups, column) ?? AlignmentValues.pick(tableGroups, column) ?? ["left"]
+                    cells.rows[rowIndex][index].axis = value(\.axisHeight, inherit(cell, rowContext))
+                    if cells.rows[rowIndex][index].align == nil {
+                        cells.rows[rowIndex][index].align = pick(rowAlign, cells.rows[rowIndex][index].column)
+                    }
+                }
+                sources.append(rowSources)
+                labels.append(try label.map {
+                    // Labels have their own gutter; neither their spans nor previous grid spans reserve
+                    // a position for the next label (MathML 3, 3.5.4.2).
+                    let rowSpan = min(try TableGrid.span($0.attributes["rowspan"]), cells.rows.count - rowIndex)
+                    _ = try TableGrid.span($0.attributes["columnspan"])
+                    // Label spans also touch row tracks, even though they do not occupy main-grid slots.
+                    try countTableWork(rowSpan)
+                    var labelBox = try layout($0, rowContext, depth: depth + 2)
+                    labelBox.alignment = []
+                    return TableCell(box: labelBox, align: nil,
+                                     rowAlign: vertical($0.attributes["rowalign"]) ?? rowVertical,
+                                     column: 0, rowSpan: rowSpan, columnSpan: 1,
+                                     axis: value(\.axisHeight, inherit($0, rowContext)))
+                })
+            }
+            tableMeasurements.keep(node, context, cells: cells, labels: labels, sources: sources,
+                                   rowAxes: rowAxes, descendantNodes: visitedNodes - startNodes,
+                                   tableWork: startWork - remainingTableWork)
+        }
+        return try assembleTable(node, context, cells: cells, labels: labels, sources: sources, rowAxes: rowAxes)
+    }
+
+    @inline(never)
+    private func assembleTable(_ node: MathMLNode, _ context: LayoutContext, cells: TableGrid,
+                               labels: [TableCell?], sources: [[TableCellSource]], rowAxes: [CGFloat]) throws -> MathBox {
+        var cells = cells
+        let attributes = node.attributes
         func list(_ name: String, in attributes: [String: String]) -> [String] {
             (attributes[name] ?? "").split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
         }
         func pick(_ values: [String], _ index: Int) -> String? { values.isEmpty ? nil : values[min(index, values.count - 1)] }
-        var cells: [[(box: MathBox, align: String?)]] = []
-        var labels: [MathBox?] = []
-        for rowNode in node.children {
-            let rowContext: LayoutContext
-            var cellNodes: [MathMLNode]
-            var label: MathMLNode?
-            switch rowNode.name {
-            case "mtr", "mlabeledtr":
-                // A row is a node as its cells are, though only they are laid out.
-                try visit(cellContext, depth: depth + 1)
-                rowContext = inherit(rowNode, cellContext)
-                cellNodes = rowNode.children
-                if rowNode.name == "mlabeledtr", !cellNodes.isEmpty { label = cellNodes.removeFirst() }
-            default:
-                rowContext = cellContext
-                cellNodes = [rowNode]
-            }
-            let rowAlign = list("columnalign", in: rowNode.attributes)
-            var row: [(MathBox, String?)] = []
-            for (index, cell) in cellNodes.enumerated() {
-                let box = try layout(cell, rowContext, depth: depth + 2)
-                let align = cell.attributes["columnalign"]?.trimmingCharacters(in: .whitespaces).lowercased()
-                    ?? pick(rowAlign, index)
-                row.append((box, align))
-            }
-            cells.append(row)
-            labels.append(try label.map { try layout($0, rowContext, depth: depth + 2) })
-        }
-        let columns = cells.map(\.count).max() ?? 0
+        let columns = cells.columns
         let ex = xHeight(context), em = context.fontSize
         func spacing(_ name: String, _ standard: CGFloat, count: Int) -> [CGFloat] {
             let values = list(name, in: attributes)
@@ -561,7 +733,7 @@ extension LayoutEngine {
                 pick(values, index).flatMap { length($0, context, reference: em) }.map { max($0, 0) } ?? standard
             }
         }
-        let rowGaps = spacing("rowspacing", ex, count: cells.count - 1)
+        let rowGaps = spacing("rowspacing", ex, count: cells.rows.count - 1)
         let columnGaps = spacing("columnspacing", 0.8 * em, count: columns - 1)
         let rowLines = list("rowlines", in: attributes), columnLines = list("columnlines", in: attributes)
         let frame = attributes["frame"]?.trimmingCharacters(in: .whitespaces).lowercased() ?? "none"
@@ -570,20 +742,37 @@ extension LayoutEngine {
         let frameY = frame == "none" ? 0 : (pick(framing, 1).flatMap { length($0, context) } ?? 0.5 * ex)
         let tableAlign = list("columnalign", in: attributes)
         let labelGap = length(attributes["minlabelspacing"], context, reference: em) ?? 0.8 * em
-        let labelWidth = labels.compactMap { $0?.width }.max().map { $0 + labelGap } ?? 0
+        let labelWidth = labels.compactMap { $0?.box.width }.max().map { $0 + labelGap } ?? 0
+        try alignColumns(&cells, scopes: list("alignmentscope", in: attributes))
+        // Aligned cells are indivisible; forced breaks and spans retain ordinary wrapping.
         // Before the rows are measured: a table too wide for the line wraps its cells, which grow taller.
-        wrapCells(&cells, columnAlign: tableAlign, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
-        var widths = [CGFloat](repeating: 0, count: columns)
-        var ascents = [CGFloat](repeating: 0, count: cells.count), descents = ascents
-        for (rowIndex, row) in cells.enumerated() {
-            for (column, cell) in row.enumerated() {
-                widths[column] = max(widths[column], cell.box.width)
-                ascents[rowIndex] = max(ascents[rowIndex], cell.box.ascent)
-                descents[rowIndex] = max(descents[rowIndex], cell.box.descent)
+        let minimum = try wrapCells(&cells, sources: sources, columnAlign: tableAlign, gaps: columnGaps, fixed: columnGaps.reduce(0, +) + 2 * frameX + labelWidth)
+        let widths = cells.widths(gaps: columnGaps) { _, _, cell in cell.box.width }
+        var ascents = [CGFloat](repeating: 0, count: cells.rows.count), descents = ascents
+        for (rowIndex, row) in cells.rows.enumerated() {
+            var tallest: CGFloat = 0
+            for cell in row + (labels[rowIndex].map { [$0] } ?? []) {
+                if cell.rowSpan == 1 { tallest = max(tallest, cell.box.height) }
+                guard cell.rowAlign == "baseline" || cell.rowAlign == "axis" else { continue }
+                let shift = cell.rowAlign == "axis" ? rowAxes[rowIndex] - cell.axis : 0
+                ascents[rowIndex] = max(ascents[rowIndex], cell.box.ascent + shift)
+                if cell.rowSpan == 1 { descents[rowIndex] = max(descents[rowIndex], cell.box.descent - shift) }
             }
-            if let label = labels[rowIndex] {
-                ascents[rowIndex] = max(ascents[rowIndex], label.ascent)
-                descents[rowIndex] = max(descents[rowIndex], label.descent)
+            let extra = max(0, tallest - ascents[rowIndex] - descents[rowIndex]) / 2
+            ascents[rowIndex] += extra
+            descents[rowIndex] += extra
+        }
+        for (rowIndex, row) in cells.rows.enumerated() {
+            for cell in row + (labels[rowIndex].map { [$0] } ?? []) where cell.rowSpan > 1 {
+                let end = rowIndex + cell.rowSpan
+                let anchored = cell.rowAlign == "baseline" || cell.rowAlign == "axis"
+                let shift = cell.rowAlign == "axis" ? rowAxes[rowIndex] - cell.axis : 0
+                let available = descents[rowIndex..<end].reduce(0, +)
+                    + ascents[(rowIndex + 1)..<end].reduce(0, +) + rowGaps[rowIndex..<(end - 1)].reduce(0, +)
+                    + (anchored ? 0 : ascents[rowIndex])
+                let required = anchored ? cell.box.descent - shift : cell.box.height
+                let extra = max(0, required - available) / CGFloat(cell.rowSpan)
+                for row in rowIndex..<end { descents[row] += extra }
             }
         }
 
@@ -591,24 +780,25 @@ extension LayoutEngine {
         let height = ascents.reduce(0, +) + descents.reduce(0, +) + rowGaps.reduce(0, +) + 2 * frameY
         // `align`: axis (default), center or baseline, top, bottom, for the whole table or for the row
         // whose number follows, counted from the bottom when it is negative. A row's axis is as far
-        // above its baseline as the surrounding one's, so `axis` with a row is `baseline` with it. A
+        // above its baseline as its row context's; numbered `axis` accounts for size changes. A
         // number that names no row is ignored (MathML 3, 3.5.1.2).
         let alignParts = list("align", in: attributes)
         var top: CGFloat
         var baselines: [CGFloat] = []
         var y = frameY
-        for index in cells.indices {
+        for index in cells.rows.indices {
             baselines.append(y + ascents[index])
             y += ascents[index] + descents[index] + (index < rowGaps.count ? rowGaps[index] : 0)
         }
         let axis = value(\.axisHeight, context)
         let alignment = alignParts.first ?? "axis"
-        if alignParts.count > 1, let number = Int(alignParts[1]), number != 0, (-cells.count...cells.count).contains(number) {
-            let row = number > 0 ? number - 1 : cells.count + number
+        if alignParts.count > 1, let number = Int(alignParts[1]), number != 0, (-cells.rows.count...cells.rows.count).contains(number) {
+            let row = number > 0 ? number - 1 : cells.rows.count + number
             top = switch alignment {
             case "top": baselines[row] - ascents[row]
             case "bottom": baselines[row] + descents[row]
             case "center": baselines[row] + (descents[row] - ascents[row]) / 2
+            case "axis": baselines[row] - rowAxes[row] + axis
             default: baselines[row]
             }
         } else {
@@ -622,22 +812,39 @@ extension LayoutEngine {
         var box = MathBox()
         let labelsLeft = attributes["side"]?.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("left") == true
         let gridX = labelsLeft ? labelWidth : 0
-        for (rowIndex, row) in cells.enumerated() {
-            let baseline = top - baselines[rowIndex]
-            var x = gridX + frameX
-            for (column, cell) in row.enumerated() {
-                let align = cell.align ?? pick(tableAlign, column) ?? "center"
+        var columnStarts: [CGFloat] = [], columnEnds: [CGFloat] = []
+        var x = gridX + frameX
+        for column in widths.indices {
+            columnStarts.append(x)
+            columnEnds.append(x + widths[column])
+            x += widths[column] + (column < columnGaps.count ? columnGaps[column] : 0)
+        }
+        func cellBaseline(_ cell: TableCell, row: Int) -> CGFloat {
+            let end = row + cell.rowSpan - 1
+            let cellTop = top - baselines[row] + ascents[row]
+            let cellBottom = top - baselines[end] - descents[end]
+            return switch cell.rowAlign ?? "baseline" {
+            case "top": cellTop - cell.box.ascent
+            case "bottom": cellBottom + cell.box.descent
+            case "center": (cellTop + cellBottom - cell.box.ascent + cell.box.descent) / 2
+            case "axis": top - baselines[row] + rowAxes[row] - cell.axis
+            default: top - baselines[row]
+            }
+        }
+        for (rowIndex, row) in cells.rows.enumerated() {
+            for cell in row {
+                let width = cells.spanWidth(cell, widths: widths, gaps: columnGaps)
+                let align = cell.align ?? pick(tableAlign, cell.column) ?? "center"
                 let offset: CGFloat = switch align {
                 case "left": 0
-                case "right": widths[column] - cell.box.width
-                default: (widths[column] - cell.box.width) / 2
+                case "right": width - cell.box.width
+                default: (width - cell.box.width) / 2
                 }
-                box.add(cell.box, at: CGPoint(x: x + offset, y: baseline))
-                x += widths[column] + (column < columnGaps.count ? columnGaps[column] : 0)
+                box.add(cell.box, at: CGPoint(x: columnStarts[cell.column] + offset, y: cellBaseline(cell, row: rowIndex)))
             }
             if let label = labels[rowIndex] {
                 let labelX = labelsLeft ? 0 : gridX + gridWidth + 2 * frameX + labelGap
-                box.add(label, at: CGPoint(x: labelX, y: baseline))
+                box.add(label.box, at: CGPoint(x: labelX, y: cellBaseline(label, row: rowIndex)))
             }
         }
         // Lines, half-way through the gaps. A stroke reaches half its thickness to either side of its
@@ -650,12 +857,45 @@ extension LayoutEngine {
         let gridLeft = gridX, gridRight = gridX + gridWidth + 2 * frameX
         let inside = (left: gridLeft + stroke / 2, right: gridRight - stroke / 2, top: top - stroke / 2, bottom: top - height + stroke / 2)
         let hasRoom = inside.left <= inside.right && inside.bottom <= inside.top
+        var rowBlocks = [[ClosedRange<CGFloat>]](repeating: [], count: rowGaps.count)
+        var columnBlocks = [[ClosedRange<CGFloat>]](repeating: [], count: columnGaps.count)
+        for (rowIndex, row) in cells.rows.enumerated() {
+            for cell in row {
+                let lastColumn = cell.column + cell.columnSpan - 1
+                let left = cell.column == 0 ? inside.left : columnStarts[cell.column] - columnGaps[cell.column - 1] / 2
+                let right = lastColumn == columns - 1 ? inside.right : columnEnds[lastColumn] + columnGaps[lastColumn] / 2
+                for boundary in rowIndex..<(rowIndex + cell.rowSpan - 1) {
+                    if left <= right { rowBlocks[boundary].append(left...right) }
+                }
+                let lastRow = rowIndex + cell.rowSpan - 1
+                let upper = rowIndex == 0 ? inside.top : top - baselines[rowIndex] + ascents[rowIndex] + rowGaps[rowIndex - 1] / 2
+                let lower = lastRow == cells.rows.count - 1 ? inside.bottom : top - baselines[lastRow] - descents[lastRow] - rowGaps[lastRow] / 2
+                for boundary in cell.column..<lastColumn {
+                    if lower <= upper { columnBlocks[boundary].append(lower...upper) }
+                }
+            }
+        }
+        // Subtract merged blocked intervals, keeping round caps outside the spanning rectangle.
+        func segments(_ range: ClosedRange<CGFloat>, excluding blocks: [ClosedRange<CGFloat>],
+                      draw: (CGFloat, CGFloat) -> Void) {
+            var cursor = range.lowerBound
+            for block in blocks.sorted(by: { $0.lowerBound < $1.lowerBound }) {
+                let start = max(range.lowerBound, block.lowerBound - stroke / 2)
+                let end = min(range.upperBound, block.upperBound + stroke / 2)
+                guard start <= end else { continue }
+                if start > cursor { draw(cursor, start) }
+                cursor = max(cursor, end)
+            }
+            if cursor < range.upperBound { draw(cursor, range.upperBound) }
+        }
         var lineY = top - frameY
         for index in rowGaps.indices {
             lineY -= ascents[index] + descents[index] + rowGaps[index] / 2
             if let style = pick(rowLines, index), style != "none", hasRoom {
                 let path = style == "dashed" ? dashed : solid, y = min(max(lineY, inside.bottom), inside.top)
-                path.move(to: CGPoint(x: inside.left, y: y)); path.addLine(to: CGPoint(x: inside.right, y: y))
+                segments(inside.left...inside.right, excluding: rowBlocks[index]) { left, right in
+                    path.move(to: CGPoint(x: left, y: y)); path.addLine(to: CGPoint(x: right, y: y))
+                }
             }
             lineY -= rowGaps[index] / 2
         }
@@ -664,7 +904,9 @@ extension LayoutEngine {
             lineX += widths[index] + columnGaps[index] / 2
             if let style = pick(columnLines, index), style != "none", hasRoom {
                 let path = style == "dashed" ? dashed : solid, x = min(max(lineX, inside.left), inside.right)
-                path.move(to: CGPoint(x: x, y: inside.top)); path.addLine(to: CGPoint(x: x, y: inside.bottom))
+                segments(inside.bottom...inside.top, excluding: columnBlocks[index]) { bottom, top in
+                    path.move(to: CGPoint(x: x, y: top)); path.addLine(to: CGPoint(x: x, y: bottom))
+                }
             }
             lineX += columnGaps[index] / 2
         }
@@ -681,6 +923,7 @@ extension LayoutEngine {
         box.width = gridWidth + 2 * frameX + labelWidth
         box.ascent = top
         box.descent = height - top
+        box.tableMinimumWidth = minimum
         return box
     }
 }
