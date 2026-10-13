@@ -67,8 +67,22 @@ final class AlignmentGlyphTests: XCTestCase {
         ] {
             let box = try engine().layout(element("<mtext>\(body)</mtext>"), context, depth: 0)
             let rect = try XCTUnwrap(imageRects(box).first)
-            XCTAssertEqual(try mark(box).x, after ? rect.maxX : rect.minX, accuracy: 0.001)
+            XCTAssertEqual(try mark(box).x, after ? rect.minX : rect.maxX, accuracy: 0.001)
         }
+    }
+
+    func testRTLImageEdgeMarkStaysWithItsAttachmentWhenWordsWrap() throws {
+        var rtl = context
+        rtl.direction = .rightToLeft; rtl.alignmentRTL = true
+        let engine = engine()
+        let box = try engine.layout(element("<mrow><mtext>אב <mglyph src='g' width='23px'/><malignmark edge='right'/> גד</mtext></mrow>"), rtl, depth: 0)
+        let output = Paragraph(box).rows(limit: 0, first: 0, auto: (.left, 0))
+        XCTAssertEqual(output.count, 3)
+        XCTAssertEqual(output.map { imageRects($0.box).count }, [0, 1, 0])
+        XCTAssertEqual(try mark(output[1].box).x, 0, accuracy: 0.001)
+        XCTAssertEqual(output[1].box.alignment.filter { if case .mark = $0.kind { return true }; return false }.count, 1)
+        XCTAssertFalse(output[0].box.alignment.contains { if case .mark = $0.kind { return true }; return false })
+        XCTAssertFalse(output[2].box.alignment.contains { if case .mark = $0.kind { return true }; return false })
     }
 
     func testInlineImageMarkAlignsTableCellsAndRetainsBounds() throws {
@@ -241,14 +255,16 @@ final class AlignmentGlyphTests: XCTestCase {
                 let node = try element("<\(token) lquote='' rquote=''>1<mglyph \(glyph)/><malignmark/>3</\(token)>")
                 let box = try engine.layout(node, rtl, depth: 0)
                 let prefix = try engine.layout(element("<\(token) lquote='' rquote=''>1<mglyph \(glyph)/></\(token)>"), rtl, depth: 0)
-                XCTAssertEqual(try mark(box).x, prefix.width, accuracy: 0.001, token)
+                let expected = token == "mtext" && glyph != "src='missing' alt='WIDE' mathbackground='red'"
+                    ? engine.textBox("3", rtl).width : prefix.width
+                XCTAssertEqual(try mark(box).x, expected, accuracy: 0.001, token)
             }
         }
         let body = "<mtable dir='rtl'><mtr><mtd><maligngroup/><mtext>1<mglyph src='g' width='1em'/><malignmark/>3</mtext></mtd></mtr>"
             + "<mtr><mtd><maligngroup/><mtext>123<mglyph src='g' width='2em'/><malignmark/>4</mtext></mtd></mtr></mtable>"
         let r = imageRects(try engine().layout(element(body), context, depth: 0))
         XCTAssertEqual(r.count, 2)
-        XCTAssertEqual(r[0].maxX, r[1].maxX, accuracy: 0.001)
+        XCTAssertEqual(r[0].minX, r[1].minX, accuracy: 0.001)
     }
 
     func testRTLStretchedOperatorTokenEdgesUseDirectionAndRenderedWidth() throws {

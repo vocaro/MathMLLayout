@@ -27,10 +27,42 @@ struct LogicalTextSlice {
     let range: Range<Int>
 }
 
+/// CoreText owns the delegate, which owns this box until its attributed paragraph is released.
+final class LogicalTextAttachment {
+    let box: MathBox
+    init(_ box: MathBox) { self.box = box }
+
+    static func delegate(_ box: MathBox) -> CTRunDelegate {
+        var callbacks = CTRunDelegateCallbacks(version: kCTRunDelegateVersion1,
+            dealloc: { Unmanaged<LogicalTextAttachment>.fromOpaque($0).release() },
+            getAscent: { Unmanaged<LogicalTextAttachment>.fromOpaque($0).takeUnretainedValue().box.ascent },
+            getDescent: { Unmanaged<LogicalTextAttachment>.fromOpaque($0).takeUnretainedValue().box.descent },
+            getWidth: { Unmanaged<LogicalTextAttachment>.fromOpaque($0).takeUnretainedValue().box.width })
+        let reference = Unmanaged.passRetained(LogicalTextAttachment(box)).toOpaque()
+        return CTRunDelegateCreate(&callbacks, reference)!
+    }
+}
+
+final class LogicalTextDecoration {
+    static let key = "MathMLLogicalTextBackground"
+    let color: CGColor
+    let ascent: CGFloat
+    let descent: CGFloat
+    init(color: CGColor, ascent: CGFloat, descent: CGFloat) {
+        self.color = color; self.ascent = ascent; self.descent = descent
+    }
+}
+
 /// One normalized token, in logical UTF-16 order. A single typesetter resolves paragraph bidi
 /// levels, including controls that begin before a selected line. CoreText creates each line's
 /// visual runs and contextual glyphs from that paragraph's logical range (UAX #9 L1–L4).
 final class LogicalTextSource {
+    let attributedString: CFAttributedString
+    let string: String
+    let hasAttachments: Bool
+    /// A decorated fallback can be expanded back into its surrounding logical paragraph.
+    let decoration: LogicalTextDecoration?
+    private let inputOffsets: [Int]?
     let typesetter: CTTypesetter
     let color: CGColor
     let work: TextShapingWork
@@ -39,8 +71,15 @@ final class LogicalTextSource {
     private let trackAlignment: Bool
     private var alignmentMark: (offset: Int, word: Range<Int>, event: AlignmentEvent)?
     private var boxes: [Range<Int>: MathBox] = [:]
+    private var itemCounts: [Range<Int>: Int] = [:]
 
-    init(_ text: CFAttributedString, color: CGColor, work: TextShapingWork, trackAlignment: Bool = false) {
+    init(_ text: CFAttributedString, color: CGColor, work: TextShapingWork, trackAlignment: Bool = false,
+         hasAttachments: Bool = false, inputOffsets: [Int]? = nil, decoration: LogicalTextDecoration? = nil) {
+        attributedString = text
+        string = CFAttributedStringGetString(text) as String
+        self.hasAttachments = hasAttachments
+        self.inputOffsets = inputOffsets
+        self.decoration = decoration
         typesetter = CTTypesetterCreateWithAttributedString(text)
         self.color = color
         self.work = work
@@ -71,6 +110,39 @@ final class LogicalTextSource {
         } else { spaceWidth = 0 }
     }
 
+    func logicalOffset(_ offset: Int) -> Int {
+        guard let inputOffsets else { return min(max(0, offset), string.utf16.count) }
+        return inputOffsets[min(max(0, offset), inputOffsets.count - 1)]
+    }
+
+    func caret(_ offset: Int) -> CGFloat {
+        work.requestedLine()
+        let line = CTTypesetterCreateLine(typesetter, CFRange(location: 0, length: string.utf16.count))
+        return caret(line, offset: logicalOffset(offset))
+    }
+
+    /// At a bidi boundary CoreText's primary caret can follow the neighbouring text run.
+    /// An attachment mark instead follows its exact logical edge in the drawn object run.
+    private func caret(_ line: CTLine, offset: Int) -> CGFloat {
+        for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
+            let attributes = CTRunGetAttributes(run) as NSDictionary
+            guard attributes[kCTRunDelegateAttributeName] != nil else { continue }
+            let range = CTRunGetStringRange(run)
+            guard offset == range.location || offset == range.location + range.length else { continue }
+            var position = CGPoint.zero
+            CTRunGetPositions(run, CFRange(location: 0, length: 1), &position)
+            let width = CGFloat(CTRunGetTypographicBounds(run, CFRange(), nil, nil, nil))
+            let before = offset == range.location
+            return position.x + ((before == CTRunGetStatus(run).contains(.rightToLeft)) ? width : 0)
+        }
+        return CTLineGetOffsetForStringIndex(line, offset, nil)
+    }
+
+    /// Added wrapper drawing invalidates reshaping; source attachment drawing is eligible.
+    func matchesItemCount(_ count: Int, range: Range<Int>) -> Bool {
+        itemCounts[range] == count
+    }
+
     /// A mark in a separator follows its requested neighbouring word when the separator
     /// is trimmed at a soft break. Choose that word once, rather than scanning on every shape.
     func setAlignmentMark(_ offset: Int, event: AlignmentEvent) {
@@ -97,10 +169,11 @@ final class LogicalTextSource {
         }
         if let mark = alignmentMark, range.lowerBound <= mark.word.lowerBound, range.upperBound >= mark.word.upperBound {
             var event = mark.event
-            event.x = CTLineGetOffsetForStringIndex(line, min(max(mark.offset, range.lowerBound), range.upperBound), nil)
+            event.x = caret(line, offset: min(max(mark.offset, range.lowerBound), range.upperBound))
             box.alignment.append(event)
         }
         boxes[range] = box
+        itemCounts[range] = box.items.count
         return box
     }
 }

@@ -18,6 +18,34 @@ See [Images.swift](examples/Images.swift) for the complete Swift example.
   A 40-by-20-pixel image at scale 2 occupies 20-by-10 points. Alternatively,
   `MathImage(image, logicalSize: CGSize(width: 12, height: 18))` specifies its intrinsic size
   directly, including an aspect ratio different from the pixels.
+- `MathImage` also accepts optional renderer-specific source metadata:
+
+  ```swift
+  MathImage(image, scale: 2, stretchDirection: .horizontal,
+            italicCorrection: 3, topAccentAttachment: 8)
+  ```
+
+  The direction is a hint for a single-image `mo`, with markup and actual operator text taking
+  precedence. It requires the `mo`'s explicit `stretchy="true"`; see [Image operators](image-operators.md).
+  Attachment values are **intrinsic logical points**, after interpreting `scale` or
+  `logicalSize`, never pixels or em units. Italic correction is physical right-side script
+  clearance, added to image advance; top-accent attachment is x from its physical left edge.
+  Each must be finite and between zero and the sanitized intrinsic logical width, inclusive.
+  An invalid value is ignored independently, keeping the image and other valid metadata.
+  Dimension fallback happens before validating these bounds.
+- Metrics scale by rendered-image width divided by intrinsic logical width. Authored height
+  changes and `valign` shifts do not alter x metrics; aspect-preserving width changes, display
+  enlargement and horizontal affine stretching do. RTL placement retains physical x
+  coordinates and right-side clearance. The image and clearance scale down together if their
+  combined advance would exceed the normal extent bound.
+  Source metrics become whole-token metrics only when the complete displayed token content is
+  exactly one resolved image. Mixed text/image tokens and multiple images use zero
+  whole-token correction and the geometric accent center; a source coordinate
+  does not describe an arbitrary compound token. Each source's advance still includes its
+  supplied clearance when composing a mixed token. Missing-image fallbacks receive no image
+  metadata; ordinary fallback text retains its existing font-metric behavior.
+  No image metrics are inferred from pixels, text or
+  `alt`, and no font glyph metrics or corner kerning are fabricated for an image.
 - Explicit `width` and `height` take precedence over the intrinsic size. With one dimension,
   the other preserves the **logical** aspect ratio. Percentages and unitless multiples refer
   to the logical size: `width="50%"` halves both dimensions, while two explicit dimensions

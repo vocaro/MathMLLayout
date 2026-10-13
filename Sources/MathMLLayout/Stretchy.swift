@@ -28,7 +28,7 @@ extension LayoutEngine {
     /// A large operator in display style: the first variant at least `DisplayOperatorMinHeight`
     /// tall (and √2 times the text size, as MathML Core asks), else the largest.
     func displayOperator(_ glyph: CGGlyph, _ context: LayoutContext) -> MathBox? {
-        guard let construction = font.table?.construction(glyph, vertical: true) else { return nil }
+        guard let construction = font.table?.construction(glyph, vertical: true, size: context.fontSize) else { return nil }
         let natural = glyphBox(glyph, context).height
         let minimum = max(value(\.displayOperatorMinHeight, context), natural * 2.squareRoot())
         let variant = construction.variants.first { font.points($0.advance, size: context.fontSize) >= minimum }
@@ -86,7 +86,7 @@ extension LayoutEngine {
             candidates.append(alternate)
         }
         for candidate in candidates {
-            guard font.table?.construction(candidate, vertical: false) != nil else { continue }
+            guard font.table?.construction(candidate, vertical: false, size: context.fontSize) != nil else { continue }
             guard var box = stretchedGlyph(candidate, vertical: false, size: target, context) else { continue }
             // Keep the natural glyph's height: accents are designed to sit where they are. A short
             // arrow is where its long form is, on the axis, and stays there though its head is
@@ -103,7 +103,7 @@ extension LayoutEngine {
     /// The smallest variant at least `size` long, else an assembly of exactly `size`, else
     /// the largest variant; nil when the font has no construction for the glyph.
     func stretchedGlyph(_ glyph: CGGlyph, vertical: Bool, size: CGFloat, _ context: LayoutContext) -> MathBox? {
-        guard let table = font.table, let construction = table.construction(glyph, vertical: vertical) else { return nil }
+        guard let table = font.table, let construction = table.construction(glyph, vertical: vertical, size: context.fontSize) else { return nil }
         if let variant = construction.variants.first(where: { font.points($0.advance, size: context.fontSize) >= size }) {
             return glyphBox(variant.glyph, context)
         }

@@ -130,7 +130,17 @@ separate implementation and review.
 all 56 constants, coverage-keyed italic/accent values, minimum connector overlap, variants,
 assemblies, and glyph IDs. Tests query every glyph, including absent coverage entries.
 Lengths in constants are em units; percentages remain percentages; glyph measurements remain
-font design units. MathKernInfo and device/variation adjustments remain excluded.
+font design units. This static-font oracle does not evaluate MathKernInfo or Device/VariationIndex
+records. Those policies have independent synthetic byte and point-placement expectations in
+`MathKernTests`, `MathAdjustmentTests` and `MathVariationTests`, including a generated variable-font
+fixture for actual CoreText instance selection. The pinned real-font oracle remains a check of
+unadjusted static-font metrics; it does not establish cross-engine variable-font or hinted-pixel
+agreement. The original CC0 fixture can be regenerated with fontTools 4.63.0 using
+`python3 Tools/MathVariation/generate_font.py`; its SHA-256 is
+`b54cfe1902fd9cfe82d7280b0bd4bbd918326c18d07ec04567c7d23a91f1905e`.
+Its invariant rectangular outline and independent MATH/GDEF records establish a 4-point axis
+at the default and a 10-point axis at weight 650 (20-point font size), after `avar` remaps the
+normalized weight 0.5 to 0.75.
 
 The MATH table hash must match the installed font. A mismatch is an explicit skip, never a
 substitution of another font's metrics. To run against an updated installed font, independently

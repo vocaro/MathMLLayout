@@ -1124,15 +1124,13 @@ final class LineBreakingTests: MathTestCase {
     func testWhatIsNotARowIsOneUnit() throws {
         let inner = sum(Array(names.prefix(4)))
         let natural = try width(inner)
-        // Nondefault padding and under/over annotations keep their geometry atomic.
+        // Fractions, radicals and tables retain their own internal layout as one host unit.
         for body in [
-            "<mpadded width=\"+1em\">\(inner)</mpadded>",
-            "<munder><mrow>\(inner)</mrow><mo>⏟</mo></munder>", "<mover><mrow>\(inner)</mrow><mo>¯</mo></mover>",
+            "<mfrac><mi>a</mi><mi>b</mi></mfrac>",
+            "<msqrt>\(inner)</msqrt>",
+            "<mtable><mtr><mtd><mi>a</mi></mtd></mtr></mtable>",
         ] {
-            let layout = try broken(mi("x") + mo("=") + body + mo("+") + mi("y"), width: 0)
-            XCTAssertEqual(layout.rows.count, 3, body)
-            XCTAssertGreaterThanOrEqual(layout.rows[1].width, natural, body)
-            XCTAssertGreaterThanOrEqual(layout.widestUnbreakableWidth, natural, body)
+            XCTAssertEqual(try broken(body, width: 0).rows.count, 1, body)
         }
         let phantom = try broken("<mphantom>\(inner)</mphantom>", width: 0)
         XCTAssertEqual(phantom.rows.count, 4)
@@ -1222,31 +1220,38 @@ final class LineBreakingTests: MathTestCase {
         XCTAssertNotNil(ink(background.rows[0], .blue))
     }
 
-    func testErrorAndBackgroundWrapInsideOneIntactDecoration() throws {
-        let contents = sum(Array(names.prefix(4)))
+    func testErrorAndBackgroundFragmentOntoHostRows() throws {
         let forcedContents = mi("f") + mo("+", "linebreak=\"newline\"") + mi("j")
         for wrapper in ["merror", "mrow mathbackground=\"blue\""] {
             let closing = wrapper == "merror" ? "merror" : "mrow"
-            let natural = try broken("<\(wrapper)>\(contents)</\(closing)>")
-            let narrow = try broken("<\(wrapper)>\(contents)</\(closing)>", width: 130)
-            XCTAssertEqual(narrow.rows.count, 1, "the decorated stack is one host row")
-            XCTAssertLessThanOrEqual(narrow.width, 130.001)
-            XCTAssertGreaterThan(narrow.ascent + narrow.descent, natural.ascent + natural.descent)
-            let bounds = try XCTUnwrap(ink(narrow.rows[0]))
-            XCTAssertGreaterThanOrEqual(bounds.minX, -0.5)
-            XCTAssertLessThanOrEqual(bounds.maxX, narrow.width + 0.5)
-            XCTAssertGreaterThanOrEqual(bounds.minY, -narrow.descent - 0.5)
-            XCTAssertLessThanOrEqual(bounds.maxY, narrow.ascent + 0.5)
             let forced = try broken("<\(wrapper)>\(forcedContents)</\(closing)>")
-            let inline = try broken(forcedContents)
-            XCTAssertEqual(forced.rows.count, 1)
-            XCTAssertGreaterThanOrEqual(forced.ascent + forced.descent, inline.ascent + inline.descent)
-            XCTAssertNotNil(ink(forced.rows[0], wrapper == "merror" ? .red : .blue))
+            XCTAssertEqual(forced.rows.count, 2)
+            for row in forced.rows {
+                XCTAssertNotNil(ink(row, wrapper == "merror" ? .red : .blue))
+                let bounds = try XCTUnwrap(ink(row))
+                XCTAssertGreaterThanOrEqual(bounds.minX, -0.5)
+                XCTAssertLessThanOrEqual(bounds.maxX, row.width + 0.5)
+                XCTAssertGreaterThanOrEqual(bounds.minY, -row.descent - 0.5)
+                XCTAssertLessThanOrEqual(bounds.maxY, row.ascent + 0.5)
+            }
+            // Neighbours remain on the same two host rows, outside the wrapper's drawing.
+            let hosted = try broken(mi("before") + "<\(wrapper)>\(forcedContents)</\(closing)>" + mi("after"))
+            XCTAssertEqual(hosted.rows.count, 2)
+            XCTAssertGreaterThan(hosted.rows[0].width, forced.rows[0].width)
+            XCTAssertGreaterThan(hosted.rows[1].width, forced.rows[1].width)
+            if wrapper != "merror" {
+                let left = try XCTUnwrap(ink(hosted.rows[0], .blue))
+                let right = try XCTUnwrap(ink(hosted.rows[1], .blue))
+                XCTAssertGreaterThan(left.minX, 10)
+                XCTAssertLessThan(right.maxX, hosted.rows[1].width - 10)
+            }
         }
         let nested = try broken("<mrow mathbackground=\"blue\"><merror><mpadded>\(forcedContents)</mpadded></merror></mrow>")
-        XCTAssertEqual(nested.rows.count, 1)
-        XCTAssertNotNil(ink(nested.rows[0], .red))
-        XCTAssertNotNil(ink(nested.rows[0], .blue))
+        XCTAssertEqual(nested.rows.count, 2)
+        for row in nested.rows {
+            XCTAssertNotNil(ink(row, .red))
+            XCTAssertNotNil(ink(row, .blue))
+        }
     }
 
     func testNestedWrapperRetriesStayWithinBudgetAndReproduceReportedWidth() throws {
@@ -1280,20 +1285,78 @@ final class LineBreakingTests: MathTestCase {
         }
     }
 
-    func testExplicitPaddingAndUnderOverRemainAtomicAtForcedBreaks() throws {
+    func testExplicitPaddingResolvesMetricsOnEachFragment() throws {
         let contents = mi("a") + mo("+", "linebreak=\"newline\"") + mi("b")
-        for wrapper in ["width=\"+0em\"", "lspace=\"1em\"", "height=\"200%\"", "voffset=\"-0.5em\""] {
-            XCTAssertEqual(try broken("<mpadded \(wrapper)>\(contents)</mpadded>", width: 0).rows.count, 1)
+        for attribute in ["width=\"+1em\"", "lspace=\"1em\"", "height=\"200%\"", "voffset=\"-0.5em\""] {
+            let padded = try broken("<mpadded \(attribute)>\(contents)</mpadded>")
+            XCTAssertEqual(padded.rows.count, 2, attribute)
+            let expectedFirst = try broken("<mpadded \(attribute)>" + mi("a") + "</mpadded>")
+            let expectedSecond = try broken("<mpadded \(attribute)>" + mo("+", "form=\"infix\"") + mi("b") + "</mpadded>")
+            XCTAssertEqual(padded.rows[0].width, expectedFirst.width, accuracy: 0.01, attribute)
+            XCTAssertEqual(padded.rows[0].ascent, expectedFirst.ascent, accuracy: 0.01, attribute)
+            XCTAssertEqual(padded.rows[0].descent, expectedFirst.descent, accuracy: 0.01, attribute)
+            XCTAssertGreaterThan(padded.rows[1].width, 0)
+            XCTAssertGreaterThan(expectedSecond.width, 0)
         }
+    }
+
+    func testPaddedTextFragmentPseudoUnitsAndOffsets() throws {
+        for direction in ["ltr", "rtl"] {
+            let attributes = "width=\"+1em\" lspace=\"50%\" height=\"200%\" voffset=\"0.25em\""
+            let body = "<mpadded \(attributes)><mtext>alpha beta</mtext></mpadded>"
+            var root = try node(body)
+            root.attributes["dir"] = direction
+            let result = try MathLayout(root, style: MathStyle(fontSize: em, color: black), maximumWidth: 90)
+            XCTAssertEqual(result.rows.count, 2, direction)
+            for (index, word) in ["alpha", "beta"].enumerated() {
+                let expected = try broken("<mstyle dir=\"\(direction)\"><mpadded \(attributes)><mtext>\(word)</mtext></mpadded></mstyle>")
+                XCTAssertEqual(result.rows[index].width, expected.width, accuracy: 0.01, direction)
+                XCTAssertEqual(result.rows[index].ascent, expected.ascent, accuracy: 0.01, direction)
+                XCTAssertEqual(result.rows[index].descent, expected.descent, accuracy: 0.01, direction)
+            }
+        }
+    }
+
+    func testWrapperRecipesOutliveTheirSourceEngine() throws {
         for body in [
-            "<munder><mrow>\(contents)</mrow><mo>⏟</mo></munder>",
-            "<mover><mrow>\(contents)</mrow><mo>¯</mo></mover>",
-            "<munderover><mrow>\(contents)</mrow><mi>lower</mi><mi>upper</mi></munderover>",
+            "<merror><mtext>alpha beta gamma</mtext></merror>",
+            "<mpadded width=\"+1em\" lspace=\"0.5em\"><mtext>alpha beta gamma</mtext></mpadded>",
+            "<mtext mathbackground=\"blue\">alpha beta gamma</mtext>",
+            "<mover><mtext>alpha beta gamma</mtext><mo>¯</mo></mover>",
         ] {
-            let natural = try broken(body)
-            let narrow = try broken(body, width: 0)
-            XCTAssertEqual(narrow.rows.count, 1)
-            XCTAssertEqual(ink(narrow), ink(natural))
+            var engine: LayoutEngine? = LayoutEngine(fontName: nil)
+            weak var source = engine
+            let retained = try engine!.layoutRoot(node(body), style: MathStyle(fontSize: em, color: black))
+            let before = Paragraph(retained).rows(limit: 80, first: 80, auto: (.left, 0))
+            engine = nil
+            withExtendedLifetime(retained) { XCTAssertNil(source, body) }
+            let after = Paragraph(retained).rows(limit: 80, first: 80, auto: (.left, 0))
+            XCTAssertGreaterThan(after.count, 1, body)
+            XCTAssertEqual(after.map { $0.box.width }, before.map { $0.box.width }, body)
+            XCTAssertEqual(after.map { $0.box.inkBounds }, before.map { $0.box.inkBounds }, body)
+        }
+    }
+
+    func testTextBackgroundFragmentsPreserveSoftWrapWords() throws {
+        let plain = try broken("<mtext>alpha beta gamma</mtext>", width: 80)
+        let decorated = try broken("<mtext mathbackground=\"blue\">alpha beta gamma</mtext>", width: 80)
+        assertWidths(decorated, plain.rows.map(\.width))
+        for row in decorated.rows { XCTAssertNotNil(ink(row, .blue)) }
+    }
+
+    func testUnderOverAnnotationsFollowEachBaseFragment() throws {
+        let contents = mi("a") + mo("+", "linebreak=\"newline\"") + mi("b")
+        for body in [
+            "<munder><mrow>\(contents)</mrow><mo mathcolor=\"red\">⏟</mo></munder>",
+            "<mover><mrow>\(contents)</mrow><mo mathcolor=\"red\">¯</mo></mover>",
+            "<munderover><mrow>\(contents)</mrow><mi mathcolor=\"red\">lower</mi><mi mathcolor=\"blue\">upper</mi></munderover>",
+        ] {
+            let result = try broken(body)
+            XCTAssertEqual(result.rows.count, 2)
+            for row in result.rows { XCTAssertNotNil(ink(row, .red)) }
+            if body.hasPrefix("<munderover>") {
+                for row in result.rows { XCTAssertNotNil(ink(row, .blue)) }
+            }
         }
     }
 

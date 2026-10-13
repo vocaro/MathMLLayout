@@ -52,7 +52,7 @@ def decode(path):
             'accents': values(info.MathTopAccentAttachment, 'TopAccentCoverage', 'TopAccentAttachment'),
             'minConnectorOverlap': variants.MinConnectorOverlap,
             'vertical': constructions('Vert'), 'horizontal': constructions('Horiz'),
-            'exclusions': ['MathKernInfo and device/variation adjustments are not decoded by MathMLLayout.']}
+            'exclusions': ['This static-font oracle excludes MathKernInfo and Device/VariationIndex evaluation; synthetic tests cover the supported layout adjustment policies.']}
 
 
 if __name__ == '__main__':

@@ -9,10 +9,26 @@ scale or reposition image tokens.
 
 An explicit `stretchy="true"` on the `mo` opts into MathMLLayout's affine geometry extension.
 [MathML 3 §3.2.5.8](https://www.w3.org/TR/MathML3/chapter3.html#presm.mo.stretch) leaves reasonable
-stretch directions to the renderer. We use the direction of the operator's surrounding text:
-a single recognized horizontal arrow/accent character stretches horizontally in under/over
-structures; other text and image-only operators stretch vertically to row siblings. `alt` does
-not name an operator or choose a direction. To make an image-only horizontal arrow, include arrow text in the token.
+stretch directions to the renderer. The renderer-specific `imagestretchdirection="horizontal"`
+or `"vertical"` attribute on the core `mo` chooses the whole token's axis. Invalid values are
+ignored. This attribute is not inherited from `mstyle` or a wrapper; put it on the `mo`.
+Without it, actual operator text determines direction: a recognized horizontal arrow/accent
+character stretches horizontally; other nonempty text stretches vertically. An image-only
+token with exactly one `mglyph` can instead use its host-supplied `MathImage.stretchDirection`.
+Without a hint, or with multiple image children, the direction is vertical. `alt` does not name
+an operator or choose a direction. Direction never enables geometry by itself: the core `mo`
+still needs explicit `stretchy="true"`, and display enlargement still needs explicit
+`largeop="true"`. These opt-ins are not inherited either; inherited `displaystyle`, `mathsize`
+and script style continue to control layout normally.
+
+For an image-only labelled arrow, no visible operator text is necessary:
+
+```xml
+<mover>
+  <mo stretchy="true" imagestretchdirection="horizontal"><mglyph src="arrow" alt="maps to"/></mo>
+  <mtext>label</mtext>
+</mover>
+```
 
 The complete token stretches along that axis, including every image, surrounding text and image
 background. Vertical stretching covers sibling height/depth exactly; `symmetric` uses the
@@ -22,6 +38,8 @@ stretching retains the token baseline. The default minimum is the complete autho
 `minsize` and `maxsize` resolve relative values against that size, before any display enlargement.
 Explicit bounds can shrink the token below its author size when `minsize` allows it. A negative
 minimum is zero, and minimum wins when bounds conflict. Output remains subject to layout bounds.
+If a subnormal intrinsic size would require a nonfinite affine factor, its author-sized
+geometry is retained rather than creating nonfinite coordinates.
 
 An explicit `largeop="true"` opts into display enlargement: the whole token scales uniformly to
 at least √2 times its author height and the font's DisplayOperatorMinHeight, then centers on the
@@ -40,10 +58,17 @@ forms and children falling back to `alt`; resolution does not change attribute s
 retain author dimensions, scale differently, or ignore image operator geometry. Authors requiring
 portable exact dimensions should use explicit false attributes.
 
-No image is treated as a font construction. Neither italic correction nor top-accent attachment
-is inferred from an image or from neighboring text. Limits and accents use the complete token's
-width and geometric center. Image-only horizontal direction cannot currently be requested
-without adding text. In elementary-math numbers, each resolved `mglyph` or its fallback occupies
-one numeric column; see [Images](images.md).
+No image is treated as a font construction. Optional host-supplied `MathImage.italicCorrection`
+and `topAccentAttachment` provide genuine source metrics in intrinsic logical points; see
+[Images](images.md) for bounds and composition rules. A token consisting of exactly one
+resolved image preserves those metrics. They scale along x through authored image sizing,
+uniform display enlargement and whole-token affine stretching; vertical scaling and baseline
+shifts do not alter horizontal coordinates. Eligible scripts use italic clearance, limits use
+half the correction on each side, and accents align the physical attachment coordinates.
+RTL changes placement without mirroring the image, its physical right clearance or its
+attachment coordinate. Mixed text/image and multiple-image tokens have no whole-token
+attachment metrics: limits and accents retain geometric placement. Neither pixels,
+neighboring text nor `alt` supplies inferred metrics. In elementary-math numbers, each resolved
+`mglyph` or its fallback occupies one numeric column; see [Images](images.md).
 
 [Documentation index](../README.md#documentation)

@@ -1,10 +1,83 @@
 import CoreGraphics
 import CoreText
 
+/// Persistent placed ID metadata. Balanced joins bound construction and ARC teardown depth;
+/// walking is iterative, so nested wrappers and wide rows do not copy descendant arrays.
+final class IndentAnchors {
+    enum Entry {
+        case id(String, CGPoint)
+        case placed(IndentAnchors, CGPoint)
+        case joined(IndentAnchors, IndentAnchors)
+    }
+    let entry: Entry
+    private let height: Int
+    init(_ entry: Entry) {
+        self.entry = entry
+        if case .joined(let left, let right) = entry { height = 1 + max(left.height, right.height) }
+        else { height = 1 }
+    }
+
+    static func joining(_ left: IndentAnchors, _ right: IndentAnchors) -> IndentAnchors {
+        if left.height > right.height + 1, case .joined(let a, let b) = left.entry {
+            let next = joining(b, right)
+            if a.height >= next.height - 1 { return IndentAnchors(.joined(a, next)) }
+            if case .joined(let c, let d) = next.entry {
+                return IndentAnchors(.joined(IndentAnchors(.joined(a, c)), d))
+            }
+        }
+        if right.height > left.height + 1, case .joined(let a, let b) = right.entry {
+            let next = joining(left, a)
+            if b.height >= next.height - 1 { return IndentAnchors(.joined(next, b)) }
+            if case .joined(let c, let d) = next.entry {
+                return IndentAnchors(.joined(c, IndentAnchors(.joined(d, b))))
+            }
+        }
+        return IndentAnchors(.joined(left, right))
+    }
+
+    func forEach(_ body: (String, CGPoint) -> Void) {
+        var pending: [(IndentAnchors, CGPoint)] = [(self, .zero)]
+        while let (tree, origin) = pending.popLast() {
+            switch tree.entry {
+            case .id(let id, let point): body(id, CGPoint(x: origin.x + point.x, y: origin.y + point.y))
+            case .placed(let child, let point):
+                pending.append((child, CGPoint(x: origin.x + point.x, y: origin.y + point.y)))
+            case .joined(let left, let right):
+                pending.append((right, origin)); pending.append((left, origin))
+            }
+        }
+    }
+}
+
 /// A laid-out box: an advance `width` and its extents above (`ascent`) and below (`descent`)
 /// the baseline, with what it draws relative to its baseline origin, y up. Extents follow the
 /// ink of glyphs, so either may be negative (an accent floats above the baseline).
 struct MathBox {
+    /// IDs of eligible placed descendants, including independently wrapped paragraphs.
+    var indentAnchors: IndentAnchors? {
+        get { metadata?.values.indentAnchors }
+        set {
+            if newValue == nil, metadata?.values.indentAnchors == nil { return }
+            makeMetadataUnique()
+            metadata!.values.indentAnchors = newValue
+        }
+    }
+
+    /// Transparent selection wrappers may give several source IDs to the same local origin.
+    var localIndentIDs: [String] {
+        get { metadata?.values.localIndentIDs ?? [] }
+        set {
+            if newValue.isEmpty, metadata?.values.localIndentIDs.isEmpty != false { return }
+            makeMetadataUnique()
+            metadata!.values.localIndentIDs = newValue
+        }
+    }
+
+    mutating func retainIndentAnchor(_ id: String, at point: CGPoint = .zero) {
+        guard !id.isEmpty else { return }
+        let anchor = IndentAnchors(.id(id, point))
+        indentAnchors = indentAnchors.map { IndentAnchors.joining($0, anchor) } ?? anchor
+    }
     var width: CGFloat = 0
     var ascent: CGFloat = 0
     var descent: CGFloat = 0
@@ -49,6 +122,8 @@ struct MathBox {
     /// Decorations and structural edits invalidate the plain token shape, as they invalidate
     /// a breakable row's item count. Replacing such a box by reshaped text would lose its drawing.
     var logicalTextSlice: LogicalTextSlice? {
+        if let slice = textSlice, slice.source.hasAttachments,
+           slice.source.matchesItemCount(items.count, range: slice.range) { return slice }
         guard !items.isEmpty, items.allSatisfy({ if case .glyphs = $0 { return true }; return false }) else { return nil }
         return textSlice
     }
@@ -118,6 +193,8 @@ struct MathBox {
     // Row and text metadata can be large values. Keep it off recursive layout frames,
     // allocating only for boxes that use it; copied boxes retain independent mutation.
     private struct MetadataValues {
+        var indentAnchors: IndentAnchors? = nil
+        var localIndentIDs: [String] = []
         var topAccentAttachment: CGFloat? = nil
         var op: OperatorProperties? = nil
         var row: BreakableRow? = nil
@@ -157,6 +234,10 @@ struct MathBox {
     /// Adds `box` with its baseline origin at `point`. Its extents are not merged: callers set
     /// their own metrics.
     mutating func add(_ box: MathBox, at point: CGPoint) {
+        if let anchors = box.indentAnchors {
+            let placed = IndentAnchors(.placed(anchors, point))
+            indentAnchors = indentAnchors.map { IndentAnchors.joining($0, placed) } ?? placed
+        }
         let index = items.count
         if !box.alignment.isEmpty {
             alignment.append(contentsOf: box.alignment.map { event in

@@ -224,6 +224,7 @@ final class FenceLayout {
     let imageProvider: MathImageProvider?
     private let imageCacheStorage: LayoutImageCache
     let textWork: TextShapingWork
+    private let tableRebuildBudget: TableRebuildBudget
     let lineWidth: CGFloat
     let wrapWidth: CGFloat
     let wrapParts: Range<Int>
@@ -238,6 +239,7 @@ final class FenceLayout {
         self.node = node; self.context = context; self.form = form
         font = engine.font; imageProvider = engine.imageProvider; imageCacheStorage = engine.imageCacheStorage
         textWork = engine.textWork
+        tableRebuildBudget = engine.tableMeasurements.rebuildBudget
         self.lineWidth = lineWidth; self.wrapWidth = wrapWidth
         self.wrapParts = wrapParts; self.wrapOverrides = wrapOverrides
         self.isCoreGeometry = isCoreGeometry
@@ -248,6 +250,8 @@ final class FenceLayout {
         fresh.imageProvider = imageProvider
         fresh.imageCacheStorage = imageCacheStorage
         fresh.textWork = textWork
+        fresh.tableMeasurements = TableMeasurements(rebuildBudget: tableRebuildBudget)
+        fresh.isFragmentRebuild = true
         fresh.lineWidth = lineWidth
         fresh.wrapWidth = wrapWidth
         // A wrapping retry's part indices are relative to the complete formula; the rebuilt
@@ -288,13 +292,15 @@ final class LayoutEngine {
     let constants: MathConstants
     let legacyGlyphFonts = LegacyGlyphFonts()
     private var nodeCount = 0
+    fileprivate var isFragmentRebuild = false
     var visitedNodes: Int { nodeCount }
     var alignmentSequence = 0
     private var textLength = 0
     var textWork = TextShapingWork()
     private var tableWork = 0
     var remainingTableWork: Int {
-        min(MathLimits.tableWork - tableWork, isCellRebuild ? MathLimits.tableWork - tableMeasurements.rebuildTableWork : MathLimits.tableWork)
+        min(MathLimits.tableWork - tableWork,
+            isCellRebuild || isFragmentRebuild ? MathLimits.tableWork - tableMeasurements.rebuildTableWork : MathLimits.tableWork)
     }
     /// `MathLimits.stackFloor` of the thread that lays out, found as the root starts.
     private var stackFloor: UInt = 0
@@ -309,8 +315,8 @@ final class LayoutEngine {
         _modify { yield &imageCacheStorage.values }
     }
 
-    init(fontName: String?) {
-        font = MathFont.named(fontName)
+    init(fontName: String?, variations: [UInt32: CGFloat] = [:], deviceScale: CGFloat? = nil) {
+        font = MathFont.named(fontName, variations: variations, deviceScale: deviceScale)
         constants = font.constants
     }
 
@@ -343,7 +349,7 @@ final class LayoutEngine {
     // MARK: Context
 
     func value(_ constant: KeyPath<MathConstants, CGFloat>, _ context: LayoutContext) -> CGFloat {
-        constants[keyPath: constant] * context.fontSize
+        font.constants(size: context.fontSize)[keyPath: constant] * context.fontSize
     }
 
     func ctFont(_ context: LayoutContext) -> CTFont { font.font(size: context.fontSize, scriptLevel: context.scriptLevel) }
@@ -482,7 +488,7 @@ final class LayoutEngine {
     /// Charges grid searches and label spans to the same budget across nested and sibling tables.
     func countTableWork(_ count: Int) throws {
         tableWork += count
-        if isCellRebuild {
+        if isCellRebuild || isFragmentRebuild {
             tableMeasurements.rebuildTableWork += count
             guard tableMeasurements.rebuildTableWork <= MathLimits.tableWork else { throw MathLayoutError.limitExceeded }
         }
@@ -492,6 +498,7 @@ final class LayoutEngine {
     /// Elements visited without a box still count toward the formula's node bound.
     func countNodes(_ count: Int = 1) throws {
         nodeCount += count
+        if isFragmentRebuild, !textWork.consume(count) { throw MathLayoutError.limitExceeded }
         try countCellRebuildNodes(count)
         guard nodeCount <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
     }
@@ -499,7 +506,7 @@ final class LayoutEngine {
     /// Cached tables still scan retained cell paragraphs. Charge their original descendant
     /// count too, rather than letting a cache hit bypass the shared wrapping work budget.
     func countCellRebuildNodes(_ count: Int) throws {
-        guard isCellRebuild else { return }
+        guard isCellRebuild || isFragmentRebuild else { return }
         tableMeasurements.rebuildNodes += count
         guard tableMeasurements.rebuildNodes <= Self.maximumCellRebuildNodes else {
             throw MathLayoutError.limitExceeded
@@ -852,18 +859,30 @@ final class LayoutEngine {
         finishAlignment(&box, node: node, outer: outer, context: context)
         if node.name != "maligngroup", node.name != "malignmark",
            node.attributes["mathbackground"].flatMap(MathColor.parse) != nil {
-            // A background encloses one stack, including gaps between its lines. It is never
-            // discarded by flattening, nor painted on unrelated neighbours.
-            box = wrapped(box, beside: 0, align: .left) ?? box
+            // Token words must be exposed before decoration is added, since reshaping a
+            // decorated token as plain glyphs would discard its background.
+            if node.name == "mtext", box.row == nil {
+                var wordContext = context
+                wordContext.alignmentRTL = outer.alignmentRTL
+                box.row = words(box, wordContext)
+            }
+            // Backgrounds follow the wrapper's content onto each host row.
+            let content = box
             if box.isPhantom {
                 let hidden = box
                 box.isPhantom = false
                 box.items = []
                 box.alignment = []
+                box.indentAnchors = nil
                 box.add(hidden, at: .zero)
             }
-            box.row = box.row.map { BreakableRow(opaque: $0) }
             background(&box, node: node)
+            let rebuildEngine = fragmentRebuildEngine()
+            retainWrapperFragments(&box, content: content, leading: 0, context: context) { fragment in
+                var decorated = fragment
+                rebuildEngine.background(&decorated, node: node)
+                return decorated
+            }
         }
         if box.op?.has(.fence) == true, case .vertical = embellishment.stretch,
            isStretchy(node, form: embellishment.form, horizontal: false) {
@@ -872,6 +891,15 @@ final class LayoutEngine {
             box.fenceLayout = FenceLayout(node: node, context: outer, form: embellishment.form, engine: self,
                                           lineWidth: lineWidth, wrapWidth: wrapWidth, wrapParts: wrapStart..<wrapParts.count,
                                           wrapOverrides: wrapOverrides, isCoreGeometry: isCoreGeometry)
+        }
+        // Structural argument frames do not share the receiving paragraph's indentation
+        // frame. Rows, decorated wrappers and script bases do retain placed descendants.
+        if ["mfrac", "msqrt", "mroot", "mtable", "mtr", "mlabeledtr", "mtd", "munder", "mover", "munderover", "mstack", "mlongdiv"].contains(node.name) {
+            box.indentAnchors = nil
+        }
+        if let id = node.attributes["id"], !id.isEmpty {
+            box.retainIndentAnchor(id)
+            box.localIndentIDs.append(id)
         }
         return box
     }
@@ -899,7 +927,22 @@ final class LayoutEngine {
     /// rebuild starts from its measured cells, so nesting does not remeasure descendants.
     var tableMeasurements = TableMeasurements()
 
-    func relayoutCell(_ source: TableCellSource, width: CGFloat) throws -> MathBox {
+    /// Wrapper recipes retain immutable resources and a shared work budget, while owning
+    /// their own rebuild engine. They never retain measured cells from the source engine.
+    func fragmentRebuildEngine() -> LayoutEngine {
+        let fresh = LayoutEngine(font: font)
+        fresh.imageProvider = imageProvider
+        fresh.imageCacheStorage = imageCacheStorage
+        fresh.textWork = textWork
+        fresh.lineWidth = lineWidth
+        fresh.wrapWidth = wrapWidth
+        fresh.tableMeasurements = TableMeasurements(rebuildBudget: tableMeasurements.rebuildBudget)
+        fresh.isFragmentRebuild = true
+        fresh.stackFloor = stackFloor == 0 ? MathLimits.stackFloor() : stackFloor
+        return fresh
+    }
+
+    func relayoutCell(_ source: TableCellSource, width: CGFloat, embellishment: Embellishment = .none) throws -> MathBox {
         let fresh = LayoutEngine(font: font)
         fresh.imageProvider = imageProvider
         fresh.imageCacheStorage = imageCacheStorage
@@ -909,7 +952,7 @@ final class LayoutEngine {
         fresh.tableMeasurements = tableMeasurements
         fresh.isCellRebuild = true
         fresh.stackFloor = stackFloor == 0 ? MathLimits.stackFloor() : stackFloor
-        return try fresh.layout(source.node, source.context, depth: source.depth)
+        return try fresh.layout(source.node, source.context, embellishment, depth: source.depth)
     }
     private(set) var isCellRebuild = false
 
@@ -1110,7 +1153,8 @@ final class LayoutEngine {
         let isBinary = entry.lspace == 4 && entry.rspace == 4
             && core.attributes["lspace"] == nil && core.attributes["rspace"] == nil
         return OperatorProperties(form: form, lspace: lspace, rspace: rspace, flags: flags,
-                                  isHorizontal: OperatorDictionary.isHorizontal(text), isBinary: isBinary,
+                                  isHorizontal: imageOperatorDirection(core).map { $0 == .horizontal }
+                                      ?? OperatorDictionary.isHorizontal(text), isBinary: isBinary,
                                   isMarkedInfix: explicitForm(core) == .infix,
                                   dictionarySpacing: (entry.lspace, entry.rspace), ownSpacing: (ownLspace != nil, ownRspace != nil),
                                   breakPoint: BreakPoint(operator: text, entry, form: form, flags: flags, context.lines))
@@ -1121,7 +1165,8 @@ final class LayoutEngine {
         // Dictionary geometry cannot override the author's image size; explicit true opts in.
         if Self.hasGlyph(core), core.attributes.flag("stretchy") != true { return false }
         return operatorFlags(core, form: form).contains(.stretchy)
-            && OperatorDictionary.isHorizontal(operatorText(core)) == horizontal
+            && (imageOperatorDirection(core).map { $0 == .horizontal }
+                ?? OperatorDictionary.isHorizontal(operatorText(core))) == horizontal
     }
 
     func isHorizontallyStretchy(_ node: MathMLNode) -> Bool { isStretchy(node, form: nil, horizontal: true) }
@@ -1378,11 +1423,11 @@ final class LayoutEngine {
         }
         if let glyph = singleGlyph(box), let table = font.table {
             let size = context.fontSize
-            if node.name == "mi", let correction = table.italicsCorrection(glyph) {
+            if node.name == "mi", let correction = table.italicsCorrection(glyph, size: size) {
                 box.italicCorrection = max(0, font.points(correction, size: size))
                 box.width += box.italicCorrection
             }
-            box.topAccentAttachment = table.topAccentAttachment(glyph).map { font.points($0, size: size) }
+            box.topAccentAttachment = table.topAccentAttachment(glyph, size: size).map { font.points($0, size: size) }
         }
         try tokenAlignment(&box, node: node, text: text, markOffset: markOffset, context: context)
         return box
@@ -1430,14 +1475,29 @@ final class LayoutEngine {
     static func shapedTextBox(_ line: CTLine, color: CGColor) -> MathBox {
         var box = MathBox(width: CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)))
         var ink: CGRect?
+        var attachmentMetrics: (ascent: CGFloat, descent: CGFloat)?
         for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
             let count = CTRunGetGlyphCount(run)
             guard count > 0 else { continue }
+            let runAttributes = CTRunGetAttributes(run) as NSDictionary
+            if let delegate = runAttributes[kCTRunDelegateAttributeName] {
+                let delegate = delegate as! CTRunDelegate
+                let attachment = Unmanaged<LogicalTextAttachment>.fromOpaque(CTRunDelegateGetRefCon(delegate)).takeUnretainedValue().box
+                var position = CGPoint.zero
+                CTRunGetPositions(run, CFRange(location: 0, length: 1), &position)
+                box.add(attachment, at: position)
+                if let bounds = attachment.inkBounds?.offsetBy(dx: position.x, dy: position.y) {
+                    ink = ink.map { $0.union(bounds) } ?? bounds
+                }
+                let ascent = attachment.ascent + position.y, descent = attachment.descent - position.y
+                attachmentMetrics = (max(attachmentMetrics?.ascent ?? ascent, ascent),
+                                     max(attachmentMetrics?.descent ?? descent, descent))
+                continue
+            }
             var glyphs = [CGGlyph](repeating: 0, count: count)
             var positions = [CGPoint](repeating: .zero, count: count)
             CTRunGetGlyphs(run, CFRange(), &glyphs)
             CTRunGetPositions(run, CFRange(), &positions)
-            let runAttributes = CTRunGetAttributes(run) as NSDictionary
             let runFont = runAttributes[kCTFontAttributeName] as! CTFont
             var rects = [CGRect](repeating: .zero, count: count)
             CTFontGetBoundingRectsForGlyphs(runFont, .horizontal, glyphs, &rects, count)
@@ -1447,11 +1507,22 @@ final class LayoutEngine {
                 runInk = runInk.map { $0.union(placed) } ?? placed
             }
             if let runInk { ink = ink.map { $0.union(runInk) } ?? runInk }
+            if let decoration = runAttributes[LogicalTextDecoration.key] as? LogicalTextDecoration {
+                let x = positions.map(\.x).min() ?? 0
+                let width = CGFloat(CTRunGetTypographicBounds(run, CFRange(), nil, nil, nil))
+                let fill = CGRect(x: x, y: -decoration.descent, width: width, height: decoration.ascent + decoration.descent)
+                box.items.append(.rect(fill, decoration.color))
+                ink = ink.map { $0.union(fill) } ?? fill
+            }
             box.items.append(.glyphs(GlyphRun(font: runFont, glyphs: glyphs, positions: positions,
                                               color: color, ink: runInk ?? .null)))
         }
-        box.ascent = ink?.maxY ?? 0
-        box.descent = ink.map { -$0.minY } ?? 0
+        box.ascent = ink?.maxY ?? attachmentMetrics?.ascent ?? 0
+        box.descent = ink.map { -$0.minY } ?? attachmentMetrics?.descent ?? 0
+        if let attachmentMetrics {
+            box.ascent = max(box.ascent, attachmentMetrics.ascent)
+            box.descent = max(box.descent, attachmentMetrics.descent)
+        }
         return box
     }
 
@@ -1470,12 +1541,12 @@ final class LayoutEngine {
         var rect = CGRect.zero, advance = CGSize.zero
         CTFontGetBoundingRectsForGlyphs(ctFont, .horizontal, &glyph, &rect, 1)
         CTFontGetAdvancesForGlyphs(ctFont, .horizontal, &glyph, &advance, 1)
-        let italic = font.table?.italicsCorrection(glyph).map { max(0, font.points($0, size: context.fontSize)) } ?? 0
+        let italic = font.table?.italicsCorrection(glyph, size: context.fontSize).map { max(0, font.points($0, size: context.fontSize)) } ?? 0
         let shift = advance.width <= 0 && !rect.isEmpty ? -rect.minX : 0
         var box = MathBox(width: advance.width <= 0 ? rect.width : advance.width + italic,
                           ascent: rect.isEmpty ? 0 : rect.maxY, descent: rect.isEmpty ? 0 : -rect.minY)
         box.italicCorrection = italic
-        box.topAccentAttachment = font.table?.topAccentAttachment(glyph).map { font.points($0, size: context.fontSize) + shift }
+        box.topAccentAttachment = font.table?.topAccentAttachment(glyph, size: context.fontSize).map { font.points($0, size: context.fontSize) + shift }
         box.items = [.glyphs(GlyphRun(font: ctFont, glyphs: [glyph], positions: [CGPoint(x: shift, y: 0)],
                                       color: context.color, ink: rect.isEmpty ? .null : rect.offsetBy(dx: shift, dy: 0)))]
         return box

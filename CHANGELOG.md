@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Mixed RTL image/text and decorated fallbacks wrap in logical order. Explicit padding,
+  errors and backgrounds rebuild per fragment; eligible under/over bases keep their annotations
+  ([#111](https://github.com/vocaro/MathMLLayout/issues/111)).
+- Indentation targets retain final coordinates through independently wrapped rows,
+  decorated fragments and script arguments
+  ([#112](https://github.com/vocaro/MathMLLayout/issues/112)).
+- Tables support equal tracks, authored widths, whole-cell operator stretching and overlap
+  labels without ordinary gutters ([#113](https://github.com/vocaro/MathMLLayout/issues/113)).
+- Optional image stretch direction, italic clearance and top-accent attachment metadata
+  support image-only operators and physical attachment geometry
+  ([#114](https://github.com/vocaro/MathMLLayout/issues/114)).
+- Supported MATH variation corrections follow the selected font instance. Device corrections
+  opt in through a fixed layout-time output scale
+  ([#115](https://github.com/vocaro/MathMLLayout/issues/115)).
+
 ## 0.3.0 — 2026-10-13
 
 RTL layout, table spans and alignment, richer image support and extensible speech vocabularies.

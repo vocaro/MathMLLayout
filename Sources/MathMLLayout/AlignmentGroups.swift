@@ -407,6 +407,7 @@ extension LayoutEngine {
             index = end
         }
         func offset(_ count: Int) -> CGFloat {
+            if let source = box.logicalTextSlice?.source, source.hasAttachments { return source.caret(count) }
             let count = min(max(0, count), text.utf16.count)
             // At an attachment boundary, a neighbouring RTL run's logical caret may
             // lie at its opposite visual edge. The rendered attachment edge is exact.
@@ -442,7 +443,9 @@ extension LayoutEngine {
             let event = AlignmentEvent(kind: .mark, x: offset(position), order: alignmentSequence,
                                        tokenEdgeRight: mark.attributes["edge"]?.lowercased() == "right")
             box.alignment.append(event)
-            box.logicalTextSlice?.source.setAlignmentMark(position, event: event)
+            if let source = box.logicalTextSlice?.source {
+                source.setAlignmentMark(source.logicalOffset(position), event: event)
+            }
         }
         if node.name == "mn", context.alignmentBaseline {
             let decimal = context.decimalPoint ?? "."
@@ -494,6 +497,7 @@ extension LayoutEngine {
                     shifts.append(position + (rtl ? -right[index] : left[index]) - group.point)
                     position += (rtl ? -1 : 1) * size
                 }
+                cells.rows[entry.row][index].unalignedBox = cells.rows[entry.row][index].box
                 cells.rows[entry.row][index].box = cells.rows[entry.row][index].box.aligning(entry.groups, shifts: shifts, width: width, rtl: rtl, sections: sections)
             }
         }

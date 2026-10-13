@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// The layout constants of an OpenType MATH table, in ems of the font size.
 ///
@@ -86,7 +87,7 @@ struct MathConstants: Sendable {
     ]
 
     /// Reads the MathConstants subtable at `offset`; nil when it is truncated.
-    init?(table: MathTable, offset: Int, unitsPerEm: CGFloat) {
+    init?(table: MathTable, offset: Int, unitsPerEm: CGFloat, size: CGFloat? = nil) {
         guard table.contains(offset, length: 8 + 4 * Self.recordFields.count + 2) else { return nil }
         scriptPercentScaleDown = CGFloat(table.int16(offset))
         scriptScriptPercentScaleDown = CGFloat(table.int16(offset + 2))
@@ -94,7 +95,7 @@ struct MathConstants: Sendable {
         displayOperatorMinHeight = CGFloat(table.uint16(offset + 6)) / unitsPerEm
         var position = offset + 8
         for field in Self.recordFields {
-            self[keyPath: field] = CGFloat(table.int16(position)) / unitsPerEm
+            self[keyPath: field] = table.valueRecord(position, relativeTo: offset, size: size) / unitsPerEm
             position += 4 // value and device-table offset
         }
         radicalDegreeBottomRaisePercent = CGFloat(table.int16(position))
@@ -138,10 +139,15 @@ struct MathTable: Sendable {
     private var topAccentAttachment = 0
     private var variants = 0
     private var kerns: [CGGlyph: [MathKern?]] = [:]
+    private let variationStore: MathVariationStore?
+    /// Fixed when the font is selected; drawing never changes recorded geometry.
+    let deviceScale: CGFloat?
 
-    init?(data: [UInt8], unitsPerEm: CGFloat) {
+    init?(data: [UInt8], unitsPerEm: CGFloat, variationStore: MathVariationStore? = nil, deviceScale: CGFloat? = nil) {
         bytes = data
-        self.unitsPerEm = unitsPerEm > 0 ? unitsPerEm : 1000
+        self.unitsPerEm = unitsPerEm.isFinite && unitsPerEm > 0 ? unitsPerEm : 1000
+        self.variationStore = variationStore
+        self.deviceScale = deviceScale.flatMap { $0.isFinite && (1.0 / 64...64).contains($0) ? $0 : nil }
         guard contains(0, length: 10), uint16(0) == 1 else { return nil }
         guard let constants = MathConstants(table: self, offset: Int(uint16(4)), unitsPerEm: self.unitsPerEm) else { return nil }
         self.constants = constants
@@ -163,6 +169,43 @@ struct MathTable: Sendable {
         return UInt16(bytes[offset]) << 8 | UInt16(bytes[offset + 1])
     }
     func int16(_ offset: Int) -> Int16 { Int16(bitPattern: uint16(offset)) }
+
+    /// A MathValueRecord in design units. Device deltas are pixels, converted back to
+    /// design units at the actual inherited/script size before the existing point conversion.
+    func valueRecord(_ record: Int, relativeTo parent: Int, size: CGFloat? = nil) -> CGFloat {
+        let base = CGFloat(int16(record))
+        guard contains(record, length: 4) else { return base }
+        let relative = Int(uint16(record + 2))
+        guard relative > 0, parent >= 0, parent <= bytes.count,
+              relative <= bytes.count - parent else { return base }
+        let adjustment = parent + relative
+        guard contains(adjustment, length: 6) else { return base }
+        let format = uint16(adjustment + 4)
+        if format == 0x8000 {
+            return base + (variationStore?.delta(outer: Int(uint16(adjustment)), inner: Int(uint16(adjustment + 2))) ?? 0)
+        }
+        guard (1...3).contains(format), let scale = deviceScale, let size,
+              size.isFinite, size > 0 else { return base }
+        let ppemValue = (size * scale).rounded()
+        guard ppemValue >= 1, ppemValue <= 65535 else { return base }
+        let start = Int(uint16(adjustment)), end = Int(uint16(adjustment + 2))
+        guard start <= end else { return base }
+        let bits = 1 << Int(format), perWord = 16 / bits
+        let wordCount = (end - start + perWord) / perWord
+        guard contains(adjustment + 6, length: wordCount * 2) else { return base }
+        let ppem = Int(ppemValue)
+        guard ppem >= start, ppem <= end else { return base }
+        let index = ppem - start, shift = 16 - bits * (index % perWord + 1)
+        let mask = (1 << bits) - 1
+        let packed = (Int(uint16(adjustment + 6 + index / perWord * 2)) >> shift) & mask
+        let signed = packed & (1 << (bits - 1)) == 0 ? packed : packed - (1 << bits)
+        let adjusted = base + CGFloat(signed) * unitsPerEm / (size * scale)
+        return adjusted.isFinite ? adjusted : base
+    }
+
+    func constants(size: CGFloat) -> MathConstants {
+        MathConstants(table: self, offset: Int(uint16(4)), unitsPerEm: unitsPerEm, size: size) ?? constants
+    }
 
     /// The coverage index of `glyph` in the Coverage table at `offset`, if covered.
     private func coverageIndex(_ glyph: CGGlyph, coverage offset: Int) -> Int? {
@@ -192,22 +235,23 @@ struct MathTable: Sendable {
     }
 
     /// A coverage-keyed list of MathValueRecords: italics corrections or top accent attachments.
-    private func glyphValue(_ glyph: CGGlyph, table offset: Int) -> CGFloat? {
+    private func glyphValue(_ glyph: CGGlyph, table offset: Int, size: CGFloat?) -> CGFloat? {
         guard offset > 0, contains(offset, length: 4) else { return nil }
         let coverage = offset + Int(uint16(offset))
         guard let index = coverageIndex(glyph, coverage: coverage), index < Int(uint16(offset + 2)) else { return nil }
         let record = offset + 4 + index * 4
         guard contains(record, length: 2) else { return nil }
-        return CGFloat(int16(record))
+        return valueRecord(record, relativeTo: offset, size: size)
     }
 
-    func italicsCorrection(_ glyph: CGGlyph) -> CGFloat? { glyphValue(glyph, table: italicsCorrection) }
-    func topAccentAttachment(_ glyph: CGGlyph) -> CGFloat? { glyphValue(glyph, table: topAccentAttachment) }
+    func italicsCorrection(_ glyph: CGGlyph, size: CGFloat? = nil) -> CGFloat? { glyphValue(glyph, table: italicsCorrection, size: size) }
+    func topAccentAttachment(_ glyph: CGGlyph, size: CGFloat? = nil) -> CGFloat? { glyphValue(glyph, table: topAccentAttachment, size: size) }
 
     /// Height-dependent corner correction, in design units. Missing or malformed data is zero.
-    func kern(_ glyph: CGGlyph, corner: MathKernCorner, height: CGFloat) -> CGFloat {
+    func kern(_ glyph: CGGlyph, corner: MathKernCorner, height: CGFloat, size: CGFloat? = nil) -> CGFloat {
         guard height.isFinite, let tables = kerns[glyph], let table = tables[corner.rawValue] else { return 0 }
-        return table.value(at: height)
+        guard let size, size.isFinite, size > 0, deviceScale != nil else { return table.value(at: height) }
+        return table.adjustedValue(at: height, size: size) { valueRecord($0, relativeTo: table.offset, size: size) }
     }
 
     private func readKerns(at offset: Int) -> [CGGlyph: [MathKern?]] {
@@ -256,11 +300,14 @@ struct MathTable: Sendable {
             guard contains(table + 2, length: (heightCount * 2 + 1) * 4),
                   end <= (index + 1 < offsets.count ? offsets[index + 1] : bytes.count),
                   end <= coverage || table >= coverageEnd else { continue }
-            let heights = (0..<heightCount).map { CGFloat(int16(table + 2 + $0 * 4)) }
-            guard zip(heights, heights.dropFirst()).allSatisfy({ $0 < $1 }) else { continue }
-            let values = (0...heightCount).map { CGFloat(int16(table + 2 + heightCount * 4 + $0 * 4)) }
-            // Device/variation corrections are ignored, as for other MathValueRecords.
-            tables[table] = MathKern(heights: heights, values: values)
+            let heightRecords = (0..<heightCount).map { table + 2 + $0 * 4 }
+            let rawHeights = heightRecords.map { CGFloat(int16($0)) }
+            guard zip(rawHeights, rawHeights.dropFirst()).allSatisfy({ $0 < $1 }) else { continue }
+            let adjustedHeights = heightRecords.map { valueRecord($0, relativeTo: table) }
+            let heights = zip(adjustedHeights, adjustedHeights.dropFirst()).allSatisfy({ $0 < $1 }) ? adjustedHeights : rawHeights
+            let valueRecords = (0...heightCount).map { table + 2 + heightCount * 4 + $0 * 4 }
+            let values = valueRecords.map { valueRecord($0, relativeTo: table) }
+            tables[table] = MathKern(offset: table, heightRecords: heightRecords, valueRecords: valueRecords, heights: heights, values: values)
         }
         var result: [CGGlyph: [MathKern?]] = [:]
         for (index, glyph) in glyphs.enumerated() { result[glyph] = records[index].map { tables[$0] } }
@@ -270,7 +317,7 @@ struct MathTable: Sendable {
     var minConnectorOverlap: CGFloat { variants > 0 ? CGFloat(uint16(variants)) : 0 }
 
     /// The vertical or horizontal construction of `glyph`, if the font has one.
-    func construction(_ glyph: CGGlyph, vertical: Bool) -> GlyphConstruction? {
+    func construction(_ glyph: CGGlyph, vertical: Bool, size: CGFloat? = nil) -> GlyphConstruction? {
         guard variants > 0 else { return nil }
         let coverageOffset = Int(uint16(variants + (vertical ? 2 : 4)))
         guard coverageOffset > 0, let index = coverageIndex(glyph, coverage: variants + coverageOffset) else { return nil }
@@ -289,7 +336,7 @@ struct MathTable: Sendable {
         let assemblyOffset = Int(uint16(construction))
         if assemblyOffset > 0, contains(construction + assemblyOffset, length: 6) {
             let assembly = construction + assemblyOffset
-            result.assemblyItalicsCorrection = CGFloat(int16(assembly))
+            result.assemblyItalicsCorrection = valueRecord(assembly, relativeTo: assembly, size: size)
             for item in 0..<min(Int(uint16(assembly + 4)), 32) {
                 let record = assembly + 6 + item * 10
                 guard contains(record, length: 10) else { result.parts = []; break }
@@ -308,11 +355,39 @@ enum MathKernCorner: Int, CaseIterable {
     case topRight, topLeft, bottomRight, bottomLeft
 }
 
-private struct MathKern: Sendable {
+private final class MathKern: @unchecked Sendable {
+    // Raw data is immutable. Per-size device decoding is bounded and protected by the lock.
+    private let lock = NSLock()
+    private var adjusted: [CGFloat: (heights: [CGFloat], values: [CGFloat])] = [:]
+    let offset: Int
+    let heightRecords: [Int]
+    let valueRecords: [Int]
     let heights: [CGFloat]
     let values: [CGFloat]
 
-    func value(at height: CGFloat) -> CGFloat {
+    init(offset: Int, heightRecords: [Int], valueRecords: [Int], heights: [CGFloat], values: [CGFloat]) {
+        self.offset = offset; self.heightRecords = heightRecords; self.valueRecords = valueRecords
+        self.heights = heights; self.values = values
+    }
+
+    func adjustedValue(at height: CGFloat, size: CGFloat, resolve: (Int) -> CGFloat) -> CGFloat {
+        // Bound repeated decoding under many distinct authored sizes. Large tables retain
+        // their selected-instance variation corrections and omit only Device adjustments.
+        guard heightRecords.count <= 1024 else { return value(at: height) }
+        lock.lock(); defer { lock.unlock() }
+        if let cached = adjusted[size] { return Self.value(at: height, heights: cached.heights, values: cached.values) }
+        let corrected = heightRecords.map(resolve)
+        let ordered = zip(corrected, corrected.dropFirst()).allSatisfy { $0 < $1 }
+        let result = (heights: ordered ? corrected : heights, values: valueRecords.map(resolve))
+        // At most four independent size evaluations per shared corner table are retained.
+        if adjusted.count >= 4 { adjusted.removeAll() }
+        adjusted[size] = result
+        return Self.value(at: height, heights: result.heights, values: result.values)
+    }
+
+    func value(at height: CGFloat) -> CGFloat { Self.value(at: height, heights: heights, values: values) }
+
+    private static func value(at height: CGFloat, heights: [CGFloat], values: [CGFloat]) -> CGFloat {
         var low = 0, high = heights.count
         while low < high {
             let middle = (low + high) / 2

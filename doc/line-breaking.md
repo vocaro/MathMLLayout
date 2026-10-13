@@ -41,18 +41,23 @@ scrolling, eliding, truncating or scaling remain the host's responsibility.
   text are resolved and shaped for each selected line from the full token paragraph. Numbers,
   punctuation, neutral characters and directional controls retain that paragraph context;
   no-break spaces keep adjacent words together. An inherited `dir="rtl"` or `dir="ltr"` sets
-  the text paragraph direction. Text with inline images and decorated `alt` fallbacks wraps
-  at ordinary spaces, keeping images whole and fallback backgrounds on each word. A table wider
+  the text paragraph direction. Text with inline images and decorated `alt` fallbacks retains
+  one logical paragraph too: CoreText places atomic image attachments alongside the text's
+  per-line visual runs, while decorated fallback text keeps its local background. Images keep
+  source ownership, logical dimensions and `valign`; edge whitespace and token alignment
+  marks survive the selected logical ranges. A table wider
   than the line narrows its columns and wraps its cells, including spanning cells within
   their combined track widths and internal gaps. Alignment groups and embedded text marks
   survive cell breaks; all fragments of a source group share one horizontal shift, with
   [defined span scopes and minimum-width measurements](alignment-groups.md#wrapping-and-spans).
   Fraction parts, radicands and
-  `menclose` contents wrap the same way. Default `mpadded` and `mphantom` also flow across
-  rows; phantoms keep the visible content's spacing while drawing nothing. `merror` contents
-  stack inside one frame; background-bearing rows stack inside one filled rectangle.
-  Explicit padding geometry and under/over annotations stay atomic; see the precise
-  [wrapper policies](limits.md#limitations).
+  `menclose` contents wrap the same way. `mpadded`, `mphantom`, `merror` and background-bearing
+  rows/tokens also flow across host rows. Explicit padding geometry is reapplied to each
+  fragment; phantoms keep its spacing while drawing nothing. Each error fragment has its own
+  frame, and each background fragment fills its own content rectangle. Eligible under/over
+  bases repeat their attached annotations on every base fragment, with stretchy annotations
+  resized to that fragment. See the fragmentation policy below and the remaining
+  [atomic structures](limits.md#limitations).
 - **Attributes** (MathML 3 §3.1.7): `linebreak`, `linebreakstyle`, `linebreakmultchar`,
   `lineleading`, `indentalign`, `indentshift`, `indenttarget` and their `first`/`last` forms, on
   `mo` and `mspace` or inherited from `mstyle` and `math`. Unless they say otherwise rows align
@@ -80,5 +85,67 @@ the final base fragment. Token bidi direction remains inherited. Retained LTR te
 RTL formulas are measured as drawn blocks, with assembly charged to the shared text-work
 budget; formula-only candidates retain their constant-time ink summaries. See [alignment groups](alignment-groups.md)
 for the table-specific policies.
+
+## Indentation targets
+
+[MathML 3 §3.2.5.2.3](https://www.w3.org/TR/MathML3/chapter3.html#presm.op.indent)
+defines `indentalign="id"` as physical left-edge alignment to `indenttarget`. The referenced
+element must precede the reference; a renderer may use `auto` when the element's position
+does not permit alignment. The specification permits targets in `mphantom` and outside
+the current `math`. This API receives one formula, so it has no coordinates for another
+formula. Phantoms retain the geometry they would have drawn.
+
+Within that formula, unique IDs in nested rows, selected `semantics`/`maction` branches,
+decorated wrappers and script arguments can be targets for following lines of the enclosing
+paragraph. Opposite-direction rows wrap independently and export their final placed target
+coordinates. Coordinates include internal first/last-line indentation, center/right alignment,
+ink coverage, script shifts, explicit negative padding offsets and resized fences. For example:
+
+```xml
+<math>
+  <mspace width="20px"/>
+  <mrow dir="rtl">
+    <mspace width="20px" height="4px"/>
+    <mspace linebreak="newline" indentshiftlast="6px"/>
+    <mspace width="3px"/>
+    <mspace id="target" width="7px" height="4px"/>
+  </mrow>
+  <mspace linebreak="newline" indentalign="id" indenttarget="target"/>
+  <mspace width="5px" height="4px"/>
+</math>
+```
+
+The target is on the independently wrapped row's second baseline, at physical x = 26 points
+in the enclosing formula. The following host line begins at that same x. Nested output lines
+remain within their containing host row: every target must belong to an earlier host output
+row and have a final baseline above the receiving line. A target placed higher as a
+superscript on the receiving host row does not create an earlier output line. Source order
+alone cannot make a same-line or later-line target eligible.
+
+Missing, duplicate, same-line, later-line and inadmissible references use `auto`; unselected
+branches supply no anchors. IDs inside fractions, radicals, table cells, elementary stacks and
+under/over arguments remain in their own argument frames. References from an independently
+wrapped paragraph back out to a different receiving frame are not resolved. IDs on the
+complete structural element itself remain eligible in its enclosing paragraph.
+
+Placed metadata is retained as a balanced tree, translated during box assembly and walked
+iteratively. ID lookup uses the existing logarithmic predecessor index. Final targets are
+resolved once after selected rows, fences and center/right placement are known. Internal or
+unbounded center/right alignment uses the widest provisional row as a fixed frame; an ID
+continuation may extend the returned width beyond that frame. Recomputing the frame could
+move its target indefinitely, so it is never retried to a fixed point.
+
+## Wrapper fragmentation
+
+Wrapper fragmentation is local to each selected host row. Nested wrappers rebuild from the
+inside out after text shaping, surrounding only their own contiguous content rather than
+neighbouring formula items. For explicitly authored `mpadded` geometry, absolute lengths
+apply to every fragment; percentages, multiples, relative changes and `width`/`height`/`depth`
+pseudo-units resolve against that fragment's unpadded content. The fragment's horizontal
+advance then places following items; its ink remains covered even for negative offsets or
+a declared width smaller than its content. A zero/no-op authored value follows the same policy.
+Under/over annotations repeat on eligible breakable row bases; their annotation arguments
+remain whole. Operator bases, movable limits, numeric tokens and script annotations retain
+their boundaries. Opposite-direction rows use their own internal paragraph frame.
 
 [Documentation index](../README.md#documentation)

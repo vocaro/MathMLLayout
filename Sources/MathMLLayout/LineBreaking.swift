@@ -142,6 +142,21 @@ final class BreakPoint: Sendable {
     }
 }
 
+/// Rebuilds a transparent wrapper around the portion of its content on one host row.
+/// Original edge reservations are replaced by the rebuilt fragment's metrics.
+final class RowFragment {
+    let leading: CGFloat
+    let trailing: CGFloat
+    let work: TextShapingWork
+    let contentOffset: (MathBox, MathBox) -> CGFloat
+    let rebuild: (MathBox) -> MathBox
+    init(leading: CGFloat, trailing: CGFloat, work: TextShapingWork,
+         contentOffset: @escaping (MathBox, MathBox) -> CGFloat, rebuild: @escaping (MathBox) -> MathBox) {
+        self.leading = leading; self.trailing = trailing; self.work = work
+        self.contentOffset = contentOffset; self.rebuild = rebuild
+    }
+}
+
 /// What a row keeps on its box so that a line can break inside it: its children, apart, each
 /// with its place in the row.
 final class BreakableRow {
@@ -180,19 +195,21 @@ final class BreakableRow {
     let fontSize: CGFloat
     let display: Bool
     let style: LineStyle
+    let fragment: RowFragment?
 
     /// Retains placed children for ID anchors, while decorations make this row atomic.
     /// A sentinel avoids coincidental item-count equality after a phantom background holder.
     init(opaque row: BreakableRow) {
-        children = row.children; visible = row.visible; itemCount = -1
+        children = row.children; visible = row.visible; itemCount = -1; fragment = nil
         rtl = row.rtl; width = row.width; isText = row.isText; textWork = row.textWork
         isOperator = row.isOperator; hasForced = row.hasForced; isSeveral = row.isSeveral
         fontSize = row.fontSize; display = row.display; style = row.style
     }
 
     init(children: [Child], visible: [Int: MathBox] = [:], itemCount: Int, isOperator: Bool = false,
-         width: CGFloat? = nil, rtl: Bool? = nil, isText: Bool = false, textWork: TextShapingWork? = nil, _ context: LayoutContext) {
+         width: CGFloat? = nil, rtl: Bool? = nil, fragment: RowFragment? = nil, isText: Bool = false, textWork: TextShapingWork? = nil, _ context: LayoutContext) {
         self.children = children; self.visible = visible; self.itemCount = itemCount; self.isOperator = isOperator
+        self.fragment = fragment
         self.rtl = rtl ?? context.alignmentRTL
         self.isText = isText
         self.textWork = textWork
@@ -203,7 +220,7 @@ final class BreakableRow {
     }
 
     init(children: [Child], replacing row: BreakableRow, itemCount: Int, width: CGFloat? = nil) {
-        self.children = children; visible = row.visible; self.itemCount = itemCount
+        self.children = children; visible = row.visible; self.itemCount = itemCount; fragment = row.fragment
         rtl = row.rtl; self.width = width ?? row.width; isText = row.isText; textWork = row.textWork
         isOperator = row.isOperator; hasForced = row.hasForced; isSeveral = row.isSeveral
         fontSize = row.fontSize; display = row.display; style = row.style
@@ -287,7 +304,7 @@ extension LayoutEngine {
                 var textContext = inherit(child, context)
                 // A token's dir controls its text; its words follow the enclosing row's geometry.
                 textContext.alignmentRTL = context.alignmentRTL
-                item.box.row = words(item.box, textContext)
+                if item.box.row?.fragment == nil { item.box.row = words(item.box, textContext) }
             case "mo":
                 if let point = item.point, point.isInvisibleTimes, let text = point.style.multiplication {
                     visible[index] = try layout(MathMLNode(name: "mo", text: text), context, Embellishment(form: .infix),
@@ -313,9 +330,8 @@ extension LayoutEngine {
     /// Break only at logical U+0020 spaces. NBSP, narrow NBSP and directional controls stay
     /// inside their logical words. The source typesetter retains the whole paragraph's bidi
     /// context; selected ranges are shaped together, rather than concatenating visual words.
-    private func words(_ box: MathBox, _ context: LayoutContext) -> BreakableRow? {
-        guard context.lines.linebreak != .nobreak, let slice = box.logicalTextSlice,
-              box.items.allSatisfy({ if case .glyphs = $0 { return true }; return false }) else { return segmentWords(box, context) }
+    func words(_ box: MathBox, _ context: LayoutContext) -> BreakableRow? {
+        guard context.lines.linebreak != .nobreak, let slice = box.logicalTextSlice else { return segmentWords(box, context) }
         let source = slice.source
         guard source.words.count > 1 else { return nil }
         let point = BreakPoint(kind: .space, linebreak: .auto, style: context.lines)
@@ -344,9 +360,8 @@ extension LayoutEngine {
         var children: [BreakableRow.Child] = []
         var word = MathBox(), start: CGFloat?, spaced = false
         var spaces: [TextSegment] = []
-        // Plain text's authored paragraph-edge spaces belong to its edge words, just as
-        // in LogicalTextSource. Only separators at soft breaks may be trimmed.
-        let preservesEdges = box.items.allSatisfy { if case .glyphs = $0 { return true }; return false }
+        // Authored paragraph-edge spaces belong to the edge words, including beside
+        // attachments. Only separators at soft breaks may be trimmed.
         let firstWord = segments.firstIndex { !$0.isSpace } ?? segments.startIndex
         let lastWord = segments.lastIndex { !$0.isSpace } ?? (segments.endIndex - 1)
         func close(at end: CGFloat) {
@@ -363,7 +378,7 @@ extension LayoutEngine {
             word = MathBox(); start = nil; spaced = false
         }
         for (index, segment) in segments.enumerated() {
-            let authoredEdge = preservesEdges && (index < firstWord || index > lastWord)
+            let authoredEdge = index < firstWord || index > lastWord
             if segment.isSpace && !authoredEdge {
                 close(at: segment.x)
                 spaced = true
@@ -534,7 +549,7 @@ extension LayoutEngine {
         let hostFirst = firstRowMaximumWidth.map { $0.isNaN ? hostLimit : bound($0) } ?? hostLimit
         let size = fontSize(style)
         // One engine, so whatever it keeps for the formula is kept across a second pass.
-        let engine = LayoutEngine(fontName: style.fontName)
+        let engine = LayoutEngine(fontName: style.fontName, variations: style.fontVariations, deviceScale: style.mathDeviceScale)
         let authored = engine.mathMaximumWidth(root, style: style, available: hostLimit).map(bound) ?? .infinity
         let limit = min(hostLimit, authored)
         let first = min(hostFirst, authored)
@@ -636,9 +651,10 @@ extension LayoutEngine {
 
     /// The actual returned rows and their public geometry bounds, shared by width trials.
     private func measuredLines(_ paragraph: Paragraph, limit: CGFloat, first: CGFloat, size: CGFloat) throws -> MathLines {
-        let rows = paragraph.rows(limit: limit, first: first, auto: (.left, paragraph.display ? paragraph.em : 0))
+        let rows = paragraph.rows(limit: limit, first: first, auto: (.left, paragraph.display ? paragraph.em : 0),
+                                  stackMetrics: stackMetrics(em: paragraph.em))
         var lines = MathLines(rows: stack(rows, em: paragraph.em), widestUnbreakable: paragraph.widest,
-                              axisHeight: constants.axisHeight * size)
+                              axisHeight: font.constants(size: size).axisHeight * size)
         var items = 0
         for row in lines.rows {
             lines.width = max(lines.width, row.origin.x + row.box.width)
@@ -662,7 +678,7 @@ extension LayoutEngine {
         for (index, row) in rows.enumerated() {
             if index > 0 {
                 let above = rows[index - 1]
-                y += max(0, max(above.box.descent, descent) + above.leading.resolve(constants.mathLeading * em)
+                y += max(0, max(above.box.descent, descent) + above.leading.resolve(font.constants(size: em).mathLeading * em)
                     + max(row.box.ascent, ascent))
             }
             result.append((row.box, CGPoint(x: row.x, y: 0 - y)))
@@ -670,10 +686,15 @@ extension LayoutEngine {
         return result
     }
 
+    private func stackMetrics(em: CGFloat) -> (ascent: CGFloat, descent: CGFloat, leading: CGFloat) {
+        (CTFontGetAscent(font.base) * em, CTFontGetDescent(font.base) * em, constants.mathLeading * em)
+    }
+
     /// A row broken to `width` and stacked into one box on its first line's baseline; nil when it
     /// stays one line.
     private func wrapped(_ paragraph: Paragraph, width: CGFloat, align: IndentAlign) -> MathBox? {
-        let rows = paragraph.rows(limit: width, first: width, auto: (align, 0), tight: true)
+        let rows = paragraph.rows(limit: width, first: width, auto: (align, 0), tight: true,
+                                  stackMetrics: stackMetrics(em: paragraph.em))
         guard rows.count > 1 else { return nil }
         var box = MathBox(ascent: rows[0].box.ascent)
         for line in stack(rows, em: paragraph.em) {
@@ -735,7 +756,8 @@ extension LayoutEngine {
     /// whatever the width. `fixed` is the width of everything but the columns.
     func wrapCells(_ cells: inout TableGrid, sources: [[TableCellSource]],
                    columnAlign: [String], gaps: [CGFloat], fixed: CGFloat,
-                   scopes: [String] = [], rtl: Bool = false) throws -> CGFloat {
+                   scopes: [String] = [], rtl: Bool = false,
+                   sizing: TableSizing, tracks: inout [CGFloat]) throws -> CGFloat {
         let part = wrapParts.count, budget = nextWrapWidth
         wrapParts.append((0, 0, 0))
         func align(_ row: Int, _ column: Int) -> IndentAlign {
@@ -761,9 +783,9 @@ extension LayoutEngine {
         let unalignedCells = cells
         var naturalCells = cells
         try alignColumns(&naturalCells, scopes: scopes, rtl: rtl)
-        var natural = naturalCells.widths(gaps: gaps) { _, _, cell in cell.box.width }
+        var natural = naturalCells.widths(equal: sizing.equal, gaps: gaps) { _, _, cell in cell.box.width }
         func total() -> CGFloat {
-            natural = cells.widths(gaps: gaps) { _, _, cell in cell.box.width }
+            natural = cells.widths(equal: sizing.equal, gaps: gaps) { _, _, cell in cell.box.width }
             return natural.reduce(0, +) + fixed
         }
         var width = natural.reduce(0, +) + fixed
@@ -774,7 +796,7 @@ extension LayoutEngine {
                 paragraphs[row][column] = paragraph
             }
         }
-        var least = cells.widths(gaps: gaps) { row, index, cell in
+        var least = cells.widths(equal: sizing.equal, gaps: gaps) { row, index, cell in
             let paragraph = paragraphs[row][index]!
             let hasTable = paragraph.units.contains { $0.box.tableMinimumWidth != nil }
             let cellMinimum = hasTable ? Paragraph.minimumTables(originalCells.rows[row][index].box).widest : paragraph.widest
@@ -801,7 +823,7 @@ extension LayoutEngine {
                 }
             }
             try alignColumns(&smallest, scopes: scopes, rtl: rtl)
-            let smallestWidths = smallest.widths(gaps: gaps) { _, _, cell in cell.box.width }
+            let smallestWidths = smallest.widths(equal: sizing.equal, gaps: gaps) { _, _, cell in cell.box.width }
             let smallestWidth = smallestWidths.reduce(0, +) + fixed
             // Negative spacing or height-dependent ink may make fragmentation wider.
             // Keep the complete natural alternative in that case.
@@ -815,15 +837,59 @@ extension LayoutEngine {
                 minimum = width
             }
         }
+        if sizing.isActive {
+            least = sizing.minimum(least)
+            minimum = least.reduce(fixed, +)
+            if least.isEmpty, let desired = sizing.requested {
+                width = max(fixed, min(desired, budget))
+                tracks = [max(0, width - fixed)]
+                if width > minimum + Paragraph.slop { loose(width) }
+                wrapParts[part] = (width, width, minimum)
+                note(width: width, minimum: minimum, isTable: true)
+                return minimum
+            }
+            let shares = sizing.allocate(natural, minimum: least, budget: budget, fixed: fixed)
+            for row in cells.rows.indices {
+                for column in cells.rows[row].indices {
+                    let share = cells.spanWidth(cells.rows[row][column], widths: shares, gaps: gaps)
+                    guard cells.rows[row][column].box.width > share + Paragraph.slop else { continue }
+                    var paragraph = paragraphs[row][column]!
+                    if paragraph.units.contains(where: { $0.box.tableMinimumWidth != nil }) {
+                        let rebuilt = try relayoutCell(sources[row][column], width: share)
+                        cells.rows[row][column].box = rebuilt
+                        paragraph = Paragraph(rebuilt)
+                    }
+                    if let box = wrapped(paragraph, width: share, align: align(row, column)) {
+                        cells.rows[row][column].box = box
+                    }
+                }
+            }
+            try alignColumns(&cells, scopes: scopes, rtl: rtl)
+            var measured = cells.widths(equal: sizing.equal, gaps: gaps) { _, _, cell in cell.box.width }
+            // A bounded fully fragmented alternative also handles alignment side widths.
+            if let minimumCells, measured.reduce(fixed, +) > shares.reduce(fixed, +) + Paragraph.slop {
+                cells = minimumCells
+                measured = cells.widths(equal: sizing.equal, gaps: gaps) { _, _, cell in cell.box.width }
+            }
+            tracks = zip(shares, measured).map { max($0.0, $0.1) }
+            if sizing.equal { tracks = Array(repeating: tracks.max() ?? 0, count: tracks.count) }
+            width = tracks.reduce(fixed, +)
+            if width > minimum + Paragraph.slop { loose(width) }
+            wrapParts[part] = (max(width, natural.reduce(fixed, +)), width, minimum)
+            note(width: width, minimum: minimum, isTable: true)
+            return minimum
+        }
         // Compute nested minima even without a finite budget: the containing table needs them.
         guard lineWidth.isFinite, width > min(budget, lineWidth / 2) else {
             cells = naturalCells
+            tracks = natural
             if isSeveral || width > minimum + Paragraph.slop { loose(width) }
             wrapParts[part].minimum = minimum
             return minimum
         }
         if let minimumCells, budget <= minimum + Paragraph.slop {
             cells = minimumCells
+            tracks = least
             wrapParts[part].width = minimum
             wrapParts[part].minimum = minimum
             return minimum
@@ -870,6 +936,7 @@ extension LayoutEngine {
         if width > minimum + Paragraph.slop { loose(width) }
         wrapParts[part].width = width
         wrapParts[part].minimum = minimum
+        tracks = cells.widths(equal: sizing.equal, gaps: gaps) { _, _, cell in cell.box.width }
         note(width: width, minimum: minimum, isTable: true)
         return minimum
     }
@@ -896,7 +963,9 @@ struct MathLines {
 /// The spine is the row itself and every row laid out directly as its child: an `mrow`,
 /// `mstyle` or `mfenced`, through `semantics` and `maction`, the words of an `mtext`, and the
 /// base of `msub`, `msup`, `msubsup` and `mmultiscripts` when it is a row, with its scripts
-/// held to it. Everything else (a fraction, a radical, a table, a limit) is one unit.
+/// held to it. Padding, frames, backgrounds and under/over row bases retain reconstruction
+/// recipes for each host-row fragment. Fractions, radicals, tables, enclosures and operator
+/// limits are atomic host units.
 struct Paragraph {
     struct Unit {
         var box: MathBox
@@ -954,6 +1023,15 @@ struct Paragraph {
     /// Prefix counts let a candidate formula-only span retain the constant-time ink summaries
     /// even when another part needs contextual shaping or RTL retained-word regrouping.
     private var logicalTextCounts: [Int] = []
+    private struct FragmentRange {
+        let first: Int
+        let end: Int
+        let fragment: RowFragment
+        let isPhantom: Bool
+        let ids: [String]
+    }
+    /// Collected inner-first so reconstruction retains nested decoration and geometry.
+    private var fragments: [FragmentRange] = []
     /// Parent assembly/restamping establishes source priority without mutating retained
     /// child boxes. Stable identities reconnect reconstructed fragment events to that order.
     private var alignmentPriorities: [ObjectIdentifier: Int] = [:]
@@ -974,6 +1052,8 @@ struct Paragraph {
     private struct Anchor {
         var unit: Int
         var x: CGFloat
+        /// The target's final nested baseline, relative to its owning outer output line.
+        var y: CGFloat = 0
         var trimsLeading: Bool
         var endUnit: Int?
     }
@@ -981,10 +1061,21 @@ struct Paragraph {
     /// Duplicate IDs are ambiguous, including a later duplicate: do not choose an invented target.
     private var duplicateIDs: Set<String> = []
 
-    private mutating func anchor(_ id: String?, unit: Int, x: CGFloat, trimsLeading: Bool = false) {
+    private mutating func anchor(_ id: String?, unit: Int, x: CGFloat, y: CGFloat = 0, trimsLeading: Bool = false) {
         guard let id, !id.isEmpty, !duplicateIDs.contains(id) else { return }
         if ids[id] != nil { ids.removeValue(forKey: id); duplicateIDs.insert(id) }
-        else { ids[id] = Anchor(unit: unit, x: x, trimsLeading: trimsLeading, endUnit: nil) }
+        else { ids[id] = Anchor(unit: unit, x: x, y: y, trimsLeading: trimsLeading, endUnit: nil) }
+    }
+
+    /// Opaque units carry the final coordinates of rows that have already wrapped, including
+    /// their indentation, ink coverage and script shifts. Convert the physical left edge to
+    /// this paragraph's progression coordinates exactly once.
+    private mutating func placedAnchors(_ box: MathBox, unit: Int, x: CGFloat) -> Bool {
+        guard let retained = box.indentAnchors else { return false }
+        retained.forEach { id, point in
+            anchor(id, unit: unit, x: x + (rtl ? box.width - point.x : point.x), y: point.y)
+        }
+        return true
     }
 
     /// An opaque row (a background or phantom) still has placed children. Preserve their
@@ -1072,6 +1163,7 @@ struct Paragraph {
         textWork = units.first { $0.box.logicalTextSlice != nil }?.box.logicalTextSlice?.source.work
             ?? (rtl ? units.first { $0.textGroup?.textWork != nil }?.textGroup?.textWork : nil)
             ?? units.first { !$0.box.alignmentTargets.isEmpty }?.box.alignmentTargets.first?.work
+            ?? fragments.first?.fragment.work
         logicalTextCounts = [0]
         logicalTextCounts.reserveCapacity(units.count + 1)
         for unit in units {
@@ -1239,6 +1331,8 @@ struct Paragraph {
         let isPhantom: Bool
         let targets: [AlignmentTarget]
         var anchorID: String?
+        var anchorAliases: [String] = []
+        var firstUnit = 0
         var index = 0
         var fences = 0
     }
@@ -1252,9 +1346,17 @@ struct Paragraph {
         while let last = pending.indices.last {
             guard pending[last].index < pending[last].row.children.count else {
                 let frame = pending.removeLast()
-                if let id = frame.anchorID, var found = ids[id] {
-                    found.endUnit = units.count - 1
-                    ids[id] = found
+                if let fragment = frame.row.fragment, units.count > frame.firstUnit {
+                    let localIDs = frame.anchorAliases.isEmpty ? frame.anchorID.map({ [$0] }) ?? [] : frame.anchorAliases
+                    fragments.append(FragmentRange(first: frame.firstUnit, end: units.count, fragment: fragment,
+                                                   isPhantom: frame.isPhantom, ids: localIDs))
+                }
+                let aliases = frame.anchorAliases.isEmpty ? frame.anchorID.map({ [$0] }) ?? [] : frame.anchorAliases
+                for id in aliases {
+                    if var found = ids[id] {
+                        found.endUnit = units.count - 1
+                        ids[id] = found
+                    }
                 }
                 continue
             }
@@ -1273,7 +1375,16 @@ struct Paragraph {
                 $0.rtl == row.rtl && $0.itemCount == child.box.items.count && !$0.children.isEmpty && frame.level < MathLimits.depth
             } ?? false
             let childX = frame.x + child.x
-            anchor(child.id, unit: firstUnit, x: childX + (rtl ? child.box.width : 0), trimsLeading: trimsLeading)
+            if trimsLeading {
+                let localIDs = child.box.localIndentIDs
+                if localIDs.isEmpty {
+                    anchor(child.id, unit: firstUnit, x: childX + (rtl ? child.box.width : 0), trimsLeading: true)
+                } else {
+                    for id in localIDs {
+                        anchor(id, unit: firstUnit, x: childX + (rtl ? child.box.width : 0), trimsLeading: true)
+                    }
+                }
+            }
             if let inner = child.box.row, inner.rtl == row.rtl, inner.itemCount == child.box.items.count, !inner.children.isEmpty,
                frame.level < MathLimits.depth {
                 let isHeld = index > 0 && index + 1 < row.children.count && Self.fence(row.children[index - 1])?.opens == true
@@ -1282,7 +1393,8 @@ struct Paragraph {
                 pending.append(FlattenFrame(row: inner, x: childX, depth: frame.depth + fences + deeper,
                                             isUnary: frame.isUnary || child.isUnary, isAttached: attached,
                                             level: frame.level + 1, isPhantom: frame.isPhantom || child.box.isPhantom,
-                                            targets: frame.targets + child.box.alignmentTargets, anchorID: child.id))
+                                            targets: frame.targets + child.box.alignmentTargets, anchorID: child.id,
+                                            anchorAliases: child.box.localIndentIDs, firstUnit: firstUnit))
             } else {
                 var unitBox = child.box
                 // A break-only spacer has no content edge in its enclosing element.
@@ -1293,7 +1405,10 @@ struct Paragraph {
                 var visible = row.visible[index]
                 visible?.alignmentTargets = unitBox.alignmentTargets
                 if unitBox.isPhantom { visible?.isPhantom = true }
-                if let inner = child.box.row { anchors(inner, unit: firstUnit, x: childX, level: frame.level + 1) }
+                if !placedAnchors(child.box, unit: firstUnit, x: childX) {
+                    anchor(child.id, unit: firstUnit, x: childX + (rtl ? child.box.width : 0))
+                    if let inner = child.box.row { anchors(inner, unit: firstUnit, x: childX, level: frame.level + 1) }
+                }
                 if let point = child.point {
                     breaks.append((units.count, point, frame.depth + fences, frame.isUnary || child.isUnary, visible))
                 }
@@ -1421,7 +1536,7 @@ struct Paragraph {
     /// measure the same per-line shape they draw, under the shared shaping/assembly budget.
     private func extent(_ i: Int, _ j: Int) -> (width: CGFloat, left: CGFloat) {
         if i == 0, j == stops.count - 1 { return entire }
-        if containsLogicalText(i, j) {
+        if !fragments.isEmpty || containsLogicalText(i, j) {
             let built = row(i, j)
             return (built.box.width, built.left)
         }
@@ -1440,12 +1555,20 @@ struct Paragraph {
     var widest: CGFloat { (0..<stops.count - 1).reduce(0) { max($0, extent($1, $1 + 1).width) } }
 
     /// The row between two stops: its units where the unbroken row had them, less what came before.
-    private func row(_ i: Int, _ j: Int, fences: Set<Int> = []) -> (box: MathBox, left: CGFloat, shifts: [Int: CGFloat], advance: CGFloat) {
-        if i == 0, j == stops.count - 1 { return (unbroken, entire.left, [:], unbrokenAdvance) }
+    private func row(_ i: Int, _ j: Int, fences: Set<Int> = [],
+                     fenceMetrics: (ascent: CGFloat, descent: CGFloat)? = nil,
+                     metricOnly: Bool = false) -> (box: MathBox, left: CGFloat, shifts: [Int: CGFloat], advance: CGFloat) {
+        if i == 0, j == stops.count - 1, !metricOnly { return (unbroken, entire.left, [:], unbrokenAdvance) }
+        if !fences.isEmpty, !fragments.isEmpty, fenceMetrics == nil {
+            // Padding offsets and annotations change the flattened content's vertical
+            // frame. Rebuild that frame without fence ink before selecting fence sizes.
+            let metrics = row(i, j, metricOnly: true).box
+            return row(i, j, fences: fences, fenceMetrics: (metrics.ascent, metrics.descent))
+        }
         let shift = stops[i].headAdvance - starts[i]
         var box = MathBox(width: stops[i].headAdvance + ends[j] - starts[i] + stops[j].tailAdvance)
         var ink: CGRect?
-        var placements: [(MathBox, CGFloat)] = []
+        var placements: [(box: MathBox, x: CGFloat, first: Int, end: Int)] = []
         var isFirst = true
         let first = stops[i].at, end = stops[j].at
         if let textWork, !textWork.consume(end - first) {
@@ -1467,18 +1590,18 @@ struct Paragraph {
         }
         if ascent == -.infinity { ascent = 0 }
         if descent == -.infinity { descent = 0 }
+        if let fenceMetrics { ascent = fenceMetrics.ascent; descent = fenceMetrics.descent }
         var delta: CGFloat = 0
         var shifts: [Int: CGFloat] = [:]
-        func add(_ child: MathBox, _ childInk: CGRect?, at x: CGFloat) {
-            if rtl { placements.append((child, x)) }
-            else { box.add(child, at: CGPoint(x: x, y: 0)) }
+        func add(_ child: MathBox, _ childInk: CGRect?, at x: CGFloat, from: Int, to: Int) {
+            placements.append((child, x, from, to))
             box.ascent = isFirst ? child.ascent : max(box.ascent, child.ascent)
             box.descent = isFirst ? child.descent : max(box.descent, child.descent)
             isFirst = false
             guard let placed = childInk?.offsetBy(dx: x, dy: 0) else { return }
             ink = ink.map { $0.union(placed) } ?? placed
         }
-        if let head { add(head, progressionInk(head), at: 0) }
+        if let head { add(head, progressionInk(head), at: 0, from: first, to: first + 1) }
         func retainedWord(_ index: Int) -> MathBox {
             let unit = units[index]
             var word = unit.box
@@ -1505,7 +1628,7 @@ struct Paragraph {
                 shaped.alignmentTargets = unit.box.alignmentTargets
                 let after = delta + shaped.width - (last.x + last.box.width - unit.x)
                 for word in index..<next { shifts[word] = rtl ? after : delta }
-                add(shaped, progressionInk(shaped), at: unit.x + shift + delta)
+                add(shaped, progressionInk(shaped), at: unit.x + shift + delta, from: index, to: next)
                 delta = after
                 index = next
                 continue
@@ -1534,7 +1657,7 @@ struct Paragraph {
                     text.descent = max(text.descent, part.descent)
                     shifts[word] = delta
                 }
-                add(text, progressionInk(text), at: unit.x + shift + delta)
+                add(text, progressionInk(text), at: unit.x + shift + delta, from: index, to: next)
                 index = next
                 continue
             }
@@ -1561,19 +1684,64 @@ struct Paragraph {
                     var hiddenSpace = space.box
                     hiddenSpace.isPhantom = hiddenSpace.isPhantom || child.isPhantom
                     hiddenSpace.alignmentTargets = child.alignmentTargets
-                    add(hiddenSpace, progressionInk(hiddenSpace), at: unit.x + shift + delta + space.x)
+                    add(hiddenSpace, progressionInk(hiddenSpace), at: unit.x + shift + delta + space.x, from: index, to: index + 1)
                 }
             }
-            add(child, childInk, at: unit.x + shift + delta)
+            if metricOnly, child.fenceLayout != nil {
+                child = .empty(width: child.width, ascent: -.infinity, descent: -.infinity)
+                childInk = nil
+            }
+            add(child, childInk, at: unit.x + shift + delta, from: index, to: index + 1)
             delta += child.width - unit.box.width
             if rtl { shifts[index] = delta }
             index += 1
         }
-        if let tail { add(tail, progressionInk(tail), at: ends[j] + shift + delta + stops[j].tailOffset) }
+        if let tail { add(tail, progressionInk(tail), at: ends[j] + shift + delta + stops[j].tailOffset, from: end - 1, to: end) }
         box.width += delta
-        for (child, x) in placements {
-            box.add(child, at: CGPoint(x: rtl ? box.width - x - child.width : x, y: 0))
+        for range in fragments where range.first < end && range.end > first {
+            if let textWork, !textWork.consume(placements.count) {
+                return (.empty(width: MathLimits.extent + 1), 0, [:], MathLimits.extent + 1)
+            }
+            let indices = placements.indices.filter { placements[$0].first >= range.first && placements[$0].end <= range.end }
+            guard let initial = indices.first, let final = indices.last else { continue }
+            let from = placements[initial].x
+            let to = indices.map { placements[$0].x + placements[$0].box.width }.max() ?? from
+            var content = MathBox(width: max(0, to - from))
+            var firstChild = true
+            for placement in indices.map({ placements[$0] }) {
+                content.add(placement.box, at: CGPoint(x: rtl ? content.width - (placement.x - from) - placement.box.width : placement.x - from, y: 0))
+                content.ascent = firstChild ? placement.box.ascent : max(content.ascent, placement.box.ascent)
+                content.descent = firstChild ? placement.box.descent : max(content.descent, placement.box.descent)
+                firstChild = false
+            }
+            if content.ascent == -.infinity { content.ascent = 0 }
+            if content.descent == -.infinity { content.descent = 0 }
+            let leading = first <= range.first ? range.fragment.leading : 0
+            let trailing = end >= range.end ? range.fragment.trailing : 0
+            var rebuilt = range.fragment.rebuild(content)
+            for id in range.ids { rebuilt.retainIndentAnchor(id) }
+            rebuilt.isPhantom = rebuilt.isPhantom || range.isPhantom
+            let adjustment = rebuilt.width - (content.width + leading + trailing)
+            let origin = from - leading
+            let contentOffset = range.fragment.contentOffset(content, rebuilt)
+            placements.replaceSubrange(initial...final, with: [(rebuilt, origin, max(first, range.first), min(end, range.end))])
+            if initial + 1 < placements.count {
+                for index in (initial + 1)..<placements.count { placements[index].x += adjustment }
+            }
+            for unit in max(first, range.first)..<end {
+                shifts[unit, default: 0] += unit >= range.end ? adjustment : contentOffset - leading
+            }
+            box.width += adjustment
         }
+        box.ascent = -.infinity; box.descent = -.infinity; ink = nil
+        for (child, x, _, _) in placements {
+            box.add(child, at: CGPoint(x: rtl ? box.width - x - child.width : x, y: 0))
+            box.ascent = max(box.ascent, child.ascent); box.descent = max(box.descent, child.descent)
+            if let bounds = progressionInk(child)?.offsetBy(dx: x, dy: 0) { ink = ink.map { $0.union(bounds) } ?? bounds }
+        }
+        if box.ascent == -.infinity { box.ascent = 0 }
+        if box.descent == -.infinity { box.descent = 0 }
+        if metricOnly { return (box, 0, shifts, box.width) }
         for index in box.alignment.indices {
             if let identity = box.alignment[index].identity,
                let order = alignmentPriorities[ObjectIdentifier(identity)] {
@@ -1601,7 +1769,8 @@ struct Paragraph {
     /// rows within the widest provisionally placed row rather than the line, as an infinite
     /// line does. That common frame stays fixed when final ID placements extend its width:
     /// a right-aligned target with a longer continuation need not have a finite shared frame.
-    func rows(limit: CGFloat, first: CGFloat, auto: (align: IndentAlign, indent: CGFloat), tight: Bool = false) -> [Row] {
+    func rows(limit: CGFloat, first: CGFloat, auto: (align: IndentAlign, indent: CGFloat), tight: Bool = false,
+              stackMetrics: (ascent: CGFloat, descent: CGFloat, leading: CGFloat)? = nil) -> [Row] {
         let last = stops.count - 1
         var best = [CGFloat](repeating: .infinity, count: stops.count)
         var previous = [Int](repeating: 0, count: stops.count)
@@ -1610,6 +1779,8 @@ struct Paragraph {
         var lefts = origins
         var advances = [CGFloat](repeating: 0, count: rtl ? stops.count : 0)
         var targets = [CGFloat?](repeating: nil, count: stops.count)
+        var outputBaselines: (earlier: [CGFloat], receiving: [CGFloat])? = nil
+        var finalPositions: [Int: [String: CGPoint]] = [:]
         var unitShifts: [Int: CGFloat] = [:]
         // Binary lifting over the settled predecessor path: at most log2(stops.count) probes,
         // even when each of thousands of forced lines names a different distant anchor.
@@ -1635,6 +1806,16 @@ struct Paragraph {
                 if stops[above].at > anchor.unit { end = above }
             }
             let start = previous[end]
+            let finalPoint = finalPositions[end]?[id]
+            // Internal row baselines retain their true final vertical offsets. Source order
+            // alone never makes a nested target eligible on a lower or equal output baseline.
+            if let baselines = outputBaselines,
+               baselines.earlier[end] + (finalPoint?.y ?? anchor.y) <= baselines.receiving[i] + Self.slop { return nil }
+            if let point = finalPoint {
+                let edge = origins[end] + point.x
+                targets[i] = edge
+                return edge
+            }
             // A wrapper beginning at a broken line loses its first operator's leading space
             // with that line. Its first fragment starts at the placed unit, not in spent space.
             let x: CGFloat
@@ -1783,6 +1964,9 @@ struct Paragraph {
                 placement.x = max(0, min(placement.x, room - built.box.width))
             }
             origins[j] = placement.x; lefts[j] = built.left
+            built.box.indentAnchors?.forEach { id, point in
+                if finalPositions[j]?[id] == nil { finalPositions[j, default: [:]][id] = point }
+            }
             if rtl { advances[j] = built.advance }
             rows.append(Row(box: built.box, x: placement.x, leading: stops[j].point.style.leading))
             pending.append(placement.align)
@@ -1799,6 +1983,22 @@ struct Paragraph {
         // the selected path once more in source order, so ID chains see every earlier final origin.
         // The common alignment frame is already chosen; no fixed-point retries are needed.
         targets = [CGFloat?](repeating: nil, count: stops.count)
+        // The receiving baseline is fixed by the selected rows' final extents. This mirrors
+        // LayoutEngine.stack, without entering another layout or retrying the alignment frame.
+        if let metrics = stackMetrics {
+            var earlier = [CGFloat](repeating: 0, count: stops.count), receiving = earlier
+            var y: CGFloat = 0
+            for (index, boundary) in zip(ending, ending.dropFirst()).enumerated() {
+                if index > 0 {
+                    let above = rows[index - 1]
+                    y -= max(0, max(above.box.descent, metrics.descent) + above.leading.resolve(metrics.leading)
+                        + max(rows[index].box.ascent, metrics.ascent))
+                }
+                receiving[boundary.0] = y
+                earlier[boundary.1] = y
+            }
+            outputBaselines = (earlier, receiving)
+        }
         for (index, boundary) in zip(ending, ending.dropFirst()).enumerated() {
             let (i, j) = boundary
             let size = (rows[index].box.width, lefts[j])
@@ -1809,6 +2009,30 @@ struct Paragraph {
                     ? max(0, min(placement.x, room - size.0)) : placement.x
             }
             origins[j] = rows[index].x
+        }
+        // Replace drawing-derived metadata by the unique source index. Flattened wrapper IDs
+        // have no drawing box of their own, while duplicate IDs must stay ambiguous after this
+        // paragraph becomes an opaque independently wrapped child.
+        for index in rows.indices { rows[index].box.indentAnchors = nil }
+        for (id, anchor) in ids {
+            let index = output[anchor.unit]
+            let (i, j) = (ending[index], ending[index + 1])
+            if let point = finalPositions[j]?[id] {
+                rows[index].box.retainIndentAnchor(id, at: point)
+                continue
+            }
+            let x = anchor.trimsLeading
+                ? (rtl ? min(anchor.x, ends[j]) : (i > 0 && anchor.unit == stops[i].at ? max(anchor.x, starts[i]) : anchor.x))
+                : anchor.x
+            let edgeUnit = rtl ? min(anchor.endUnit ?? anchor.unit, stops[j].at - 1) : anchor.unit
+            let progression = stops[i].headAdvance + x - starts[i] + (unitShifts[edgeUnit] ?? 0)
+            let advance = rtl ? advances[j] : 0
+            let edge = lefts[j] + (rtl ? advance - progression : progression)
+            rows[index].box.retainIndentAnchor(id, at: CGPoint(x: edge, y: anchor.y))
+        }
+        for id in duplicateIDs {
+            rows[0].box.retainIndentAnchor(id)
+            rows[0].box.retainIndentAnchor(id)
         }
         return rows
     }

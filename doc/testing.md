@@ -115,6 +115,31 @@ xcodebuild test-without-building -xctestrun /path/to/edited.xctestrun \
   -parallel-testing-enabled NO
 ```
 
+## Unreleased layout enhancement verification
+
+The combined changes for #111–#115 were verified on 2026-10-13 with Apple Swift 6.4
+(`swiftlang-6.4.0.34.1`), Xcode 27.1 (`27A9269`) and arm64 macOS 27.0 (`26A428`).
+
+| Check | Result |
+| --- | --- |
+| Full debug suite, worker-depth measurement enabled | 804 passed; zero failures or skips |
+| Full optimized suite, worker-depth measurement enabled | 804 passed; zero failures or skips |
+| Additional optimized line-breaking fuzz sweep, seeds 0–399 | Zero failures |
+| Source/test checksums before and after the final suites | Unchanged |
+| `git diff --check` | Passed |
+
+Both suites include the pinned independent-font oracle, the 393 valid bundled corpus inputs,
+the three expected corpus rejections, per-row drawing and ink bounds, and the fixed worker-stack
+assertions. All eleven optional depth sweeps reached 64 levels on the exactly 512 KB worker.
+The new cases cover logical image attachments, wrapper reconstruction, final indentation anchors,
+table sizing/stretching, image metrics, MATH corrections and shared rebuild limits.
+
+These runs used separate scratch directories, `--jobs 2`, writable temporary module caches and
+`--disable-sandbox`. Optimized tests also used `-Xswiftc -enable-testing -debug-info-format none`:
+the environment denied `dsymutil` output when debug symbols were requested. The measurement
+flag was `MATHML_MEASURE_WORKER_DEPTH=1`; the additional sweep used `MATHML_FUZZ_SEEDS=0-399`.
+This verification covers macOS; the iOS results below describe the earlier 0.3.0 source.
+
 ## 0.3.0 release verification
 
 The source released as [0.3.0](https://github.com/vocaro/MathMLLayout/releases/tag/0.3.0)

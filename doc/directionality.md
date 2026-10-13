@@ -43,10 +43,12 @@ paragraph direction without prematurely stacking it. Existing ID-anchor scope li
 continue to apply.
 
 Restrictions remain the same in both directions: under/over structures are centered (`align`
-on them is not implemented), script annotations and under/over structures stay atomic,
-explicitly padded content is atomic, and unknown enclosure notations are ignored. Direction
-does not add CSS layout, arbitrary Unicode glyph substitutions beyond CoreText shaping,
-or support for mixed image/text bidi tokens beyond the [existing image policy](limits.md).
+on them is not implemented), script annotations and operator bases stay atomic, and unknown
+enclosure notations are ignored. Breakable under/over bases repeat their attached annotations;
+explicit padding resolves against each host-row fragment. Mixed image/text bidi tokens use
+logical paragraph ranges and per-line shaping, preserving local fallback backgrounds and
+image baseline placement. Direction does not add CSS layout or arbitrary Unicode glyph
+substitutions beyond CoreText shaping. See the [fragmentation policy](line-breaking.md).
 The node, text/assembly work, drawing-item, extent, retry and stack limits remain in force.
 See [bounds and limitations](limits.md) for measured worker coverage.
 

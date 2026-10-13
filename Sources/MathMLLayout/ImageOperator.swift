@@ -52,11 +52,17 @@ extension LayoutEngine {
     }
 
     /// Affine scaling of all drawing items, including text and backgrounds, never a font
-    /// construction chosen from adjacent text. Images have no italic/accent attachment metrics.
+    /// construction chosen from adjacent text. Deliberately supplied attachment coordinates
+    /// follow the physical x transform, including uniform display enlargement.
     private func scaledImageToken(_ source: MathBox, x: CGFloat, y: CGFloat) -> MathBox {
+        // An otherwise valid subnormal intrinsic size can demand an unrepresentable affine
+        // factor. Retain its author geometry rather than introduce infinite coordinates.
+        guard x.isFinite, y.isFinite else { return source }
         guard x > 0, y > 0 else { return .empty() }
         let transform = CGAffineTransform(scaleX: x, y: y)
         var box = MathBox(width: source.width * x, ascent: source.ascent * y, descent: source.descent * y)
+        box.italicCorrection = source.italicCorrection * x
+        box.topAccentAttachment = source.topAccentAttachment.map { $0 * x }
         box.alignment = source.alignment.map { event in
             var scaled = event
             scaled.x *= x

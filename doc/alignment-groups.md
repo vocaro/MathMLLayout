@@ -6,6 +6,15 @@ Each `maligngroup` starts a group. Corresponding groups share the maximum widths
 of their alignment point; missing trailing groups act as empty groups. Ungrouped cells use
 ordinary `columnalign`, and a wider heading shifts the complete aligned cells together.
 
+Authored `columnwidth` and `width` and equal tracks allocate the grid after measuring shared
+group side widths. Wrapping then uses each cell's full allocated spanning interval, including
+internal gaps, and group alignment is resolved again from those fragments. Fixed column floors
+and shared unbreakable group widths both contribute to the reported feasible minimum; neither
+is clipped by a smaller host budget. The fully broken aligned fallback remains bounded by the
+existing cell-rebuild limits. Equal tracks do not combine groups across different spanning
+intervals or change mixed `alignmentscope` behavior. Overlap label sides add no main-grid gutter
+and consume their own marks independently, as ordinary labels do.
+
 `groupalign` resolves from table, row, cell, then group. An enclosing `mstyle` supplies a table
 default, which an explicit table setting overrides. Table and row values are braced lists
 such as `{right left} {decimalpoint}`; cells use unbraced lists. Last values and last lists

@@ -10,11 +10,12 @@ final class TableAlignmentRegressionTests: XCTestCase {
     private func table(_ a: String, _ b: String, direction: String) -> String {
         "<mtable dir='\(direction)' columnalign='left'><mtr><mtd>\(a)</mtd></mtr><mtr><mtd>\(b)</mtd></mtr></mtable>"
     }
-    private func rectangles(_ box: MathBox, at origin: CGPoint = .zero) -> [CGRect] {
+    private func rectangles(_ box: MathBox, at origin: CGPoint = .zero, onlyBlack: Bool = false) -> [CGRect] {
         box.items.flatMap { item -> [CGRect] in
             switch item {
-            case .rect(let rect, _): [rect.offsetBy(dx: origin.x, dy: origin.y)]
-            case .box(let child, let p): rectangles(child, at: CGPoint(x: origin.x + p.x, y: origin.y + p.y))
+            case .rect(let rect, let color):
+                !onlyBlack || color.components?.prefix(3).allSatisfy({ $0 == 0 }) == true ? [rect.offsetBy(dx: origin.x, dy: origin.y)] : []
+            case .box(let child, let p): rectangles(child, at: CGPoint(x: origin.x + p.x, y: origin.y + p.y), onlyBlack: onlyBlack)
             default: []
             }
         }
@@ -52,10 +53,14 @@ final class TableAlignmentRegressionTests: XCTestCase {
                 + "<maligngroup/>" + space(second, "blue") + "</mrow>"
             let b = "<maligngroup/>" + space(first, "lime") + "<maligngroup/>" + space(second, "purple")
             let box = try innerBox(table(a, b, direction: direction))
-            let background = try XCTUnwrap(rectangles(box).first)
+            let backgrounds = rectangles(box, onlyBlack: true)
+            XCTAssertEqual(backgrounds.count, 2)
             XCTAssertEqual(box.width, 5 * em, accuracy: 0.001)
-            XCTAssertEqual(background.minX, 0, accuracy: 0.001)
-            XCTAssertEqual(background.width, 5 * em, accuracy: 0.001)
+            let ordered = backgrounds.sorted { $0.minX < $1.minX }
+            XCTAssertEqual(ordered[0].minX, 0, accuracy: 0.001)
+            XCTAssertEqual(ordered[0].width, 3 * em, accuracy: 0.001)
+            XCTAssertEqual(ordered[1].minX, 3 * em, accuracy: 0.001)
+            XCTAssertEqual(ordered[1].width, 2 * em, accuracy: 0.001)
             XCTAssertLessThanOrEqual(try XCTUnwrap(box.inkBounds).maxX, box.width + 0.001)
         }
     }

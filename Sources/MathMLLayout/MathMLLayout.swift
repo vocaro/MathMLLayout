@@ -30,29 +30,59 @@ public struct MathMLNode: Equatable, Sendable {
     }
 }
 
+/// A renderer-specific image operator stretch axis; it does not itself enable stretching.
+public enum MathImageStretchDirection: String, Sendable {
+    case horizontal, vertical
+}
+
 /// An `mglyph` image and its intrinsic size in points, independent of its pixel dimensions.
 /// `width` and `height` in the markup override this size; a single dimension preserves its
 /// aspect ratio. Percentages and unitless multiples refer to this size.
 public struct MathImage: Sendable {
     public let image: CGImage
     public let logicalSize: CGSize
+    /// Renderer extension for an image-only `mo`. The `mo`'s `imagestretchdirection`
+    /// attribute takes precedence, followed by operator text, then this source hint.
+    /// Direction alone never enables stretching: `stretchy="true"` remains required.
+    public let stretchDirection: MathImageStretchDirection?
+    /// Physical right-side script clearance in intrinsic logical points, added to the
+    /// image advance. Finite values in 0...logicalSize.width are accepted; others ignored.
+    public let italicCorrection: CGFloat?
+    /// Accent attachment x from the physical left image edge in intrinsic logical points.
+    /// Finite values in 0...logicalSize.width are accepted; others ignored. It is not mirrored
+    /// by RTL placement. Source metrics apply only to a token containing exactly one image.
+    public let topAccentAttachment: CGFloat?
 
     /// Pixels per point. For example, a 40-by-20 image at scale 2 occupies 20-by-10 points.
     /// A nonpositive or nonfinite scale, or a resulting size that is nonpositive or nonfinite,
     /// falls back to one pixel per point.
-    public init(_ image: CGImage, scale: CGFloat = 1) {
+    public init(_ image: CGImage, scale: CGFloat = 1,
+                stretchDirection: MathImageStretchDirection? = nil,
+                italicCorrection: CGFloat? = nil, topAccentAttachment: CGFloat? = nil) {
         let pixels = CGSize(width: image.width, height: image.height)
         self.init(image, logicalSize: scale.isFinite && scale > 0
-                  ? CGSize(width: pixels.width / scale, height: pixels.height / scale) : pixels)
+                  ? CGSize(width: pixels.width / scale, height: pixels.height / scale) : pixels,
+                  stretchDirection: stretchDirection, italicCorrection: italicCorrection,
+                  topAccentAttachment: topAccentAttachment)
     }
 
     /// An explicit intrinsic size in points, which may have a different aspect ratio from the
     /// pixels. If either dimension is nonpositive or nonfinite, both fall back to pixel dimensions.
-    public init(_ image: CGImage, logicalSize: CGSize) {
+    public init(_ image: CGImage, logicalSize: CGSize,
+                stretchDirection: MathImageStretchDirection? = nil,
+                italicCorrection: CGFloat? = nil, topAccentAttachment: CGFloat? = nil) {
         self.image = image
-        self.logicalSize = logicalSize.width.isFinite && logicalSize.width > 0
+        let size = logicalSize.width.isFinite && logicalSize.width > 0
             && logicalSize.height.isFinite && logicalSize.height > 0
             ? logicalSize : CGSize(width: image.width, height: image.height)
+        self.logicalSize = size
+        self.stretchDirection = stretchDirection
+        func bounded(_ metric: CGFloat?) -> CGFloat? {
+            guard let metric, metric.isFinite, metric >= 0, metric <= size.width else { return nil }
+            return metric
+        }
+        self.italicCorrection = bounded(italicCorrection)
+        self.topAccentAttachment = bounded(topAccentAttachment)
     }
 }
 
@@ -105,13 +135,23 @@ public struct MathStyle: Equatable, Sendable {
     /// PostScript name of an OpenType MATH font. nil, or a font that is not installed, uses
     /// the platform's STIX Two Math.
     public var fontName: String?
+    /// OpenType variation-axis tags (for example 0x77676874 for wght), in user coordinates.
+    /// CoreText selects/clamps the font instance; MATH deltas use that instance's actual coordinates.
+    public var fontVariations: [UInt32: CGFloat]
+    /// Opt-in MATH Device corrections at this fixed number of output pixels per point.
+    /// nil ignores Device records. Valid scales are 1/64...64; invalid values act as nil.
+    /// PPEM is the nearest integer to the inherited font size times this scale. Layout geometry
+    /// is fixed during construction and remains the same when drawn into another context.
+    public var mathDeviceScale: CGFloat?
     /// Images for `mglyph` elements with `src`; nil uses their `alt` text. Legacy font/index
     /// glyphs resolve independently of this provider.
     public var imageProvider: MathImageProvider?
     public init(fontSize: CGFloat, color: CGColor, isDisplay: Bool = false, fontName: String? = nil,
-                imageProvider: MathImageProvider? = nil) {
+                imageProvider: MathImageProvider? = nil, fontVariations: [UInt32: CGFloat] = [:],
+                mathDeviceScale: CGFloat? = nil) {
         self.fontSize = fontSize; self.color = color; self.isDisplay = isDisplay; self.fontName = fontName
         self.imageProvider = imageProvider
+        self.fontVariations = fontVariations; self.mathDeviceScale = mathDeviceScale
     }
 }
 
