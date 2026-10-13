@@ -13,12 +13,13 @@ declarations in any encoding, so no entity expands and nothing external loads; i
 Width fitting permits at most 1,114 complete layout passes. Within each pass, tables reserve at
 most 20,000 occupied grid slots apiece; initial table construction shares 200,000 occupancy
 probes/label-span row visits. Valid spans above 20,000, excessive occupied area or exhausted
-work throw
-`MathLayoutError.limitExceeded`; malformed/zero spans use one, and row spans stop at the last
-source row. Cell rebuilds share separate limits of 1,280,000 node visits and 200,000 table-work
+work throw `MathLayoutError.limitExceeded`; malformed/zero spans use one, and row spans stop
+at the last source row. Cell rebuilds share separate limits of 1,280,000 node visits and 200,000 table-work
 visits per pass; cached tables charge their original descendant count and measured grid work.
-Logical text shaping and row assembly share 2,000,000 units of work per pass, including cached range visits
-and assembly visits. Narrow paragraphs can exhaust that budget before reaching the input limit.
+Logical text range requests and row assembly share 2,000,000 units per pass: requested UTF-16
+range lengths (including cache hits) plus row units visited. This counter does not measure
+elapsed time or CoreText's internal paragraph resolution and shaping cost; long paragraphs can
+still take substantial time. Narrow paragraphs can exhaust the budget before the input limit.
 
 ### Worker stack coverage
 
@@ -40,11 +41,18 @@ rendering and all five base-language readings are compared with the reference an
 | Single-cell `mtable` → `mtr` → `mtd` | 21 tables (63 element levels) |
 | Script-nested `msub`, base-nested `munderover` | 48, plus 15 outer `mrow` |
 
-This is a tested matrix, not universal 64-level coverage. Pure subscript/under-over chains and
-different attributes, fonts, stretched operators, width constraints or callbacks can exhaust the
-stack sooner. Smaller workers may safely reject bounded inputs; tests include exact 128 KB and
-256 KB stacks and the requested-stack sweep down to 16 KB. Stack-sensitive results require
-remeasurement after compiler/platform changes; see [Worker depth](testing.md#worker-depth).
+On 2026-10-12, the optional pure-chain sweep on source `84b9554` reached 64 element levels
+for all eleven fixtures in both debug and release: 63 wrappers, or 21 three-element table
+wrappers. This includes pure subscript and under-over chains. The sweep checks successful
+`MathLayout` construction only; it does not perform the fixed matrix's rendering/readings
+comparisons above. Measurements used arm64 macOS 27.0 (build 26A428), Xcode 27.1 (build 27A9269),
+and Apple Swift 6.4 (`swiftlang-6.4.0.34.1`).
+
+These fixtures do not establish universal 64-level coverage. Different attributes, fonts,
+stretched operators, width constraints or callbacks can exhaust the stack sooner. Smaller
+workers may safely reject bounded inputs; tests include exact 128 KB and 256 KB stacks and the
+requested-stack sweep down to 16 KB. Stack-sensitive results require remeasurement after
+compiler/platform changes; see [Worker depth](testing.md#worker-depth).
 
 ## Limitations
 
