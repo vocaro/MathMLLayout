@@ -2,7 +2,7 @@
 
 This is a partial implementation of [#52](https://github.com/vocaro/MathMLLayout/issues/52).
 The harness originally established a reproducible baseline without changing production layout
-code or claiming complete MathML conformance. [The initial report](external-validation-report.md)
+code or claiming complete MathML conformance. [The initial report](external-validation/report.md)
 preserves the pre-fix measurements and records the current result after fixing #54.
 
 ## Pinned standards subset
@@ -150,8 +150,8 @@ this oracle with MathMLLayout's own decoder.
 The best-effort follow-up measured **100 sampled equations** from six pinned OpenStax
 Calculus CNXML modules. All 100 passed invariants and rendered in native/Chromium engines;
 24 pairs received a limited visual review. See the
-[report](external-validation-report.md#best-effort-follow-up-for-52) and
-[per-case results](external-validation-best-effort-results.json) for review limits and
+[report](external-validation/report.md#best-effort-follow-up-for-52) and
+[per-case results](external-validation/best-effort-results.json) for review limits and
 unadjudicated differences. This is a single-source calculus sample, not a broad corpus.
 
 The sources and derived corpus retain **CC-BY-NC-SA-4.0**. Keep them outside the repository

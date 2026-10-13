@@ -3,11 +3,11 @@
 **Best-effort follow-up for #52:** a reproducible 100-equation OpenStax sample and
 eight additional operator/table WPT cases are now measured. See the
 [follow-up results below](#best-effort-follow-up-for-52) and
-[machine-readable follow-up report](external-validation-best-effort-results.json).
+[machine-readable follow-up report](best-effort-results.json).
 
 **Current result after the #54 fix:** all 81 pinned assertions pass their unchanged upstream
 expectations, including all eight under/over limit checks. Strict mode passes as well.
-The [machine-readable comparison](external-validation-results.json) reflects the fixed code.
+The [machine-readable comparison](results.json) reflects the fixed code.
 The measurements and review notes below preserve the historical pre-fix baseline.
 
 Measured on **October 12, 2026**, against production code at
@@ -46,12 +46,12 @@ manifest also records policies for browser integration, table spans, MathKernInf
 intentional typography differences. The remaining WPT population was not enumerated; there
 is no whole-suite conformance rate. No unsupported or excluded case is counted as a pass.
 
-The current [machine-readable comparison](external-validation-results.json) contains per-case
+The current [machine-readable comparison](results.json) contains per-case
 measurements, classifications, reference results, environment, exclusions, and issue links;
 it supersedes this baseline's eight bug classifications after the #54 fix.
 The generated `external-validation-output/index.html` gallery shows source markup, aligned
 renderings, overlays and difference maps; regenerate it with the
-[documented commands](external-validation.md#batch-rendering-and-reference-gallery).
+[documented commands](../external-validation.md#batch-rendering-and-reference-gallery).
 
 ## Independent font checks
 
