@@ -89,7 +89,7 @@ final class NestedTableWrappingTests: MathTestCase {
         XCTAssertNotEqual(first, second)
         let smallBox = try XCTUnwrap(engine.tableMeasurements.lookup(shared, first))
         let largeBox = try XCTUnwrap(engine.tableMeasurements.lookup(shared, second))
-        XCTAssertEqual(largeBox.cells[0][0].box.width, smallBox.cells[0][0].box.width * 3, accuracy: 0.001)
+        XCTAssertEqual(largeBox.cells.rows[0][0].box.width, smallBox.cells.rows[0][0].box.width * 3, accuracy: 0.001)
     }
 
     func testNestedWrappingRetainsCompletePassBound() throws {

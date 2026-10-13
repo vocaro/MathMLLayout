@@ -180,6 +180,18 @@ extension LayoutEngine {
         box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), color), at: 0)
     }
 
+    /// Retained natural table cells enter a fresh relayout engine with new neighbouring events.
+    /// Keep their source priority while assigning sequence IDs unique to that engine.
+    func restampAlignment(_ box: inout MathBox) {
+        let priorities = box.alignment.indices.filter { index in
+            switch box.alignment[index].kind { case .mark, .number: return true; default: return false }
+        }.sorted { box.alignment[$0].order < box.alignment[$1].order }
+        for index in priorities {
+            alignmentSequence += 1
+            box.alignment[index].order = alignmentSequence
+        }
+    }
+
     /// Deferred stretchy children may be laid out after their siblings. Re-establish child
     /// source order while preserving each child's base-before-script mark priority.
     func orderAlignment(_ children: [MathBox], box: inout MathBox) {
@@ -251,21 +263,21 @@ extension LayoutEngine {
     }
 
     func alignColumns(_ cells: inout TableGrid, scopes: [String]) throws {
-        var columns: [Int: [(row: Int, groups: [MathBox.AlignmentGroup])]] = [:]
+        var columns: [Int: [(row: Int, index: Int, groups: [MathBox.AlignmentGroup])]] = [:]
         for row in cells.rows.indices {
             for column in cells.rows[row].indices {
                 let gridColumn = cells.rows[row][column].column
                 let scope = scopes.isEmpty || scopes[min(gridColumn, scopes.count - 1)] != "false"
                 if scope && cells.rows[row][column].box.row?.hasForced != true {
                     let groups = cells.rows[row][column].box.alignmentGroups(cells.rows[row][column].groupAlign)
-                    if !groups.isEmpty { columns[gridColumn, default: []].append((row, groups)) }
+                    if !groups.isEmpty { columns[gridColumn, default: []].append((row, column, groups)) }
                 }
                 if !scope {
                     cells.rows[row][column].box.alignment.removeAll { if case .mark = $0.kind { return false }; return true }
                 }
             }
         }
-        for (column, entries) in columns {
+        for entries in columns.values {
             let count = entries.map { $0.groups.count }.max() ?? 0
             var left = [CGFloat](repeating: 0, count: count), right = left
             for entry in entries {
@@ -277,7 +289,7 @@ extension LayoutEngine {
             let width = left.reduce(0, +) + right.reduce(0, +)
             guard width.isFinite, width <= MathLimits.extent else { throw MathLayoutError.limitExceeded }
             for entry in entries {
-                guard let index = cells.rows[entry.row].firstIndex(where: { $0.column == column }) else { continue }
+                let index = entry.index
                 var position: CGFloat = 0, shifts: [CGFloat] = []
                 for (index, group) in entry.groups.enumerated() {
                     shifts.append(position + left[index] - group.point)

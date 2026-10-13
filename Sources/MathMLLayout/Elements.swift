@@ -543,6 +543,13 @@ extension LayoutEngine {
             try countCellRebuildNodes(cached.descendantNodes)
             try countTableWork(cached.tableWork)
             cells = cached.cells; labels = cached.labels; sources = cached.sources; rowAxes = cached.rowAxes
+            // A fresh cell engine has its own sequence. Cached source priorities must not
+            // collide with new siblings or another cache hit in that same engine.
+            for row in cells.rows.indices {
+                for index in cells.rows[row].indices {
+                    restampAlignment(&cells.rows[row][index].box)
+                }
+            }
         } else {
             let startNodes = visitedNodes, startWork = remainingTableWork
             for (rowIndex, rowNode) in node.children.enumerated() {
@@ -665,7 +672,7 @@ extension LayoutEngine {
         let height = ascents.reduce(0, +) + descents.reduce(0, +) + rowGaps.reduce(0, +) + 2 * frameY
         // `align`: axis (default), center or baseline, top, bottom, for the whole table or for the row
         // whose number follows, counted from the bottom when it is negative. A row's axis is as far
-        // above its baseline as the surrounding one's, so `axis` with a row is `baseline` with it. A
+        // above its baseline as its row context's; numbered `axis` accounts for size changes. A
         // number that names no row is ignored (MathML 3, 3.5.1.2).
         let alignParts = list("align", in: attributes)
         var top: CGFloat

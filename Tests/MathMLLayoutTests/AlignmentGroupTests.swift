@@ -206,7 +206,10 @@ final class AlignmentGroupTests: XCTestCase {
 
     func testStagedWrappedSpanAndDirectionPolicies() throws {
         let span = "<mtable>" + row(first, cell: "columnspan='2'") + row(second, cell: "rowspan='2'") + "</mtable>"
-        XCTAssertEqual(try innerBox(span).width, 4 * em, accuracy: 0.001)
+        let spanningBox = try innerBox(span)
+        XCTAssertEqual(spanningBox.width, 4.8 * em, accuracy: 0.001, "spanning tracks retain their internal gap")
+        XCTAssertEqual(rectangles(spanningBox), rectangles(try innerBox(span.replacingOccurrences(of: "<maligngroup/>", with: ""))),
+                       "group alignment stays disabled for spanning cells")
         XCTAssertEqual(try innerBox("<mstyle dir='rtl'>\(table(first, second))</mstyle>").width, 4 * em, accuracy: 0.001)
         let formula = try mathML(table(first, second))
         let narrow = try MathLayout(formula, style: MathStyle(fontSize: em, color: black), maximumWidth: 2 * em)
