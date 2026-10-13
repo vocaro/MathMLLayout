@@ -39,7 +39,7 @@ Eight supplemental WPT operator/table checks also run there, using the preserved
 Set `MATHML_EXTERNAL_SUPPLEMENT_REPORT` to export their measurements. The reproducible
 100-equation OpenStax corpus remains on demand; see the
 [sample commands](external-validation.md#modest-openstax-sample) and
-[measured results](external-validation-report.md#best-effort-follow-up-for-52).
+[measured results](external-validation/report.md#best-effort-follow-up-for-52).
 All 81 assertions pass after fixing inline large-operator centering in
 [#54](https://github.com/vocaro/MathMLLayout/issues/54). The eight former discrepancies now
 check the original upstream expectations directly. Any future reviewed discrepancy must

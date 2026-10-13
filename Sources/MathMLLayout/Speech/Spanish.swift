@@ -1,6 +1,6 @@
 // Selected wording adapted from MathCAT (MIT) and Speech Rule Engine (Apache-2.0).
 // Modified for MathMLLayout's phrase templates; see THIRD_PARTY_NOTICES.md and
-// Documentation/SpeechWordingAudit.md for sources, decisions and remaining uncertainty.
+// doc/speech-wording-audit.md for sources, decisions and remaining uncertainty.
 /// Spanish formula readings; regional terminology has not been verified.
 enum SpanishVocabulary: MathVocabulary {
     static let language = "es"
@@ -52,7 +52,7 @@ enum SpanishVocabulary: MathVocabulary {
         phrase(base, "desde", lower, "hasta", upper)
     }
     // Positional script names adapted from pinned MathCAT/SRE; compound closing
-    // phrases composed for MathMLLayout. See Documentation/SpeechWordingAudit.md.
+    // phrases composed for MathMLLayout. See doc/speech-wording-audit.md.
     static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String {
         let label: String, end: String
         switch position {
@@ -119,7 +119,7 @@ enum SpanishVocabulary: MathVocabulary {
         ])
 
     // Bounded ordinal names adapted from pinned SRE number rules and MathCAT root rules.
-    // See Documentation/SpeechWordingAudit.md; compound indices retain explicit labels.
+    // See doc/speech-wording-audit.md; compound indices retain explicit labels.
     // No matching Spanish variable-root ordinal was found; n keeps the index template.
     static let ordinalRoots = ["1": "primera", "4": "cuarta", "5": "quinta", "6": "sexta", "7": "séptima", "8": "octava", "9": "novena", "10": "décima"]
     static func ordinalRoot(_ radicand: String, ordinal: String) -> String {

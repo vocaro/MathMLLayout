@@ -20,7 +20,7 @@ French comparison wording, Spanish double-dot accent name, English/French multis
 names, French and Spanish ordinal-root templates, English point name,
 the tensor multiscript regression structure, and selected regression expectations.
 References for retained wording are also recorded in the
-[speech wording audit](Documentation/SpeechWordingAudit.md).
+[speech wording audit](doc/speech-wording-audit.md).
 
 ## Speech Rule Engine
 
@@ -43,7 +43,7 @@ are composed for MathMLLayout, and its reading order follows source order.
 In MathMLLayout these are incorporated into Swift
 phrase templates and isolated test formulas, with existing operand and alias handling.
 The affected vocabulary and test files prominently identify this adaptation.
-The [audit](Documentation/SpeechWordingAudit.md) records exact source files and decisions.
+The [audit](doc/speech-wording-audit.md) records exact source files and decisions.
 These adaptations retain the Apache license and notice obligations.
 
 The adapted ClearSpeak fixtures also carry these attribution notices, retained here

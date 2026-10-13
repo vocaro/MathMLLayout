@@ -1,6 +1,6 @@
 // Selected multiscript wording adapted from MathCAT (MIT) and Speech Rule Engine
 // (Apache-2.0), modified for explicit sides and compound closure in MathMLLayout.
-// See THIRD_PARTY_NOTICES.md and Documentation/SpeechWordingAudit.md for sources.
+// See THIRD_PARTY_NOTICES.md and doc/speech-wording-audit.md for sources.
 /// English, and the reading of every locale without a vocabulary of its own.
 /// Structural speech follows the policies in doc/speech.md.
 enum EnglishVocabulary: MathVocabulary {
@@ -53,7 +53,7 @@ enum EnglishVocabulary: MathVocabulary {
         phrase(base, "from", lower, "to", upper)
     }
     // Positional script names adapted from pinned MathCAT/SRE; compound closing
-    // phrases composed for MathMLLayout. See Documentation/SpeechWordingAudit.md.
+    // phrases composed for MathMLLayout. See doc/speech-wording-audit.md.
     static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String {
         let label: String, end: String
         switch position {
@@ -120,7 +120,7 @@ enum EnglishVocabulary: MathVocabulary {
         ])
 
     // Bounded ordinal names adapted from pinned SRE number and root rules.
-    // See Documentation/SpeechWordingAudit.md; compound indices retain explicit labels.
+    // See doc/speech-wording-audit.md; compound indices retain explicit labels.
     static let ordinalRoots = ["1": "first", "4": "fourth", "5": "fifth", "6": "sixth", "7": "seventh", "8": "eighth", "9": "ninth", "10": "tenth", "n": "n-th"]
     static func ordinalRoot(_ radicand: String, ordinal: String) -> String {
         phrase("the", ordinal, "root of", radicand, "end root")

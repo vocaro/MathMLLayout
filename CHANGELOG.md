@@ -39,7 +39,7 @@ Line breaking, `mglyph`, elementary math and localized readings
   identifier symbols and simple ordinal roots are read in all five languages; French vowel
   elision is explicit ([#31](https://github.com/vocaro/MathMLLayout/issues/31)).
   Fresh linguistic review is limited to novel descriptions in the
-  [speech audit](Documentation/SpeechWordingAudit.md#structural-follow-up-for-31), tracked separately
+  [speech audit](doc/speech-wording-audit.md#structural-follow-up-for-31), tracked separately
   in [#63](https://github.com/vocaro/MathMLLayout/issues/63).
 
 - `mmultiscripts` spoken readings distinguish right/left subscripts and superscripts
@@ -54,7 +54,7 @@ Line breaking, `mglyph`, elementary math and localized readings
 - Selected French, German, Spanish and Italian spoken names now follow pinned MathCAT and
   Speech Rule Engine rules and fixtures, including double-dot accents, several hat/bar
   accents, partial derivatives and the German contour integral. French `<` and `>` readings
-  omit `strictement`. The [wording audit](Documentation/SpeechWordingAudit.md) records
+  omit `strictement`. The [wording audit](doc/speech-wording-audit.md) records
   accepted source-backed wording and the limited review queue for novel descriptions.
   Underbars, brace names, Italian caron and bounded ordinals also follow upstream evidence;
   Spanish variable roots retain explicit indices
