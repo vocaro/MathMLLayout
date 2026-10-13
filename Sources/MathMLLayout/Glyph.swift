@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreText
 import Foundation
 
 /// `mglyph`: an image that stands for a character no font has, among a token's text (MathML 3,
@@ -96,7 +97,15 @@ extension LayoutEngine {
     /// So this `alt` is a box of its own among the token's text, where any other is part of that
     /// text. It is drawn as that text is, in the token's variant, size and colour.
     private func altBox(_ alt: String, on background: CGColor, _ context: LayoutContext) -> MathBox {
-        var box = textBox(context.variant?.apply(to: alt) ?? alt, context)
+        var box = textBox(context.variant?.apply(to: alt) ?? alt, context, retainSegments: true)
+        if let segments = box.textSegments {
+            box.textSegments = segments.map { segment in
+                var piece = segment
+                piece.box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: piece.box.width, height: box.height), background), at: 0)
+                piece.box.ascent = box.ascent; piece.box.descent = box.descent
+                return piece
+            }
+        }
         box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), background), at: 0)
         return box
     }
@@ -151,22 +160,111 @@ extension LayoutEngine {
         return box
     }
 
+    /// Slice an already-shaped line at logical ordinary spaces. Glyph identity is not a word
+    /// boundary: a font may use the same glyph for a no-break space. String indices also keep
+    /// ligatures and combining marks with their source word, without reshaping its text.
+    func textSegments(_ text: String, line: CTLine, box: MathBox) -> [TextSegment]? {
+        let runs = (CTLineGetGlyphRuns(line) as? [CTRun] ?? []).filter { CTRunGetGlyphCount($0) > 0 }
+        // Visual RTL runs need per-line shaping before they can wrap in source order.
+        guard !runs.contains(where: { CTRunGetStatus($0).contains(.rightToLeft) }) else { return nil }
+        let units = Array(text.utf16)
+        guard !units.isEmpty else { return [] }
+        var starts = [0], owners = [Int](repeating: 0, count: units.count)
+        for index in 1..<units.count {
+            if (units[index] == 0x20) != (units[index - 1] == 0x20) { starts.append(index) }
+            owners[index] = starts.count - 1
+        }
+        // No opportunity inside the run: keep its original drawing, including shaping.
+        if starts.count == 1 {
+            return [TextSegment(box: box, x: 0, isSpace: units[0] == 0x20)]
+        }
+        // Asking CTLine for every boundary's offset scans the shaped line repeatedly. Derive
+        // the source-order boundaries in one pass, using each piece's first visual glyph origin.
+        var offsets = [CGFloat](repeating: .infinity, count: starts.count) + [box.width]
+        var edge = -CGFloat.infinity, previousOwner = 0
+        var indexedRuns: [(GlyphRun, [CFIndex])] = []
+        for (run, item) in zip(runs, box.items) {
+            guard case .glyphs(let drawing) = item else { return nil }
+            var indices = [CFIndex](repeating: 0, count: CTRunGetGlyphCount(run))
+            CTRunGetStringIndices(run, CFRange(), &indices)
+            for index in indices.indices {
+                guard indices[index] >= 0, indices[index] < owners.count else { return nil }
+                let owner = owners[indices[index]]
+                let x = drawing.positions[index].x
+                // Keep the legacy conservative policy for visually reordered drawing origins.
+                guard owner >= previousOwner, x >= edge - 0.01 else { return nil }
+                previousOwner = owner; edge = x
+                if !offsets[owner].isFinite { offsets[owner] = x }
+            }
+            indexedRuns.append((drawing, indices))
+        }
+        // A wholly invisible piece has no advance and shares the next boundary.
+        for index in starts.indices.reversed() where !offsets[index].isFinite { offsets[index] = offsets[index + 1] }
+        offsets[0] = 0
+        guard zip(offsets, offsets.dropFirst()).allSatisfy({ $0 <= $1 }) else { return nil }
+        var pieces = starts.indices.map {
+            TextSegment(box: MathBox(width: offsets[$0 + 1] - offsets[$0]), x: offsets[$0], isSpace: units[starts[$0]] == 0x20)
+        }
+        for (drawing, indices) in indexedRuns {
+            let count = indices.count
+            var index = 0
+            while index < count {
+                guard indices[index] >= 0, indices[index] < owners.count else { return nil }
+                let owner = owners[indices[index]]
+                var end = index + 1
+                while end < count, indices[end] >= 0, indices[end] < owners.count, owners[indices[end]] == owner { end += 1 }
+                let glyphs = Array(drawing.glyphs[index..<end])
+                let positions = drawing.positions[index..<end].map { CGPoint(x: $0.x - offsets[owner], y: $0.y) }
+                var rects = [CGRect](repeating: .zero, count: glyphs.count)
+                CTFontGetBoundingRectsForGlyphs(drawing.font, .horizontal, glyphs, &rects, glyphs.count)
+                var ink: CGRect?
+                for (rect, position) in zip(rects, positions) where !rect.isEmpty {
+                    let placed = rect.offsetBy(dx: position.x, dy: position.y)
+                    ink = ink.map { $0.union(placed) } ?? placed
+                }
+                pieces[owner].box.items.append(.glyphs(GlyphRun(font: drawing.font, glyphs: glyphs, positions: positions,
+                                                               color: drawing.color, ink: ink ?? .null)))
+                index = end
+            }
+        }
+        for index in pieces.indices {
+            let ink = pieces[index].box.inkBounds
+            pieces[index].box.ascent = ink?.maxY ?? 0
+            pieces[index].box.descent = ink.map { -$0.minY } ?? 0
+        }
+        return pieces
+    }
+
     /// Text with an image, or an `alt` on its background, at each marker, side by side on the baseline.
-    func textBox(_ text: String, images: [MathBox], _ context: LayoutContext) -> MathBox {
+    func textBox(_ text: String, images: [MathBox], _ context: LayoutContext, retainSegments: Bool = false) -> MathBox {
         var parts: [MathBox] = []
         var remaining = images[...]
         let runs = text.unicodeScalars.split(separator: Self.glyphMarker, omittingEmptySubsequences: false)
         for (index, run) in runs.enumerated() {
             if index > 0, let image = remaining.popFirst() { parts.append(image) }
-            parts.append(textBox(String(run), context))
+            parts.append(textBox(String(run), context, retainSegments: retainSegments))
         }
         // An image of no size, or no text between two images, has no extents to count.
         parts.removeAll { $0.width == 0 && $0.items.isEmpty }
         var box = MathBox(ascent: parts.map(\.ascent).max() ?? 0, descent: parts.map(\.descent).max() ?? 0)
+        var segments: [TextSegment] = []
         for part in parts {
+            if retainSegments {
+                if let pieces = part.textSegments {
+                    segments += pieces.map { TextSegment(box: $0.box, x: box.width + $0.x, isSpace: $0.isSpace) }
+                } else {
+                    segments.append(TextSegment(box: part, x: box.width, isSpace: false))
+                }
+            }
             box.add(part, at: CGPoint(x: box.width, y: 0))
             box.width += part.width
         }
+        // An unsegmentable textual part (currently RTL) keeps the whole token atomic.
+        // Actual images have no text metadata and are still eligible atomic pieces.
+        let hasUnsegmentableText = parts.contains { part in
+            part.textSegments == nil && part.items.contains { if case .glyphs = $0 { return true }; return false }
+        }
+        if retainSegments, !hasUnsegmentableText { box.textSegments = segments }
         return box
     }
 }

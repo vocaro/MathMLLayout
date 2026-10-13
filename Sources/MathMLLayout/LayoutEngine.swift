@@ -812,8 +812,8 @@ final class LayoutEngine {
         var variant = context.variant
         if node.name == "mi", variant == nil, text.unicodeScalars.count == 1, !Self.hasGlyph(node) { variant = .italic }
         if let variant { text = variant.apply(to: text) }
-        guard images.isEmpty else { return textBox(text, images: images, context) }
-        var box = textBox(text, context)
+        guard images.isEmpty else { return textBox(text, images: images, context, retainSegments: node.name == "mtext") }
+        var box = textBox(text, context, retainSegments: node.name == "mtext")
         if let glyph = singleGlyph(box), let table = font.table {
             let size = context.fontSize
             if node.name == "mi", let correction = table.italicsCorrection(glyph) {
@@ -827,7 +827,7 @@ final class LayoutEngine {
 
     /// Text shaped by CoreText with the math font; characters it lacks come from the
     /// system's fallback fonts.
-    func textBox(_ text: String, _ context: LayoutContext) -> MathBox {
+    func textBox(_ text: String, _ context: LayoutContext, retainSegments: Bool = false) -> MathBox {
         guard !text.isEmpty else { return .empty() }
         let attributes = [kCTFontAttributeName: ctFont(context)] as CFDictionary
         let line = CTLineCreateWithAttributedString(CFAttributedStringCreate(nil, text as CFString, attributes))
@@ -855,6 +855,7 @@ final class LayoutEngine {
         }
         box.ascent = ink?.maxY ?? 0
         box.descent = ink.map { -$0.minY } ?? 0
+        if retainSegments { box.textSegments = textSegments(text, line: line, box: box) }
         return box
     }
 
