@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "datasets": [
+    {
+      "id": "openstax-precalculus",
+      "repository": "openstax/osbooks-college-algebra-bundle",
+      "revision": "4922e46ebc04326979e19392ccc2384cb8b9076c",
+      "license": "CC-BY-4.0",
+      "licenseURL": "https://creativecommons.org/licenses/by/4.0/",
+      "attribution": "OpenStax, Rice University; Precalculus 2e, Jay Abramson and contributing authors. Access for free at https://openstax.org/details/books/precalculus-2e.",
+      "count": 100,
+      "seed": 52,
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "97d24386ff776d7160b87031b259a942bd03c9939796cab6724ad5d17d2cf785",
+          "bundledAs": "LICENSE.txt"
+        },
+        {
+          "path": "README.md",
+          "sha256": "8898a649dcb4dc1276c8fdb62bc3ad9db5fba704323a68145c7998992d19275b",
+          "bundledAs": "SOURCE-README.md"
+        },
+        {
+          "path": "collections/precalculus-2e.collection.xml",
+          "sha256": "c8893fa42090416923d5a9c485dd0f2b43387e2a3c008e0a398063f48aeeaefe",
+          "bundledAs": "COLLECTION.xml"
+        },
+        {
+          "path": "modules/m49301/index.cnxml",
+          "title": "Functions and Function Notation",
+          "sha256": "4840c1e0a13a0fbce630464bc285efddf41e11fae3504b824f0acb10cf02c21a"
+        },
+        {
+          "path": "modules/m49335/index.cnxml",
+          "title": "Complex Numbers",
+          "sha256": "9ee8afa67b04f8a27575aa88817401b119c68092c75711b0295f342812f90363"
+        },
+        {
+          "path": "modules/m49363/index.cnxml",
+          "title": "Logarithmic Functions",
+          "sha256": "0b4eb384e818fc57e65dc7828f1544f20bce828126e2e2f37de86a1f3be71c8b"
+        },
+        {
+          "path": "modules/m49395/index.cnxml",
+          "title": "Sum and Difference Identities",
+          "sha256": "24ba113e9ed71e8c359ce55f954939fdce0bad31bbaff7f742ffb91ef1d6feea"
+        },
+        {
+          "path": "modules/m49434/index.cnxml",
+          "title": "Solving Systems with Gaussian Elimination",
+          "sha256": "b3465261512d12b0e44cff2199829bb49e7dfa724536d89575b04a7952d87a1f"
+        },
+        {
+          "path": "modules/m49446/index.cnxml",
+          "title": "Geometric Sequences",
+          "sha256": "57a13a6f6a6720d3ec3065bc7a2bbab77c455da0b4d6fd1830770619dd594bec"
+        },
+        {
+          "path": "modules/m49452/index.cnxml",
+          "title": "Finding Limits: Numerical and Graphical Approaches",
+          "sha256": "3a011c8be7e2e1147af60228d980af2a83ba669e40ee26ae1819f8908cba1cf7"
+        },
+        {
+          "path": "modules/m49455/index.cnxml",
+          "title": "Derivatives",
+          "sha256": "f71d29f4af29cac05cc3138bed4415d82a02ce0d6da2a64bf89637e8bb804b62"
+        }
+      ]
+    },
+    {
+      "id": "sre-mathspeak",
+      "repository": "Speech-Rule-Engine/speech-rule-engine",
+      "revision": "28cac44da8eba13bce646823183e959d6d943e79",
+      "license": "Apache-2.0",
+      "licenseURL": "https://www.apache.org/licenses/LICENSE-2.0",
+      "attribution": "Speech Rule Engine. Copyright 2014-2018 Volker Sorge.",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+          "bundledAs": "LICENSE.txt"
+        },
+        {
+          "path": "NOTICE",
+          "sha256": "e75e81a077c1ad1e03daa4fa336b8bd66dd9847fa17679f5bd2ae13734132cbc",
+          "bundledAs": "UPSTREAM-NOTICE.txt"
+        },
+        {
+          "path": "testsuite/input/mathspeak/mathspeak_test.json",
+          "sha256": "485b54e864641447312efe83f7e13ff583808bb5f5112a7262ed635ae5662b55"
+        },
+        {
+          "path": "testsuite/input/mathspeak/mathspeak_roots.json",
+          "sha256": "c8990d142a0948c6975616534391fab97ed4d0a40154619f624dc08cac3ebfec"
+        },
+        {
+          "path": "testsuite/input/mathspeak/mathspeak_embellish_test.json",
+          "sha256": "b7239c9158329997537ebf669cbdfc440129ed217998d28e6366414145538e2e"
+        },
+        {
+          "path": "testsuite/input/mathspeak/mathspeak_tensors.json",
+          "sha256": "c6937fb1d8b11e3b584d2b309ab4cec25b4fd322a414aa8aff60ab59df576d4c"
+        }
+      ],
+      "expectedInvalidMarkup": {
+        "1052c49786c537e35e48827d12dd52d3e2f66c5c883fadd520f4943a2fc3abd5": "mmultiscripts",
+        "36673c8c59c152d4b2101a2fd08f5d9e279d97e8f12e7dd12f3c528bd68b2262": "mmultiscripts",
+        "c3268074c69568710deee8f217b1ccbac7ac3e8f0cf6b1e6a8a20b42bd4bf8a6": "mmultiscripts"
+      }
+    }
+  ]
+}

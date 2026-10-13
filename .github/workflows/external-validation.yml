@@ -22,16 +22,18 @@ jobs:
           swift --version
           xcodebuild -version
           test "$(sw_vers -productVersion | cut -d. -f1)" -ge 27
-      - name: Pinned standards and font oracle (debug)
+      - name: Pinned standards, corpora and font oracle (debug)
         env:
           MATHML_REQUIRE_FONT_ORACLE: "1"
           MATHML_EXTERNAL_REPORT: external-debug.json
-        run: swift test --filter 'ExternalValidationTests|IndependentFontTests'
-      - name: Pinned standards and font oracle (release)
+          MATHML_CORPUS_REPORT: external-corpus-debug.json
+        run: swift test --filter 'ExternalValidationTests|IndependentFontTests|ExternalCorpusTests'
+      - name: Pinned standards, corpora and font oracle (release)
         env:
           MATHML_REQUIRE_FONT_ORACLE: "1"
           MATHML_EXTERNAL_REPORT: external-release.json
-        run: swift test -c release -Xswiftc -enable-testing --filter 'ExternalValidationTests|IndependentFontTests'
+          MATHML_CORPUS_REPORT: external-corpus-release.json
+        run: swift test -c release -Xswiftc -enable-testing --filter 'ExternalValidationTests|IndependentFontTests|ExternalCorpusTests'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

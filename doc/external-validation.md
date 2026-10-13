@@ -148,6 +148,34 @@ this oracle with MathMLLayout's own decoder.
 
 ## Real-world corpus
 
+### Bundled corpora
+
+`ExternalCorpusTests` runs offline in the regular suite using two checked-in datasets:
+
+- 100 textbook equations selected from 2,100 distinct formulas in eight OpenStax
+  Precalculus 2e modules. The pinned revision `4922e46ebc04326979e19392ccc2384cb8b9076c`
+  specifies CC-BY-4.0 in its LICENSE, README and collection metadata. Current upstream
+  editions use different terms; regeneration only uses this exact licensed snapshot.
+  Sampling uses the existing display/complexity/rare-element strata and seed 52.
+- 296 distinct MathML inputs from four SRE Mathspeak files at the project's existing pinned
+  Apache-2.0 revision. All 293 valid formulas must render, and the three incomplete script
+  pairs must produce their recorded `invalidMarkup("mmultiscripts")` error.
+
+Every valid bundled input checks its hash, finite/bounded dimensions, deterministic layout
+and raster ink containment. A bounds rejection or raster-budget exclusion fails the bundled
+check. These are robustness checks, not independent visual or specification expectations.
+The textbook sample includes 52 inline and 48 display formulas; it covers functions, complex
+numbers, logarithms, trigonometric identities, matrices, geometric sequences, limits and derivatives.
+The SRE corpus adds nested roots, embellished operators, annotations and tensors. This is
+broader structural coverage, not a claim of representative coverage of all mathematical documents.
+
+The corpora live only in the test target's resources. Their full licenses, notices, source
+license evidence and per-case provenance are bundled too. See the
+[corpus README](../Tests/MathMLLayoutTests/ExternalFixtures/Corpus/README.md) and
+[third-party notices](licenses/THIRD_PARTY_NOTICES.md).
+`MATHML_CORPUS_REPORT` exports the combined results. `MATHML_CORPUS_MANIFEST` adds a local
+manifest to the bundled cases, preserving the external importer/report workflow.
+
 ### Modest OpenStax sample
 
 The best-effort follow-up measured **100 sampled equations** from six pinned OpenStax
