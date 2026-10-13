@@ -26,8 +26,10 @@ declarations in any encoding, so no entity expands and nothing external loads; i
   size it with markup `width` and `height`; see [Images](images.md). An `mo` with an
   `mglyph` keeps the size its author gave it: it is not stretched, enlarged or centred on the
   axis.
-- **Elementary math.** Columns run left to right only. `decimalpoint` names one character. An
-  `mglyph` in a stack's number is not drawn. Division frames are drawn, not font glyphs.
+- **Elementary math.** Columns run left to right only. `decimalpoint` names one character. A
+  number's `mglyph` occupies one column, sized to its image or entire fallback text; its `alt`
+  never supplies a decimal separator or several digit columns. Division frames are drawn,
+  not font glyphs.
 - **Speech.** Five languages, without regional variants or grammatical agreement. Token text and
   `alt` are spoken as written. A stack's reading gives its rows, carries and lines in order,
   not their column positions.

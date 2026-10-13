@@ -32,30 +32,14 @@ extension LayoutEngine {
     /// `mglyph`s beyond them follow the text; a marker beyond the `mglyph`s is dropped.
     func glyphContent(of token: MathMLNode, trimming: Bool = true,
                       _ context: LayoutContext) throws -> (text: String, images: [MathBox]) {
-        let glyphs = token.children.filter { $0.name == "mglyph" }
-        guard !glyphs.isEmpty || token.text.unicodeScalars.contains(Self.glyphMarker) else {
-            return (Self.normalized(token.text, trimming: trimming), [])
-        }
-        // Each glyph adds a marker or its `alt` to the text, which the caller bounds once it is whole.
-        guard glyphs.count <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
-        // Markers and glyphs are paired before whitespace collapses, so it collapses around
-        // what is drawn.
-        var paired = String.UnicodeScalarView()
-        var markers = 0
-        for scalar in token.text.unicodeScalars {
-            if scalar == Self.glyphMarker {
-                guard markers < glyphs.count else { continue }
-                markers += 1
-            }
-            paired.append(scalar)
-        }
-        paired.append(contentsOf: repeatElement(Self.glyphMarker, count: glyphs.count - markers))
+        let (paired, glyphs) = try Self.pairedGlyphText(of: token, trimming: trimming)
+        guard !glyphs.isEmpty else { return (paired, []) }
         var text = String.UnicodeScalarView(), images: [MathBox] = []
         var remaining = glyphs[...]
         // A host's tree may give every glyph the same long `alt`, so those are bounded as they are
         // added: whole, they could be `MathLimits.nodes` times the longest.
         var altLength = 0
-        for scalar in Self.normalized(String(paired), trimming: trimming).unicodeScalars {
+        for scalar in paired.unicodeScalars {
             guard scalar == Self.glyphMarker, let glyph = remaining.popFirst() else { text.append(scalar); continue }
             if let image = image(of: glyph) {
                 text.append(scalar)
@@ -77,6 +61,30 @@ extension LayoutEngine {
             }
         }
         return (String(text), images)
+    }
+
+    /// Pairs markers with glyph children before normalizing whitespace. Elementary-math
+    /// columns use the same order, but keep every glyph's image or fallback in one cell.
+    static func pairedGlyphText(of token: MathMLNode, trimming: Bool = true) throws
+        -> (text: String, glyphs: [MathMLNode]) {
+        let glyphs = token.children.filter { $0.name == "mglyph" }
+        guard !glyphs.isEmpty || token.text.unicodeScalars.contains(Self.glyphMarker) else {
+            return (Self.normalized(token.text, trimming: trimming), [])
+        }
+        guard glyphs.count <= MathLimits.nodes else { throw MathLayoutError.limitExceeded }
+        // Markers and glyphs are paired before whitespace collapses, so it collapses around
+        // what is drawn.
+        var paired = String.UnicodeScalarView()
+        var markers = 0
+        for scalar in token.text.unicodeScalars {
+            if scalar == Self.glyphMarker {
+                guard markers < glyphs.count else { continue }
+                markers += 1
+            }
+            paired.append(scalar)
+        }
+        paired.append(contentsOf: repeatElement(Self.glyphMarker, count: glyphs.count - markers))
+        return (Self.normalized(String(paired), trimming: trimming), glyphs)
     }
 
     /// `glyphContent` of an `mo`, with its text as `operatorText` draws it: a hyphen-minus is the

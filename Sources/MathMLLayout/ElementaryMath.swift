@@ -211,8 +211,7 @@ extension LayoutEngine {
         MathStackAlignment.columns(node, name)
     }
 
-    /// A token's characters for the grid: whitespace collapsed and trimmed, without the marker
-    /// that stands for an `mglyph` child. A column of digits draws no image.
+    /// A token's plain characters, for recognizing a decimal separator outside an `mn`.
     private static func characters(_ node: MathMLNode) -> String {
         normalized(node.text.replacingOccurrences(of: "\u{FFFC}", with: ""))
             .trimmingCharacters(in: CharacterSet(charactersIn: " "))
@@ -298,8 +297,8 @@ extension LayoutEngine {
 
     /// A row of digits (3.6.4): each character of an `mn` takes a column, any other element
     /// takes one, `none` leaves one empty, and an `mstyle` only styles its children, which are
-    /// the row's. The digits of a number are laid out as numbers of one character, so they keep
-    /// the `mn`'s attributes and count as nodes and text like any token.
+    /// the row's. Each `mglyph` in a number takes one column, including its entire fallback.
+    /// The cells keep the `mn`'s attributes and size their columns like its characters.
     private func digitRow(_ children: [MathMLNode], position: Int, _ style: StackStyle, _ context: LayoutContext,
                           depth: Int) throws -> StackLine {
         var line = StackLine(kind: .digits, em: context.fontSize, color: context.color)
@@ -319,15 +318,30 @@ extension LayoutEngine {
                 case "mn":
                     var attributes = child.attributes
                     attributes["mathbackground"] = nil
-                    let text = Self.characters(child)
+                    // These children are walked without `layout`: count them once, at their
+                    // own depth, even if they do not draw (e.g. a `malignmark`).
+                    for _ in child.children { try visit(context, depth: depth + 1) }
+                    let (text, glyphs) = try Self.pairedGlyphText(of: child)
                     if text.isEmpty { try visit(context, depth: depth) }
-                    for character in text {
-                        let digit = String(character)
-                        let cell = try layout(MathMLNode(name: "mn", attributes: attributes, text: digit), context, depth: depth)
-                        // A space in a number (between groups of three, say) is a column as wide as a space.
+                    var remaining = glyphs[...]
+                    let runs = text.unicodeScalars.split(separator: Self.glyphMarker, omittingEmptySubsequences: false)
+                    func cell(_ text: String, glyph: MathMLNode? = nil) throws {
+                        let node = MathMLNode(name: "mn", attributes: attributes, children: glyph.map { [$0] } ?? [],
+                                              text: text)
+                        let box = try layout(node, context, depth: depth)
+                        // A space in a number (between groups of three, say) sizes an empty column.
                         line.digits.insert(line.cells.count)
-                        line.cells.append(digit == " " ? .empty(width: textBox(digit, inherit(child, context)).width) : cell)
-                        if point == nil, StackStyle.isDecimalPoint(digit, decimalPoint) { point = line.cells.count - 1 }
+                        line.cells.append(text == " " ? .empty(width: textBox(text, inherit(child, context)).width) : box)
+                        // Images and their `alt`s are atomic cells, never decimal separators.
+                        if glyph == nil, point == nil, StackStyle.isDecimalPoint(text, decimalPoint) {
+                            point = line.cells.count - 1
+                        }
+                    }
+                    for (index, run) in runs.enumerated() {
+                        if index > 0, let glyph = remaining.popFirst() {
+                            try cell(String(Self.glyphMarker), glyph: glyph)
+                        }
+                        for character in String(run) { try cell(String(character)) }
                     }
                 default:
                     // The element paints its own background.
