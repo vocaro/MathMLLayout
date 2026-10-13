@@ -2,10 +2,10 @@
 // Modified for MathMLLayout's phrase templates; see doc/licenses/THIRD_PARTY_NOTICES.md and
 // doc/speech-wording-audit.md for sources, decisions and remaining uncertainty.
 /// French formula readings. A label's colon takes a space before it.
-enum FrenchVocabulary: MathVocabulary {
-    static let language = "fr"
+public enum FrenchVocabulary: MathVocabulary {
+    public static let language = "fr"
 
-    static let symbols = MathSymbols(
+    public static let symbols = MathSymbols(
         plus: "plus", minus: "moins", plusOrMinus: "plus ou moins", minusOrPlus: "moins ou plus", times: "fois",
         dividedBy: "divisé par", slash: "sur", equals: "égale", notEqual: "est différent de",
         less: "est inférieur à", greater: "est supérieur à",
@@ -24,38 +24,40 @@ enum FrenchVocabulary: MathVocabulary {
         openAngle: "chevron ouvrant", closeAngle: "chevron fermant", ellipsis: "points de suspension",
         forAll: "pour tout", exists: "il existe", not: "non", and: "et", or: "ou")
 
-    static let accents = MathAccents(
+    public static let accents = MathAccents(
         hat: .after("accent circonflexe"), tilde: .after("tilde"), bar: .after("barre"), underbar: .after("trait souscrit"),
         dot: .after("point"), doubleDot: .after("tréma"), vector: .before("vecteur"), check: .after("caron"),
         breve: .after("brève"), overbrace: .after("accolade supérieure"),
         underbrace: .after("accolade inférieure"))
 
-    static func fraction(_ numerator: String, _ denominator: String, simple: Bool) -> String {
+    public static func fraction(_ numerator: String, _ denominator: String, simple: Bool) -> String {
         simple ? phrase(numerator, "sur", denominator)
             : phrase("début de fraction", numerator, "sur", denominator, "fin de fraction")
     }
-    static func squared(_ base: String) -> String { phrase(base, "au carré") }
-    static func cubed(_ base: String) -> String { phrase(base, "au cube") }
-    static func primed(_ base: String) -> String { phrase(base, "prime") }
-    static func power(_ base: String, _ exponent: String, simple: Bool) -> String {
+    public static func squared(_ base: String) -> String { phrase(base, "au carré") }
+    public static func cubed(_ base: String) -> String { phrase(base, "au cube") }
+    public static func primed(_ base: String, count: Int) -> String {
+        phrase([base] + Array(repeating: symbols.prime, count: max(0, count)))
+    }
+    public static func power(_ base: String, _ exponent: String, simple: Bool) -> String {
         phrase(base, "puissance", exponent, simple ? "" : "fin d'exposant")
     }
-    static func subscripted(_ base: String, _ script: String) -> String { phrase(base, "indice", script) }
-    static func squareRoot(_ radicand: String, closed: Bool) -> String {
+    public static func subscripted(_ base: String, _ script: String) -> String { phrase(base, "indice", script) }
+    public static func squareRoot(_ radicand: String, closed: Bool) -> String {
         phrase("racine carrée", de(radicand), closed ? "fin de racine" : "")
     }
-    static func cubeRoot(_ radicand: String) -> String { phrase("racine cubique", de(radicand), "fin de racine") }
-    static func root(_ radicand: String, index: String) -> String {
+    public static func cubeRoot(_ radicand: String) -> String { phrase("racine cubique", de(radicand), "fin de racine") }
+    public static func root(_ radicand: String, index: String) -> String {
         phrase("racine d'indice", index, de(radicand), "fin de racine")
     }
-    static func under(_ base: String, _ script: String) -> String { phrase(base, "avec en dessous", script) }
-    static func over(_ base: String, _ script: String) -> String { phrase(base, "avec au-dessus", script) }
-    static func limits(_ base: String, from lower: String, to upper: String) -> String {
+    public static func under(_ base: String, _ script: String) -> String { phrase(base, "avec en dessous", script) }
+    public static func over(_ base: String, _ script: String) -> String { phrase(base, "avec au-dessus", script) }
+    public static func limits(_ base: String, from lower: String, to upper: String) -> String {
         phrase(base, de(lower), "à", upper)
     }
     // Positional script names adapted from pinned MathCAT/SRE; compound closing
     // phrases composed for MathMLLayout. See doc/speech-wording-audit.md.
-    static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String {
+    public static func script(_ script: String, position: MathScriptPosition, simple: Bool) -> String {
         let label: String, end: String
         switch position {
         case .rightSubscript: label = "indice droite"; end = "fin d'indice"
@@ -66,23 +68,23 @@ enum FrenchVocabulary: MathVocabulary {
         return phrase(label, script, simple ? "" : end)
     }
     /// French counts none and one in the singular.
-    static func table(rows: Int) -> String { "tableau de \(rows) \(rows < 2 ? "ligne" : "lignes")" }
-    static func row(_ number: Int) -> String { "ligne \(number) :" }
+    public static func table(rows: Int) -> String { "tableau de \(rows) \(rows < 2 ? "ligne" : "lignes")" }
+    public static func row(_ number: Int) -> String { "ligne \(number) :" }
 
-    static func stack(rows: Int) -> String { "opération posée de \(rows) \(rows < 2 ? "ligne" : "lignes")" }
-    static let endStack = "fin de l'opération"
-    static let line = "trait"
-    static func carries(_ carries: String) -> String { phrase("retenues :", carries) }
-    static let blank = "vide"
-    static func crossedOut(_ carry: String) -> String { phrase(carry, "avec le chiffre de la colonne barré") }
-    static func longDivision(rows: Int) -> String {
+    public static func stack(rows: Int) -> String { "opération posée de \(rows) \(rows < 2 ? "ligne" : "lignes")" }
+    public static let endStack = "fin de l'opération"
+    public static let line = "trait"
+    public static func carries(_ carries: String) -> String { phrase(spatial.carriesOrBorrows, carries) }
+    public static let blank = "vide"
+    public static func crossedOut(_ carry: String) -> String { phrase(carry, "avec le chiffre de la colonne barré") }
+    public static func longDivision(rows: Int) -> String {
         rows == 0 ? "division posée" : "division posée avec \(rows) \(rows < 2 ? "ligne" : "lignes") de calcul"
     }
-    static func divisor(_ divisor: String) -> String { phrase("diviseur :", divisor) }
-    static func dividend(_ dividend: String) -> String { phrase("dividende :", dividend) }
-    static func result(_ result: String) -> String { phrase("résultat :", result) }
-    static let endLongDivision = "fin de la division"
-    static let spatial = MathSpatialWords(
+    public static func divisor(_ divisor: String) -> String { phrase("diviseur :", divisor) }
+    public static func dividend(_ dividend: String) -> String { phrase("dividende :", dividend) }
+    public static func result(_ result: String) -> String { phrase("résultat :", result) }
+    public static let endLongDivision = "fin de la division"
+    public static let spatial = MathSpatialWords(
         digits: ["zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf"],
         point: "point", comma: "virgule", space: "espace", colon: "deux-points", semicolon: "point-virgule",
         column: "colonne", alignment: "alignement", fullWidth: "sur toute la largeur de l’opération", carriesOrBorrows: "retenues ou emprunts :",
@@ -123,8 +125,8 @@ enum FrenchVocabulary: MathVocabulary {
 
     // Bounded ordinal names adapted from pinned SRE number rules and MathCAT root rules.
     // See doc/speech-wording-audit.md; compound indices retain explicit labels.
-    static let ordinalRoots = ["1": "première", "4": "quatrième", "5": "cinquième", "6": "sixième", "7": "septième", "8": "huitième", "9": "neuvième", "10": "dixième", "n": "n-ième"]
-    static func ordinalRoot(_ radicand: String, ordinal: String) -> String {
+    public static let ordinalRoots = ["1": "première", "4": "quatrième", "5": "cinquième", "6": "sixième", "7": "septième", "8": "huitième", "9": "neuvième", "10": "dixième", "n": "n-ième"]
+    public static func ordinalRoot(_ radicand: String, ordinal: String) -> String {
         phrase("racine", ordinal, de(radicand), "fin de racine")
     }
 

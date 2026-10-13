@@ -420,7 +420,7 @@ final class AcceptanceTests: MathTestCase {
         let english = formula.accessibilityDescription
         XCTAssertEqual(english, "x squared plus 1 over y equals the square root of z", "the English property is unchanged")
         XCTAssertEqual(formula.accessibilityDescription(locale: Locale(identifier: "en")), MathReading(text: english, language: "en"))
-        XCTAssertEqual(formula.accessibilityDescription(locale: Locale(identifier: "en_GB")).language, "en")
+        XCTAssertEqual(formula.accessibilityDescription(locale: Locale(identifier: "en_GB")).language, "en-GB")
 
         var seen: Set<String> = [english]
         for language in ["fr", "de", "es", "it"] {

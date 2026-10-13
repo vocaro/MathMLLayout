@@ -3,13 +3,17 @@ import Foundation
 /// A spoken reading of a formula and the language it is written in.
 public struct MathReading: Equatable, Sendable {
     public var text: String
-    /// BCP 47 tag of the language `text` is in: the requested locale's language when the engine has its
-    /// vocabulary, else "en".
+    /// Actual selected BCP 47 vocabulary tag, including a supported region/script/variant.
+    /// Unsupported locales use the base language or a whole-reading English fallback ("en").
+    /// Literal author text may use a different language; it is never translated.
     public var language: String
     public init(text: String, language: String) { self.text = text; self.language = language }
 
-    /// The languages the engine has a vocabulary for, as BCP 47 tags.
+    /// The original built-in base languages, as BCP 47 tags. See `supportedLocales` for variants.
     public static let languages: [String] = vocabularies.map { $0.language }
+
+    /// All built-in language and variant tags. `languages` retains the original base-language list.
+    public static var supportedLocales: [String] { MathVocabularyCatalog.standard.languages }
 
     static let vocabularies: [any MathVocabulary.Type] = [
         EnglishVocabulary.self, FrenchVocabulary.self, GermanVocabulary.self, SpanishVocabulary.self,
@@ -26,14 +30,18 @@ extension MathMLNode {
         return speaker.reading(of: self, depth: 0)
     }
 
-    /// The same reading in the locale's language, whatever its region or script: "x au carré plus 1"
-    /// for `fr-CA`. A language without a vocabulary gets the English reading whole, and its
-    /// `language` says so, for a host to speak it with a voice that matches the words.
+    /// Select a supported variant, then its base language, then English for the entire reading.
+    /// `language` identifies the vocabulary actually used, so a host can select a matching voice.
     public func accessibilityDescription(locale: Locale) -> MathReading {
-        let code = locale.language.languageCode?.identifier
-        let words = MathReading.vocabularies.first { $0.language == code } ?? EnglishVocabulary.self
-        var speaker = Speaker(words: words)
-        return MathReading(text: speaker.reading(of: self, depth: 0), language: words.language)
+        accessibilityDescription(locale: locale, vocabularies: .standard)
+    }
+
+    /// Read with additional complete vocabularies or explicit regional overrides. Selection happens
+    /// once before traversal; missing terminology never inserts another language into the reading.
+    public func accessibilityDescription(locale: Locale, vocabularies: MathVocabularyCatalog) -> MathReading {
+        let selected = vocabularies.vocabulary(for: locale)
+        var speaker = Speaker(words: selected.words)
+        return MathReading(text: speaker.reading(of: self, depth: 0), language: selected.tag)
     }
 }
 
@@ -147,7 +155,7 @@ private struct Speaker {
         switch text {
         case "_", "¯", "‾", "\u{0305}", "\u{0332}": return words.accents.underbar
         case "⏟": return words.accents.underbrace
-        default: return .after(words.under("", value.reading(on: "")))
+        default: return .after(words.under("", words.accent(value, on: "")))
         }
     }
 
@@ -222,7 +230,7 @@ private struct Speaker {
             case ("mn", "3"): return words.cubed(base)
             default:
                 if let token = simpleToken(power), token.name == "mo", let primes = primeCount(token.text) {
-                    return words.phrase([base] + Array(repeating: words.symbols.prime, count: primes))
+                    return words.primed(base, count: primes)
                 }
                 return words.power(base, exponent, simple: isSimple(power))
             }
@@ -261,7 +269,7 @@ private struct Speaker {
                 guard !script.isEmpty else { return base }
                 if children.count > 1, let accent = accent(children[1], under: under,
                    explicit: node.attributes.flag(under ? "accentunder" : "accent")) {
-                    return accent.reading(on: base)
+                    return words.accent(accent, on: base)
                 }
                 return under ? words.under(base, script) : words.over(base, script)
             default:
@@ -274,8 +282,8 @@ private struct Speaker {
                 if lowerAccent == nil && upperAccent == nil {
                     return words.limits(base, from: lower, to: upper)
                 }
-                if !lower.isEmpty { result = lowerAccent?.reading(on: result) ?? words.under(result, lower) }
-                if !upper.isEmpty { result = upperAccent?.reading(on: result) ?? words.over(result, upper) }
+                if !lower.isEmpty { result = lowerAccent.map { words.accent($0, on: result) } ?? words.under(result, lower) }
+                if !upper.isEmpty { result = upperAccent.map { words.accent($0, on: result) } ?? words.over(result, upper) }
                 return result
             }
         case "mmultiscripts":
@@ -532,6 +540,6 @@ private struct Speaker {
             if !styles.isEmpty { entry = words.phrase(words.crossedOut(entry), words.phrase(styles)) }
             parts.append(words.phrase(words.column(start + index), blank && carry.name == "none" ? "" : words.spatial.locations[location] ?? "", entry))
         }
-        return parts.isEmpty ? "" : words.phrase(words.spatial.carriesOrBorrows, words.phrase(parts))
+        return parts.isEmpty ? "" : words.carries(words.phrase(parts))
     }
 }

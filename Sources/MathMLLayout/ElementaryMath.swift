@@ -3,7 +3,7 @@ import CoreText
 import Foundation
 
 /// Where a carry goes around the character it annotates (MathML 3, 3.6.5.2): a compass point.
-enum CarryLocation: String, CaseIterable, Sendable {
+public enum CarryLocation: String, CaseIterable, Sendable {
     case w, nw, n, ne, e, se, s, sw
 
     init?(attribute: String?) {
@@ -146,7 +146,7 @@ private struct Stack {
 }
 
 /// `longdivstyle` (3.6.2.2): where the divisor and the result go around the dividend.
-enum LongDivision: String, CaseIterable, Sendable {
+public enum LongDivision: String, CaseIterable, Sendable {
     case leftTop = "lefttop", stackedRightRight = "stackedrightright"
     case mediumStackedRightRight = "mediumstackedrightright", shortStackedRightRight = "shortstackedrightright"
     case rightTop = "righttop", leftSlashRight = "left/\\right", leftParenRight = "left)(right"
