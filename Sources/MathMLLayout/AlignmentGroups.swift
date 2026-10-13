@@ -87,7 +87,8 @@ extension MathBox {
 
     /// Translate leaf drawing items by their source group, rather than their x coordinate:
     /// fractions and scripts can overhang, and two empty groups can share an x coordinate.
-    func aligning(_ groups: [AlignmentGroup], shifts: [CGFloat], width: CGFloat) -> MathBox {
+    func aligning(_ groups: [AlignmentGroup], shifts: [CGFloat], width: CGFloat, rtl: Bool = false,
+                  sections: [(left: CGFloat, right: CGFloat)] = []) -> MathBox {
         var result = MathBox(width: width, ascent: ascent, descent: descent)
         var group = 0
         // Prefix ranges are built once, O(groups × depth), rather than searching all groups
@@ -134,11 +135,22 @@ extension MathBox {
             if case .rect(let rect, let color) = item, rect.minX == 0, rect.width == cursor.box.width,
                let range = ranges[cursor.path] {
                 let first = range.first, last = range.last
-                leaf.items = [.rect(CGRect(x: rect.minX, y: rect.minY,
-                    width: cursor.path.isEmpty ? width : max(0, rect.width + shifts[last] - shifts[first]),
-                    height: rect.height), color)]
-                result.add(leaf, at: CGPoint(x: cursor.origin.x + (cursor.path.isEmpty ? 0 : shifts[first]),
-                                            y: cursor.origin.y))
+                var left = cursor.path.isEmpty ? 0 : cursor.origin.x + shifts[rtl ? last : first]
+                var right = cursor.path.isEmpty ? width
+                    : left + max(0, rect.width + (rtl ? shifts[first] - shifts[last] : shifts[last] - shifts[first]))
+                // RTL automatic left alignment can insert blank space at the right edge
+                // without translating either endpoint. A background containing complete
+                // groups must cover those reserved sections as well as their shifted ink.
+                if rtl, !sections.isEmpty {
+                    if groups[first].start >= cursor.origin.x, groups[first].end <= cursor.origin.x + rect.width {
+                        right = max(right, sections[first].right)
+                    }
+                    if groups[last].start >= cursor.origin.x, groups[last].end <= cursor.origin.x + rect.width {
+                        left = min(left, sections[last].left)
+                    }
+                }
+                leaf.items = [.rect(CGRect(x: 0, y: rect.minY, width: max(0, right - left), height: rect.height), color)]
+                result.add(leaf, at: CGPoint(x: left, y: cursor.origin.y))
             } else {
                 result.add(leaf, at: CGPoint(x: cursor.origin.x + shifts[group], y: cursor.origin.y))
             }
@@ -183,7 +195,7 @@ extension LayoutEngine {
     }
 
     func alignmentElement(_ node: MathMLNode, _ context: LayoutContext) -> MathBox {
-        guard context.trackAlignment && !context.alignmentRTL else { return .empty() }
+        guard context.trackAlignment else { return .empty() }
         alignmentSequence += 1
         var box = MathBox()
         box.alignment = [AlignmentEvent(kind: node.name == "maligngroup"
@@ -236,11 +248,11 @@ extension LayoutEngine {
             if !box.alignment.isEmpty { box.alignment = [] }
             return
         }
-        if context.alignmentRTL {
+        let changesDirection = (node.name == "mrow" || node.name == "mstyle")
+            && context.alignmentRTL != outer.alignmentRTL
+        if changesDirection {
+            // A direction-changing row is one atomic element of its surrounding group.
             box.alignment = []
-            // A direction-changing child remains one atomic element of the outer LTR group.
-            // Suppress its internal events, but retain its full ink/advance extent below.
-            guard outer.trackAlignment && !outer.alignmentRTL else { return }
         }
         guard node.name != "maligngroup", node.name != "malignmark" else { return }
         let groupContainers: Set<String> = ["math", "mrow", "mstyle", "mtd", "mphantom", "mfenced", "maction", "semantics"]
@@ -254,7 +266,7 @@ extension LayoutEngine {
         }
         guard !box.alignment.contains(where: { if case .group = $0.kind { return true }; return false }) else { return }
         var edges = box.alignmentEdges
-        if node.name == "mn" || node.name == "mspace" || node.name == "mtext" || context.alignmentRTL {
+        if node.name == "mn" || node.name == "mspace" || node.name == "mtext" || changesDirection {
             edges = (min(0, edges.left), max(box.width, edges.right))
         }
         box.alignment.removeAll { if case .extent = $0.kind { return true }; return false }
@@ -265,7 +277,7 @@ extension LayoutEngine {
     /// drawing. Inline images, legacy glyphs and decorated fallbacks contribute their advances.
     func tokenAlignment(_ box: inout MathBox, node: MathMLNode, text: String,
                         images: [MathBox] = [], markOffset: Int? = nil, context: LayoutContext) throws {
-        guard context.trackAlignment && !context.alignmentRTL else { return }
+        guard context.trackAlignment else { return }
         let mark = node.children.first { $0.name == "malignmark" }
         guard node.name == "mn" || mark != nil else { return }
         struct Part {
@@ -297,8 +309,11 @@ extension LayoutEngine {
             // lie at its opposite visual edge. The rendered attachment edge is exact.
             if let edge = imageEdges[count] { return edge }
             // Single-glyph operators may have been enlarged or assembled after shaping.
-            if node.name == "mo", images.isEmpty, text.unicodeScalars.count == 1,
-               count >= text.utf16.count { return box.width }
+            if node.name == "mo", images.isEmpty, text.unicodeScalars.count == 1, let part = parts.first {
+                let advance = CGFloat(CTLineGetTypographicBounds(part.line, nil, nil, nil))
+                guard advance > 0 else { return 0 }
+                return CTLineGetOffsetForStringIndex(part.line, count, nil) / advance * box.width
+            }
             guard let part = parts.first(where: { count <= $0.end }) else { return x }
             return part.x + CTLineGetOffsetForStringIndex(part.line, max(0, count - part.start), nil)
         }
@@ -331,7 +346,7 @@ extension LayoutEngine {
         }
     }
 
-    func alignColumns(_ cells: inout TableGrid, scopes: [String]) throws {
+    func alignColumns(_ cells: inout TableGrid, scopes: [String], rtl: Bool = false) throws {
         var columns: [Int: [(row: Int, index: Int, groups: [MathBox.AlignmentGroup])]] = [:]
         for row in cells.rows.indices {
             for column in cells.rows[row].indices {
@@ -359,12 +374,15 @@ extension LayoutEngine {
             guard width.isFinite, width <= MathLimits.extent else { throw MathLayoutError.limitExceeded }
             for entry in entries {
                 let index = entry.index
-                var position: CGFloat = 0, shifts: [CGFloat] = []
+                var position: CGFloat = rtl ? width : 0, shifts: [CGFloat] = []
+                var sections: [(left: CGFloat, right: CGFloat)] = []
                 for (index, group) in entry.groups.enumerated() {
-                    shifts.append(position + left[index] - group.point)
-                    position += left[index] + right[index]
+                    let size = left[index] + right[index]
+                    sections.append(rtl ? (position - size, position) : (position, position + size))
+                    shifts.append(position + (rtl ? -right[index] : left[index]) - group.point)
+                    position += (rtl ? -1 : 1) * size
                 }
-                cells.rows[entry.row][index].box = cells.rows[entry.row][index].box.aligning(entry.groups, shifts: shifts, width: width)
+                cells.rows[entry.row][index].box = cells.rows[entry.row][index].box.aligning(entry.groups, shifts: shifts, width: width, rtl: rtl, sections: sections)
             }
         }
         for row in cells.rows.indices {

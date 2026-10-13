@@ -63,7 +63,7 @@ struct LayoutContext: Equatable {
         var lines = LineStyle()
         /// `decimalpoint`: the character a stack's rows align on (`stackalign="decimalpoint"`); nil is ".".
         var decimalPoint: String?
-        /// The text paragraph direction; mathematical rows retain their own geometry.
+        /// The text paragraph direction, separate from physical row and table progression.
         var direction = CTWritingDirection.natural
         var tableRowAlign: String? = nil
         var trackAlignment: Bool = false
@@ -841,7 +841,11 @@ final class LayoutEngine {
     private func finish(_ result: MathBox, _ node: MathMLNode, _ outer: LayoutContext,
                         _ context: LayoutContext, _ embellishment: Embellishment, wrapStart: Int) -> MathBox {
         var box = result
-        let children = node.children
+        if (node.name == "mrow" || node.name == "mstyle"), context.alignmentRTL != outer.alignmentRTL {
+            // Opposite-direction rows are atomic to the outer paragraph, but their own
+            // forced and automatic breaks must be resolved before becoming an outer unit.
+            box = wrapped(box, beside: 0, align: .left) ?? box
+        }
         finishAlignment(&box, node: node, outer: outer, context: context)
         if node.name != "maligngroup", node.name != "malignmark",
            node.attributes["mathbackground"].flatMap(MathColor.parse) != nil {
@@ -1225,21 +1229,32 @@ final class LayoutEngine {
             }
             x += lspace
             offsets.append(x)
-            if !child.alignment.isEmpty, Self.alignmentMark(children[index]) != nil {
-                markEvents.append((index, box.alignment.count))
+            if !context.alignmentRTL {
+                if !child.alignment.isEmpty, Self.alignmentMark(children[index]) != nil {
+                    markEvents.append((index, box.alignment.count))
+                }
+                box.add(child, at: CGPoint(x: x, y: 0))
             }
-            box.add(child, at: CGPoint(x: x, y: 0))
             x += child.width + rspace
             box.ascent = index == 0 ? child.ascent : max(box.ascent, child.ascent)
             box.descent = index == 0 ? child.descent : max(box.descent, child.descent)
         }
         box.width = x
+        let placed = context.alignmentRTL ? boxes.indices.map { x - offsets[$0] - boxes[$0].width } : offsets
+        if context.alignmentRTL {
+            for (index, child) in boxes.enumerated() {
+                if !child.alignment.isEmpty, Self.alignmentMark(children[index]) != nil {
+                    markEvents.append((index, box.alignment.count))
+                }
+                box.add(child, at: CGPoint(x: placed[index], y: 0))
+            }
+        }
         for mark in markEvents {
             let right = Self.alignmentMark(children[mark.child])?.attributes["edge"]?.lowercased() == "right"
-            let neighbour = right ? mark.child - 1 : mark.child + 1
+            let neighbour = mark.child + ((right != context.alignmentRTL) ? -1 : 1)
             box.alignment[mark.event].x = boxes.indices.contains(neighbour)
-                ? offsets[neighbour] + (right ? boxes[neighbour].alignmentEdges.right : boxes[neighbour].alignmentEdges.left)
-                : offsets[mark.child]
+                ? placed[neighbour] + (right ? boxes[neighbour].alignmentEdges.right : boxes[neighbour].alignmentEdges.left)
+                : placed[mark.child]
         }
         if boxes.count == 1 {
             box.italicCorrection = boxes[0].italicCorrection

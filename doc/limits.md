@@ -82,20 +82,22 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   chosen before ID placement; an ID continuation can extend the returned width beyond that
   frame. See [Line breaking](line-breaking.md).
 - **Direction and elementary math.** Inherited `dir` sets direction within shaped token text;
-  general layout schemata still progress LTR. Elementary grids, numeric text and frame sides
+  rows and table columns progress in the inherited layout direction. Scripts, radicals and
+  other schemata retain their existing geometry; full RTL schema mirroring is unsupported.
+  Elementary grids, numeric text and frame sides
   retain the LTR policy. `decimalpoint` names one character. A number's `mglyph` occupies one
   column, sized to its image or entire fallback; its `alt` supplies neither a decimal separator
   nor several digit columns. Division frames are drawn, not font glyphs. See
   [Direction and columns](elementary-direction.md).
-- **Tables.** Spans use a bounded sparse grid; overlapping requests move right to a vacant
-  rectangle. Label columns remain independent gutters, so a label's `columnspan` adds no grid
+- **Tables.** Spans use a bounded sparse grid; overlapping requests advance to a vacant
+  rectangle in source-column order. Label columns remain independent gutters, so a label's `columnspan` adds no grid
   columns. Row/cell vertical alignment is supported; a row with only top/bottom/center entries
   uses a midpoint baseline, and labels contribute to row height. Equal tracks, authored
   table/column widths and stretching cell operators to neighboring cells remain unsupported;
-  overlap label sides reserve the same space as non-overlap forms. LTR alignment groups and
+  overlap label sides reserve the same space as non-overlap forms. LTR and RTL alignment groups and
   marks are supported, but aligned cells stay indivisible under automatic wrapping. Forced
   breaks and non-default spans opt out. Token marks also align beside inline images, legacy
-  glyphs, and fallbacks. RTL alignment remains staged. See [Alignment groups](alignment-groups.md).
+  glyphs, and fallbacks. Left/right edges and label sides remain physical. See [Alignment groups](alignment-groups.md).
 - **Images and legacy glyphs.** Intrinsic image scale/logical size is supplied by the host;
   markup can override image dimensions. An `mo` containing `mglyph` preserves author sizing
   and baseline by default; explicit `stretchy="true"`/`largeop="true"` opts into whole-token

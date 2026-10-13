@@ -253,4 +253,41 @@ final class BidiTextTests: MathTestCase {
         XCTAssertFalse(work.consume(0))
         XCTAssertEqual(work.spent, TextShapingWork.limit)
     }
+    func testLTRTokenWordsKeepTheirOrderInsideBrokenRTLMathematicalRows() throws {
+        func positions(_ box: MathBox, x: CGFloat = 0) -> [CGFloat] {
+            box.items.flatMap { item -> [CGFloat] in
+                switch item {
+                case .glyphs(let run): run.positions.map { x + $0.x }
+                case .box(let child, let point): positions(child, x: x + point.x)
+                default: []
+                }
+            }.sorted()
+        }
+        let style = MathStyle(fontSize: 20, color: black, fontName: fontName)
+        let children = [MathMLNode(name: "mtext", attributes: ["dir": "ltr"], text: "AB CD EF")]
+        let root = MathMLNode(name: "math", attributes: ["dir": "rtl"], children: children)
+        let box = try LayoutEngine(fontName: fontName).layoutRoot(root, style: style)
+        let lines = Paragraph(box).rows(limit: 45, first: 45, auto: (.left, 0))
+        XCTAssertEqual(lines.count, 2)
+        guard lines.count == 2 else { return }
+        XCTAssertEqual(visualGlyphs(lines[0].box), names("ABCD"))
+        XCTAssertEqual(lines[0].box.width, 45, accuracy: 0.001)
+        let offsets = positions(lines[0].box)
+        XCTAssertEqual(offsets[2] - offsets[1], 15, accuracy: 0.001, "the separator retains its five-point advance")
+        XCTAssertEqual(visualGlyphs(lines[1].box), names("EF"))
+
+        let mixed = MathMLNode(name: "math", attributes: ["dir": "rtl"], children: [
+            MathMLNode(name: "mtext", attributes: ["dir": "ltr"], text: "AB CD"),
+            MathMLNode(name: "mo", attributes: ["linebreak": "newline"], text: "+"),
+            MathMLNode(name: "mtext", attributes: ["dir": "ltr"], text: "EF"),
+        ])
+        let drawn = try LayoutEngine(fontName: fontName).layoutRoot(mixed, style: style)
+        let broken = Paragraph(drawn).rows(limit: 45, first: 45, auto: (.left, 0))
+        XCTAssertEqual(broken.count, 2)
+        guard broken.count == 2 else { return }
+        XCTAssertEqual(visualGlyphs(broken[0].box), names("ABCD"))
+        XCTAssertEqual(broken[0].box.width, 45, accuracy: 0.001)
+        XCTAssertEqual(visualGlyphs(broken[1].box), names("EF+"))
+    }
+
 }
