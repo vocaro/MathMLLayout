@@ -57,6 +57,12 @@ extension LayoutEngine {
         guard x > 0, y > 0 else { return .empty() }
         let transform = CGAffineTransform(scaleX: x, y: y)
         var box = MathBox(width: source.width * x, ascent: source.ascent * y, descent: source.descent * y)
+        box.alignment = source.alignment.map { event in
+            var scaled = event
+            scaled.x *= x
+            if case .extent(let width) = scaled.kind { scaled.kind = .extent(width * x) }
+            return scaled
+        }
         box.items = source.items.map { item in
             switch item {
             case .glyphs(var run):

@@ -10,7 +10,9 @@ language/script/region/variant tag, then its base language, then a whole English
 For example, `en-GB` selects British bracket names, `fr-CA` selects `fr`, and `ja-JP` selects `en`.
 No unsupported regional sibling is guessed. Base-language requests keep their existing readings.
 `accessibilityDescription` is the English reading. Stacks and long divisions are read row by row with logical column positions,
-and an `mglyph` by its author-supplied `alt`. Text and image descriptions are not translated.
+and an `mglyph` by its author-supplied `alt`. Embedded glyph descriptions follow token source
+order. Text and glyph descriptions are not translated, even when an `alt` looks like a known
+symbol or digit; symbol names and squared/cubed shortcuts apply to authored token text.
 
 ## Adding vocabularies and regional overrides
 
@@ -68,7 +70,11 @@ coordinates and compass locations retain the same convention in both directions.
 and nested groups. Numbers directly in a stack row are spelled digit by digit, naming
 point, comma and grouping space literally; punctuation is not guessed to be a decimal or
 grouping separator. `mstyle` is transparent to the grid, `none` names a blank column, and a
-compound formula occupies one cell. Decimal-point settings inherited from `math`/`mstyle`
+compound formula occupies one cell. Each embedded `mglyph` in a number also occupies one
+cell, speaking its entire author `alt` literally for resolved images, legacy font glyphs and
+fallbacks. Its `alt` supplies neither digit columns nor a decimal separator; an absent or
+empty `alt` is silent but still reserves the column. Numeric divisor/carry operands likewise
+keep glyph descriptions whole. Decimal-point settings inherited from `math`/`mstyle`
 and changes within row styles determine the alignment. A finite line names its first and
 last columns, including a one-column line; zero length names the whole stack width.
 

@@ -392,8 +392,15 @@ final class LayoutEngine {
         guard !attributes.isEmpty else { return outer }
         var context = outer
         let direction = attributes["dir"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if direction == "ltr" { context.direction = .leftToRight }
-        if direction == "rtl" { context.direction = .rightToLeft }
+        // A malformed value leaves both text and alignment direction inherited.
+        if direction == "ltr" {
+            context.direction = .leftToRight
+            context.alignmentRTL = false
+        }
+        if direction == "rtl" {
+            context.direction = .rightToLeft
+            context.alignmentRTL = true
+        }
         if node.name == "mstyle" {
             if let rowAlign = attributes["rowalign"] { context.tableRowAlign = rowAlign }
             if let multiplier = attributes["scriptsizemultiplier"].flatMap({ Double($0.trimmingCharacters(in: .whitespaces)) }),
@@ -434,7 +441,6 @@ final class LayoutEngine {
             context.variant = bold ? (italic ? .boldItalic : .bold) : (italic ? .italic : .normal)
         }
         if node.name == "mstyle", let groups = attributes["groupalign"] { context.tableGroupAlign = groups }
-        if let direction { context.alignmentRTL = direction == "rtl" }
         inheritLineStyle(node, &context)
         return context
     }
@@ -836,7 +842,7 @@ final class LayoutEngine {
                         _ context: LayoutContext, _ embellishment: Embellishment, wrapStart: Int) -> MathBox {
         var box = result
         let children = node.children
-        finishAlignment(&box, node: node, context: context)
+        finishAlignment(&box, node: node, outer: outer, context: context)
         if node.name != "maligngroup", node.name != "malignmark",
            node.attributes["mathbackground"].flatMap(MathColor.parse) != nil {
             // A background encloses one stack, including gaps between its lines. It is never
@@ -1321,18 +1327,31 @@ final class LayoutEngine {
         // A surrounding RTL text paragraph must not mirror their physical parentheses.
         if node.name == "mn" { context.direction = .leftToRight }
         try countNodes(node.children.lazy.filter { $0.name == "malignmark" }.count)
-        var (text, images) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", countingGlyphs: countingGlyphs, context)
+        var (text, images, markOffset) = try glyphContent(of: node, trimming: node.name != "mtext" && node.name != "ms", countingGlyphs: countingGlyphs, context)
         if node.name == "ms" {
             // The quotes are text, whatever they hold: only `mglyph`s have markers.
-            text = Self.unmarked(node.attributes["lquote"] ?? "\"") + text + Self.unmarked(node.attributes["rquote"] ?? "\"")
+            let quote = Self.unmarked(node.attributes["lquote"] ?? "\"")
+            if let offset = markOffset { markOffset = offset + quote.utf16.count }
+            text = quote + text + Self.unmarked(node.attributes["rquote"] ?? "\"")
         }
         try countText(text)
         var variant = context.variant
         if node.name == "mi", variant == nil, text.unicodeScalars.count == 1, !Self.hasGlyph(node) { variant = .italic }
-        if let variant { text = variant.apply(to: text) }
-        guard images.isEmpty else { return textBox(text, images: images, context, retainSegments: node.name == "mtext") }
-        var box = textBox(text, context)
-        if node.name == "mtext", context.lines.linebreak != .nobreak, text.contains(" ") {
+        if let variant {
+            if let offset = markOffset {
+                markOffset = variant.apply(to: String(decoding: text.utf16.prefix(offset), as: UTF16.self)).utf16.count
+            }
+            text = variant.apply(to: text)
+        }
+        if !images.isEmpty {
+            var box = textBox(text, images: images, context, retainSegments: node.name == "mtext")
+            try tokenAlignment(&box, node: node, text: text, images: images, markOffset: markOffset, context: context)
+            return box
+        }
+        let canSegment = node.name == "mtext" && context.lines.linebreak != .nobreak && text.contains(" ")
+            && Self.hasSimpleLTRWordBoundaries(text, direction: context.direction)
+        var box = textBox(text, context, retainSegments: canSegment, requireSeparatedSpaces: canSegment)
+        if node.name == "mtext", context.lines.linebreak != .nobreak, text.contains(" "), box.textSegments == nil {
             let source = LogicalTextSource(attributedText(text, context), color: context.color, work: textWork)
             if source.words.count > 1 {
                 box.textSlice = LogicalTextSlice(source: source, range: 0..<text.utf16.count)
@@ -1346,17 +1365,32 @@ final class LayoutEngine {
             }
             box.topAccentAttachment = table.topAccentAttachment(glyph).map { font.points($0, size: size) }
         }
-        try tokenAlignment(&box, node: node, text: text, context: context)
+        try tokenAlignment(&box, node: node, text: text, markOffset: markOffset, context: context)
         return box
+    }
+
+    /// ASCII letters, digits and spaces have no bidi controls, mirrored punctuation or RTL
+    /// runs under an LTR/natural paragraph direction. Their full-token glyphs can be split in
+    /// one pass at spaces, retaining ligatures and fallback fonts within each word. Everything
+    /// else uses logical ranges of the original paragraph typesetter for per-line shaping.
+    static func hasSimpleLTRWordBoundaries(_ text: String, direction: CTWritingDirection) -> Bool {
+        direction != .rightToLeft && text.utf16.allSatisfy {
+            $0 == 0x20 || (0x30...0x39).contains($0) || (0x41...0x5A).contains($0) || (0x61...0x7A).contains($0)
+        }
     }
 
     /// Text shaped by CoreText with the math font; characters it lacks come from the
     /// system's fallback fonts.
-    func textBox(_ text: String, _ context: LayoutContext, retainSegments: Bool = false) -> MathBox {
+    func textBox(_ text: String, _ context: LayoutContext, retainSegments: Bool = false,
+                 requireSeparatedSpaces: Bool = false) -> MathBox {
         guard !text.isEmpty else { return .empty() }
+        textWork.requestedLine()
         let line = CTLineCreateWithAttributedString(attributedText(text, context))
         var box = Self.shapedTextBox(line, color: context.color)
-        if retainSegments { box.textSegments = textSegments(text, line: line, box: box) }
+        if retainSegments {
+            box.textSegments = textSegments(text, line: line, box: box,
+                requireSeparatedSpaces: requireSeparatedSpaces)
+        }
         return box
     }
 
@@ -1441,7 +1475,12 @@ final class LayoutEngine {
         if Self.hasGlyph(node) {
             let content = try operatorGlyphContent(of: node, context)
             try countText(content.text)
-            let natural = textBox(context.variant?.apply(to: content.text) ?? content.text, images: content.images, context)
+            let text = context.variant?.apply(to: content.text) ?? content.text
+            let markOffset = content.markOffset.map { offset in
+                context.variant?.apply(to: String(decoding: content.text.utf16.prefix(offset), as: UTF16.self)).utf16.count ?? offset
+            }
+            var natural = textBox(text, images: content.images, context)
+            try tokenAlignment(&natural, node: node, text: text, images: content.images, markOffset: markOffset, context: context)
             var box = imageOperator(node, natural: natural, properties: properties, context, embellishment)
             box.op = properties
             return box

@@ -438,18 +438,18 @@ final class SpeechTests: MathTestCase {
         XCTAssertEqual(english(token("mtext", "see", [glyph("A"), glyph("B")])), "see A B")
         XCTAssertEqual(english(token("mtext", "\u{FFFC} then", [glyph("A"), glyph("B")])), "A then B")
         XCTAssertEqual(english(token("mi", "", [glyph("smiley")])), "smiley")
-        // A marker without a glyph, and a glyph without alt, say nothing.
-        XCTAssertEqual(english(token("mtext", "a\u{FFFC}b")), "a b")
+        // An orphan marker drops exactly as in drawing; a glyph without alt says nothing.
+        XCTAssertEqual(english(token("mtext", "a\u{FFFC}b")), "ab")
         XCTAssertEqual(english(token("mtext", "a\u{FFFC}b\u{FFFC}", [glyph("g")])), "a g b")
         XCTAssertEqual(english(token("mi", "\u{FFFC}", [glyph(nil)])), "")
         XCTAssertEqual(english(token("mtext", "a\u{FFFC}b\u{FFFC}c", [glyph(nil), glyph("g")])), "a b g c")
         // Only mglyph children stand behind markers, and alt is normalized like token text.
         XCTAssertEqual(english(token("mtext", "a\u{FFFC}", [MathMLNode(name: "malignmark"), glyph("  two\n words ")])), "a two words")
-        // A glyph that is an operator is named like one, in the reading's language.
+        // Glyph alt remains author text, even when it looks like an operator or exponent.
         let sum = MathMLNode(name: "mrow", children: [token("mi", "a"), token("mo", "\u{FFFC}", [glyph("+")]), token("mi", "b")])
-        XCTAssertEqual(english(sum), "a plus b")
-        XCTAssertEqual(sum.accessibilityDescription(locale: Locale(identifier: "es")).text, "a más b")
-        XCTAssertEqual(english(MathMLNode(name: "msup", children: [token("mi", "x"), token("mn", "\u{FFFC}", [glyph("2")])])), "x squared")
+        XCTAssertEqual(english(sum), "a + b")
+        XCTAssertEqual(sum.accessibilityDescription(locale: Locale(identifier: "es")).text, "a + b")
+        XCTAssertEqual(english(MathMLNode(name: "msup", children: [token("mi", "x"), token("mn", "\u{FFFC}", [glyph("2")])])), "x to the power of 2")
     }
 
     func testRowLevelGlyphIsReadAsItsAlt() {

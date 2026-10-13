@@ -248,9 +248,7 @@ final class AlignmentGroupTests: XCTestCase {
         XCTAssertEqual(try innerBox(table(a, b)).width, 7 * em, accuracy: 0.001)
     }
 
-    func testDirectionBoundaryAndInvalidLeadingContentAreInert() throws {
-        let directed = first.replacingOccurrences(of: "<maligngroup/>", with: "<mrow dir='ltr'><maligngroup/></mrow>")
-        XCTAssertEqual(try innerBox(table(directed, directed)).width, 3 * em, accuracy: 0.001)
+    func testInvalidLeadingContentAndAlignmentMarkerStylingAreInert() throws {
         let invalid = space(1, "red") + "<maligngroup/>" + space(2, "blue")
         XCTAssertEqual(try innerBox(table(invalid, invalid)).width, 3 * em, accuracy: 0.001)
         let marked = first.replacingOccurrences(of: "<maligngroup/>", with: "<maligngroup mathbackground='red' mathsize='50em'/>")

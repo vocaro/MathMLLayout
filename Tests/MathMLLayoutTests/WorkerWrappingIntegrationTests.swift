@@ -88,9 +88,10 @@ final class WorkerWrappingIntegrationTests: MathTestCase {
     }
 
     func testCopiedBoxMetadataAndNestedArrayMutationsRemainIndependent() throws {
-        var original = try box(MathMLNode(name: "mtext", text: "alpha beta"))
+        // Non-ASCII keeps this test on the contextual-text metadata path.
+        var original = try box(MathMLNode(name: "mtext", text: "alpha βeta"))
         let source = try XCTUnwrap(original.textSlice?.source)
-        original.row = try box(MathMLNode(name: "mrow", children: [MathMLNode(name: "mtext", text: "alpha beta")])).row
+        original.row = try box(MathMLNode(name: "mrow", children: [MathMLNode(name: "mtext", text: "alpha βeta")])).row
         original.tableMinimumWidth = 37
         original.topAccentAttachment = 4
         original.op = try box(MathMLNode(name: "mo", text: "+")).op

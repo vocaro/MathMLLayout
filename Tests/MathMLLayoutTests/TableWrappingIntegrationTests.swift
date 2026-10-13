@@ -56,7 +56,8 @@ final class TableWrappingIntegrationTests: MathTestCase {
     func testCellRebuildTextSourcesShareTheCompletePassShapingBudget() throws {
         let engine = LayoutEngine(fontName: nil)
         let context = LayoutContext(fontSize: 20, unclampedSize: 20, minSize: 12, display: false, color: black)
-        let words = MathMLNode(name: "mtext", text: "alpha beta")
+        // Non-ASCII keeps this budget test on the contextual shaping path.
+        let words = MathMLNode(name: "mtext", text: "alpha βeta")
         let rebuilt = try engine.relayoutCell(TableCellSource(node: words, context: context, depth: 0), width: 100)
         let source = try XCTUnwrap(rebuilt.textSlice?.source)
         XCTAssertTrue(source.work === engine.textWork)

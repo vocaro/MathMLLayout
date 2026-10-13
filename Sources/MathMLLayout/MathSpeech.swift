@@ -73,36 +73,73 @@ private struct Speaker {
         return isTextSpent ? "" : text
     }
 
-    /// A token's text. Speech cannot show an image, so a U+FFFC, which stands for the `mglyph`
-    /// child at its position, is read as that glyph's `alt`. Glyphs past the last marker follow
-    /// the text, for a tree built without markers; a marker without a glyph says nothing.
-    private mutating func text(of node: MathMLNode) -> String {
-        let marker = LayoutEngine.glyphMarker
-        guard !isTextSpent else { return "" }
-        guard LayoutEngine.tokens.contains(node.name),
-              node.text.unicodeScalars.contains(marker) || LayoutEngine.hasGlyph(node) else {
-            return LayoutEngine.normalized(node.text)
+    private struct TokenPart {
+        var text: String
+        var isGlyph: Bool
+    }
+
+    /// Preserve each glyph's source position and literal alt rather than flattening it into
+    /// characters or symbol names. Surplus children follow the text and orphan markers drop,
+    /// as in drawing. Source text/alt consume UTF-16 budget; generated word spaces do not.
+    private mutating func tokenParts(_ node: MathMLNode, depth: Int) -> [TokenPart] {
+        let source = said(LayoutEngine.normalized(node.text))
+        guard !isTextSpent else { return [] }
+        var glyphs: [MathMLNode] = []
+        if depth + 1 < MathLimits.depth {
+            for child in node.children {
+                guard count < MathLimits.nodes else { break }
+                count += 1
+                if child.name == "mglyph" { glyphs.append(child) }
+            }
         }
-        var glyphs = node.children.lazy.filter { $0.name == "mglyph" }.makeIterator()
-        var gathered = textLength
-        /// The next glyph's `alt`, counted against the node bound like any element that is read,
-        /// and gathered no further than the bound on text: every glyph may have the same long one.
-        func alt() -> String? {
-            guard let glyph = glyphs.next() else { return nil }
-            count += 1
-            guard count <= MathLimits.nodes, gathered <= MathLimits.textLength, let alt = glyph.attributes["alt"] else { return "" }
-            gathered += alt.utf16.count
-            return alt
+        // Pair before normalizing, so an orphan marker does not leave an extra numeric space.
+        var paired = String.UnicodeScalarView(), markers = 0
+        for scalar in source.unicodeScalars {
+            if scalar == LayoutEngine.glyphMarker {
+                guard markers < glyphs.count else { continue }
+                markers += 1
+            }
+            paired.append(scalar)
         }
-        var parts: [String] = []
-        let pieces = node.text.unicodeScalars.split(separator: marker, omittingEmptySubsequences: false)
-        for (index, piece) in pieces.enumerated() {
-            if index > 0, let alt = alt() { parts.append(alt) }
-            parts.append(String(piece))
+        // Appending a host glyph makes the text's trailing XML whitespace internal.
+        // Restore its one normalized space before the appended markers, as drawing does.
+        if markers < glyphs.count, !paired.isEmpty, let last = node.text.unicodeScalars.last,
+           last == " " || last == "\t" || last == "\n" || last == "\r" {
+            let gap = said(" ")
+            guard !isTextSpent else { return [] }
+            paired.append(contentsOf: gap.unicodeScalars)
         }
-        while let alt = alt() { parts.append(alt) }
-        // A glyph is a word of its own, whatever it touches in the markup.
-        return LayoutEngine.normalized(parts.joined(separator: " "))
+        paired.append(contentsOf: repeatElement(LayoutEngine.glyphMarker, count: glyphs.count - markers))
+        let runs = LayoutEngine.normalized(String(paired)).unicodeScalars.split(
+            separator: LayoutEngine.glyphMarker, omittingEmptySubsequences: false)
+        var parts: [TokenPart] = []
+        for (index, run) in runs.enumerated() {
+            guard !isTextSpent else { break }
+            if index > 0 {
+                let alt = LayoutEngine.normalized(LayoutEngine.unmarked(glyphs[index - 1].attributes["alt"] ?? ""))
+                let text = said(alt)
+                guard !isTextSpent else { break }
+                parts.append(TokenPart(text: text, isGlyph: true))
+            }
+            parts.append(TokenPart(text: String(run), isGlyph: false))
+        }
+        return parts
+    }
+
+    private static let invisibleOperators: Set<String> = ["\u{2061}", "\u{2062}", "\u{2063}", "\u{2064}"]
+
+    private mutating func tokenReading(_ node: MathMLNode, depth: Int, symbols: Bool = false,
+                                      suppressInvisible: Bool = false) -> String {
+        guard LayoutEngine.hasGlyph(node) || node.text.unicodeScalars.contains(LayoutEngine.glyphMarker) else {
+            let value = said(LayoutEngine.normalized(node.text))
+            if suppressInvisible, Self.invisibleOperators.contains(value) { return "" }
+            return symbols ? symbol(value) : value
+        }
+        return LayoutEngine.normalized(tokenParts(node, depth: depth).map { part in
+            let text = LayoutEngine.normalized(part.text)
+            if !part.isGlyph, suppressInvisible, Self.invisibleOperators.contains(text) { return "" }
+            return symbols && !part.isGlyph ? symbol(text) : text
+        }.joined(separator: " "))
     }
 
     private func symbol(_ text: String) -> String { words.symbols[text] ?? text }
@@ -248,18 +285,17 @@ private struct Speaker {
 
     @inline(never)
     private mutating func readIdentifier(_ node: MathMLNode, depth: Int) -> String {
-        return symbol(said(text(of: node)))
+        return tokenReading(node, depth: depth, symbols: true)
     }
 
     @inline(never)
     private mutating func readText(_ node: MathMLNode, depth: Int) -> String {
-        return said(text(of: node))
+        return tokenReading(node, depth: depth)
     }
 
     @inline(never)
     private mutating func readOperator(_ node: MathMLNode, depth: Int) -> String {
-        let value = said(text(of: node))
-        return ["\u{2061}", "\u{2062}", "\u{2063}", "\u{2064}"].contains(value) ? "" : symbol(value)
+        return tokenReading(node, depth: depth, symbols: true, suppressInvisible: true)
     }
 
     @inline(never)
@@ -286,7 +322,7 @@ private struct Speaker {
         let base = child(0), power = children.count > 1 ? children[1] : MathMLNode(name: "none")
         let exponent = child(1)
         guard !exponent.isEmpty else { return base }
-        switch (power.name, exponent) {
+        switch (LayoutEngine.hasGlyph(power) ? "" : power.name, exponent) {
         case ("mn", "2"): return words.squared(base)
         case ("mn", "3"): return words.cubed(base)
         default:
@@ -536,7 +572,7 @@ private struct Speaker {
         var isPoint = false
     }
 
-    /// mstyle is transparent to the grid; mn characters each occupy a column;
+    /// mstyle is transparent to the grid; mn characters and each embedded glyph occupy a column;
     /// everything else, including a compound formula, occupies one column.
     private mutating func cells(_ nodes: [MathMLNode], depth: Int, point: String?, into cells: inout [SpokenCell]) {
         for node in nodes {
@@ -548,15 +584,21 @@ private struct Speaker {
                 self.cells(node.children, depth: depth + 1, point: ownPoint?.isEmpty == false ? ownPoint : point, into: &cells)
             } else if node.name == "mn" {
                 count += 1
-                let text = said(LayoutEngine.normalized(node.text.replacingOccurrences(of: "\u{FFFC}", with: "")))
-                for character in text {
-                    let value = String(character)
-                    cells.append(SpokenCell(text: words.spatial.character(character), isNumber: true,
-                                            isPoint: point.map { value == $0 } ?? (value == "." || value == "\u{066B}")))
+                for part in tokenParts(node, depth: depth) {
+                    if part.isGlyph {
+                        // Even an empty alt reserves the glyph's column and implied-point position.
+                        cells.append(SpokenCell(text: part.text, isNumber: true))
+                    } else {
+                        for character in part.text {
+                            let value = String(character)
+                            cells.append(SpokenCell(text: words.spatial.character(character), isNumber: true,
+                                                    isPoint: point.map { value == $0 } ?? (value == "." || value == "\u{066B}")))
+                        }
+                    }
                 }
             } else {
                 let text = reading(of: node, depth: depth)
-                let value = LayoutEngine.normalized(node.text)
+                let value = LayoutEngine.normalized(LayoutEngine.unmarked(node.text))
                 cells.append(SpokenCell(text: node.name == "none" ? words.blank : text,
                                         isPoint: LayoutEngine.tokens.contains(node.name) &&
                                         (point.map { value == $0 } ?? (value == "." || value == "\u{066B}"))))
@@ -599,7 +641,9 @@ private struct Speaker {
             count += 1
             guard depth < MathLimits.depth, count <= MathLimits.nodes, !isTextSpent,
                   !MathLimits.isStackSpent(stackFloor) else { return "" }
-            return words.phrase(said(text(of: node)).map { words.spatial.character($0) })
+            return words.phrase(tokenParts(node, depth: depth).map { part in
+                part.isGlyph ? part.text : words.phrase(part.text.map { words.spatial.character($0) })
+            })
         }
         if node.name == "mscarry" {
             count += 1

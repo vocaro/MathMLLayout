@@ -18,8 +18,12 @@ at the last source row. Cell rebuilds share separate limits of 1,280,000 node vi
 visits per pass; cached tables charge their original descendant count and measured grid work.
 Logical text range requests and row assembly share 2,000,000 units per pass: requested UTF-16
 range lengths (including cache hits) plus row units visited. This counter does not measure
-elapsed time or CoreText's internal paragraph resolution and shaping cost; long paragraphs can
-still take substantial time. Narrow paragraphs can exhaust the budget before the input limit.
+elapsed time or CoreText's internal paragraph resolution and shaping cost. Plain ASCII letters,
+digits and U+0020 spaces under LTR/natural direction reuse their full-token glyphs and word
+metrics in one pass, provided CoreText preserves separate space clusters. Other plain text
+retains full-paragraph bidi context and per-line shaping. Formula-only candidate spans use
+constant-time ink summaries even in paragraphs containing logical text. Long logical paragraphs
+can still take substantial time. Narrow paragraphs can exhaust the budget before the input limit.
 
 ### Worker stack coverage
 
@@ -41,8 +45,8 @@ rendering and all five base-language readings are compared with the reference an
 | Single-cell `mtable` → `mtr` → `mtd` | 21 tables (63 element levels) |
 | Script-nested `msub`, base-nested `munderover` | 48, plus 15 outer `mrow` |
 
-On 2026-10-12, the optional pure-chain sweep on source `84b9554` reached 64 element levels
-for all eleven fixtures in both debug and release: 63 wrappers, or 21 three-element table
+On 2026-10-13, the optional pure-chain sweep on reviewed source `7e3ea17` reached 64 element
+levels for all eleven fixtures in both debug and release: 63 wrappers, or 21 three-element table
 wrappers. This includes pure subscript and under-over chains. The sweep checks successful
 `MathLayout` construction only; it does not perform the fixed matrix's rendering/readings
 comparisons above. Measurements used arm64 macOS 27.0 (build 26A428), Xcode 27.1 (build 27A9269),
@@ -90,8 +94,8 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   table/column widths and stretching cell operators to neighboring cells remain unsupported;
   overlap label sides reserve the same space as non-overlap forms. LTR alignment groups and
   marks are supported, but aligned cells stay indivisible under automatic wrapping. Forced
-  breaks and non-default spans opt out. RTL alignment and token marks mixed with `mglyph`
-  remain staged. See [Alignment groups](alignment-groups.md).
+  breaks and non-default spans opt out. Token marks also align beside inline images, legacy
+  glyphs, and fallbacks. RTL alignment remains staged. See [Alignment groups](alignment-groups.md).
 - **Images and legacy glyphs.** Intrinsic image scale/logical size is supplied by the host;
   markup can override image dimensions. An `mo` containing `mglyph` preserves author sizing
   and baseline by default; explicit `stretchy="true"`/`largeop="true"` opts into whole-token
@@ -110,13 +114,14 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth).
   [vocabulary extension contract](speech-locales.md). Selection tries the exact supported
   canonical locale, then its base language, then English for the whole reading; it does not
   borrow individual English terms into a selected language. Recognized mathematical symbols
-  in `mi`/`mo` have localized names; unknown identifiers, `mtext`, `ms` and ordinary token
-  `alt` retain author wording. In elementary numeric rows, embedded `mglyph` content and its
-  atomic column are omitted from spatial speech, including image/font glyphs and fallback
-  `alt`; spoken column alignment can therefore differ from the drawing. Stacks and divisions
-  describe logical columns, carries, crossouts, line
-  endpoints and frames without inferring arithmetic meaning. French root/limit templates
-  elide `de` before written vowels except `oui`, `onze` and `onzième`; they do not infer silent/
+  in `mi`/`mo` have localized names; unknown identifiers, `mtext`, `ms` and token
+  `alt` retain author wording, including alt that resembles a mathematical symbol or digit.
+  Embedded `mglyph` descriptions follow token source order; each glyph in an elementary
+  number reserves one logical column, for image/font glyphs and fallback alike. Missing or
+  empty `alt` is silent but still reserves its column. Stacks and divisions describe logical
+  columns, carries, crossouts, line endpoints and frames without inferring arithmetic meaning.
+  French root/limit templates elide `de` before written vowels except `oui`, `onze` and
+  `onzième`; they do not infer silent/
   aspirated `h`, unwritten letter pronunciations or author-text language. Custom composers are
   trusted host code and must produce output proportional to bounded operands. Letter-name
   usage, regional naturalness and novel spatial wording still need human validation in
