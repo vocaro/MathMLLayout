@@ -64,6 +64,12 @@ the RTL alignment fixture, and all eleven pure-chain probes in debug and release
 platform. All pure-chain probes again reached 64 levels. Group minimum measurements and
 fragment marker metadata retained the existing exact 512 KB worker coverage.
 
+The neighbouring-element fragment follow-up source `55ddacd` repeated that matrix and all eleven
+pure-chain probes in debug and release on the same platform, again reaching 64 levels. A new
+64-level RTL table fixture tracks a neighbouring row through 58 wrappers and a forced break;
+its geometry, drawing-item counts, ink, pixels and readings match the 8 MB reference worker
+on an exactly 512 KB worker, including a repeated run.
+
 These fixtures do not establish universal 64-level coverage. Different attributes, fonts,
 stretched operators, width constraints or callbacks can exhaust the stack sooner. Smaller
 workers may safely reject bounded inputs; tests include exact 128 KB and 256 KB stacks and the
