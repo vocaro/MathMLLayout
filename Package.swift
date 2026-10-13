@@ -10,7 +10,7 @@ let package = Package(
     targets: [
         .target(name: "MathMLLayout"),
         .executableTarget(name: "MathMLExternalRender", dependencies: ["MathMLLayout"],
-                          path: "Tools/ExternalValidation/Renderer"),
+                          path: "tools/externalvalidation/renderer"),
         .testTarget(name: "MathMLLayoutTests", dependencies: ["MathMLLayout"],
                     resources: [.copy("ExternalFixtures")]),
     ]

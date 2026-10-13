@@ -5,7 +5,7 @@ import MathMLLayout
 import XCTest
 
 /// On-demand external corpus invariants. Rendering success is robustness evidence, never
-/// a standards pass. Inputs are sampled by Tools/ExternalValidation/sample_corpus.py.
+/// a standards pass. Inputs are sampled by tools/externalvalidation/sample_corpus.py.
 final class ExternalCorpusTests: XCTestCase {
     private struct Manifest: Decodable {
         struct Sample: Decodable { let id: String; let markup: String; let sha256: String; let fontSize: CGFloat }

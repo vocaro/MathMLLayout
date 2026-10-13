@@ -1,6 +1,6 @@
 // Selected script names and the tensor fixture adapted from pinned MathCAT (MIT) and
 // Speech Rule Engine (Apache-2.0). Modified for MathMLLayout's source order, explicit
-// sides and compound closing phrases; see THIRD_PARTY_NOTICES.md and
+// sides and compound closing phrases; see doc/licenses/THIRD_PARTY_NOTICES.md and
 // doc/speech-wording-audit.md for exact sources and remaining uncertainty.
 import Foundation
 @testable import MathMLLayout
