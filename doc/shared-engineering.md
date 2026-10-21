@@ -1,8 +1,10 @@
 # Shared engineering
 
-Common rules, technical lessons and reusable engineering tools are maintained in the private
+Common rules, technical lessons and reusable engineering tools are maintained in the public MIT-licensed
 [vocaro/apple-engineering](https://github.com/vocaro/apple-engineering) repository. Clone it as
-`apple-engineering` beside this checkout, or set `VOCARO_ENGINEERING_ROOT` to its location.
+`apple-engineering` beside this checkout with
+`git clone https://github.com/vocaro/apple-engineering.git`, or set
+`VOCARO_ENGINEERING_ROOT` to its location. No private repository access is needed for the toolkit.
 
 ```sh
 python3 scripts/eng doctor
@@ -19,7 +21,7 @@ requirements, corpus admission, historical measurements and release decisions re
 
 ## Runtime and test support
 
-The public shipping library has no dependency on the private toolkit or runtime packages. The development gallery delegates exact-manifest report validation; MathML outcomes and external-validation expectations stay here.
+The public shipping library has no dependency on the engineering toolkit or private runtime packages. The development gallery delegates exact-manifest report validation; MathML outcomes and external-validation expectations stay here.
 
 ## Updates and new repositories
 
