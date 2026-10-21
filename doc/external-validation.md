@@ -21,24 +21,21 @@ recorded separately from the 81-case numeric manifest. These checks run in the s
 `ExternalValidationTests` class; set `MATHML_EXTERNAL_SUPPLEMENT_REPORT` to export their
 measurements. Their expectations are upstream geometry assertions, not library baselines.
 
-Each case records its upstream assertion name and URL, specification section, original markup,
-normalized standalone XML, SHA-256 hashes, transformations, expected value, and upstream tolerance.
-The original upstream HTML files and BSD license are included. Thirty-six purpose-built fonts
-are repackaged from WOFF as sfnt using fontTools, with unchanged MATH bytes and glyph metrics.
-Their original/font/MATH hashes and PostScript names are recorded and checked at test time.
-No STIX font is distributed.
+Each case carries the provenance that the
+[shared import method](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#importing-upstream-assertions)
+requires, and the original upstream HTML files and BSD license are included. Thirty-six
+purpose-built fonts are repackaged from WOFF as sfnt using fontTools, with unchanged MATH bytes
+and glyph metrics, and recorded with their PostScript names. No STIX font is distributed.
 
 CSS backgrounds become MathML `mathbackground`; CSS `mspace {font-size:10px}` becomes
 `mathsize="10px"`. These measured rectangles have the same geometric meaning as the upstream
 DOM boxes. The two measured backgrounds are red and blue. For measurements the library's
-foreground glyphs/rules are drawn transparently: an opaque radical glyph or bar can otherwise
-hide the very background whose box we are measuring. This extra draw must preserve all layout
-dimensions. The ordinary opaque draw still supplies bounds checks and gallery images.
+foreground glyphs/rules are drawn transparently in an extra pass; the ordinary opaque draw still
+supplies bounds checks and gallery images.
 
 Coordinates in reports are points/CSS pixels, relative to the baseline, with **y down**.
-This requires negating CoreGraphics y-up top/bottom coordinates. Fraction/script expectations
-come directly from upstream numeric expressions, not from `MathFont` or regenerated screenshots.
-The 1-point upstream tolerance is retained; it exceeds the 0.25-point raster quantization.
+This requires negating CoreGraphics y-up top/bottom coordinates. The 1-point upstream tolerance
+is retained; it exceeds the 0.25-point raster quantization.
 
 The manifest records specific exclusion policies for CSS/DOM integration,
 MathKernInfo, unary/lone operators, delimiter sizing, and stretchy-arrow labels. MathKernInfo
@@ -46,17 +43,16 @@ now has synthetic reader and independent placement tests in `MathKernTests`; the
 subset has not yet been extended to import its kerning cases. The latter
 choices remain documented in [markup.md](markup.md) and tested by the existing operator/script
 suite. One symbolic radical-width assertion awaits a separate reviewed port. This subset does
-not enumerate every unselected WPT test; its exclusion records are not a denominator for a
-conformance percentage. Table spans are covered by the native `TableSpanTests`; no upstream
-span test is included in this pinned numeric subset.
+not enumerate every unselected WPT test;
+[shared harness scope and claims](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#harness-scope-and-claims)
+says how its exclusion records may be read. Table spans are covered by the native
+`TableSpanTests`; no upstream span test is included in this pinned numeric subset.
 
 The eight limit-placement discrepancies from [#54](https://github.com/vocaro/MathMLLayout/issues/54)
 now pass their unchanged upstream expectations. `reviewed-outcomes.json` is currently empty.
-Any future known discrepancies live there. Their classification, issue link, and
-observed measurement survive re-import. Tests still evaluate the original standards expectation,
-report `bug`, and ensure the observed discrepancy has not changed. Set `MATHML_STRICT_EXTERNAL=1`
-to fail against the original expectation. A newly passing case requires review of the outcome
-record; automatic re-baselining cannot turn a discrepancy into evidence of correctness.
+Any future known discrepancies live there, under the
+[shared reviewed-discrepancy rules](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#outcome-classification-and-reviewed-discrepancies).
+Set `MATHML_STRICT_EXTERNAL=1` to fail against the original expectation.
 
 ## Batch rendering and reference gallery
 
@@ -70,9 +66,9 @@ swift run MathMLExternalRender \
 The renderer exports PNGs and `mathmllayout.json`: root width/ascent/descent, rows, unbreakable
 width, ink bounds by color, measured background rectangles, readings, clipping observations,
 registered font identity, platform, a hash of the input manifest, and the actual baseline origin
-in each PNG's pixel coordinates. Errors are retained per case; very large
-images are rejected by a separate batch raster budget. Root ink-covering bounds, row advances,
-DOM boxes, and ink bounds are distinct measurements.
+in each PNG's pixel coordinates. Per-case errors, the batch raster budget and the distinct
+measurements follow the
+[shared report rules](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#reports).
 
 The reference adapter uses pinned Playwright **1.62.1**, including its pinned browser revisions.
 Install Node 20+ and pnpm, then:
@@ -88,13 +84,10 @@ node tools/externalvalidation/references.cjs \
 
 Use `firefox` or `webkit` as the final argument after installing those Playwright engines.
 Only Chromium has been executed for the initial report; these engine adapters are available
-but are not claims of equivalent support. The tool explicitly selects each original font,
-awaits `FontFace.load()` and `document.fonts.ready`, and records the actual browser version.
-It parses input as XML and allows only presentation elements/attributes into an isolated DOM;
-external resources, event handlers, arbitrary scripts, DOCTYPE, and entity declarations do not run.
-Unsupported elements, namespaces and presentation attributes are reported as per-case reference
-errors instead of silently removed. Unknown reference features need review and must not be
-counted as library failures. The system-font fallback must load explicitly through FontFace.
+but are not claims of equivalent support. The tool follows the
+[shared browser-oracle rules](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#browser-reference-oracles)
+for font loading, isolated XML parsing and reference errors; its allowlist admits only MathML
+presentation elements and attributes.
 
 Install the Python tool dependencies in a virtual environment:
 
@@ -108,13 +101,10 @@ python3 -m venv /tmp/mathml-validation-venv
 Open `external-validation-output/index.html`. It is a standalone gallery with source markup,
 engine metadata, side-by-side images, baseline-aligned overlays, absolute RGB difference maps,
 outcome filtering, and numeric discrepancies. `comparison.json` groups results by feature and
-includes exclusions, errors and issue links. Reports must match the supplied manifest's hash
-and contain every case ID exactly once. Regenerate older reports that lack PNG origin metadata
-before creating overlays. Clipped results and changed/newly passing known discrepancies require
-review; a failed reference assertion is categorized as an unsuitable reference/test.
-Geometry determines standards outcomes; pixels are for
-review. Antialiasing, font rendering, hinting, and layout-box conventions can produce harmless
-image differences. Cross-engine width differences are observations, not automatic failures.
+includes exclusions, errors and issue links. Clipped results and changed/newly passing known
+discrepancies require review; a failed reference assertion is categorized as an unsuitable
+reference/test. The shared report rules also cover report validation and how geometry and
+pixels decide outcomes.
 
 For arbitrary inputs the renderer accepts a manifest with `cases` containing safe unique `id`,
 standalone `markup`, optional `fontSize` (default 20), and optional `maximumWidth`.
@@ -130,21 +120,21 @@ separate implementation and review.
 all 56 constants, coverage-keyed italic/accent values, minimum connector overlap, variants,
 assemblies, and glyph IDs. Tests query every glyph, including absent coverage entries.
 Lengths in constants are em units; percentages remain percentages; glyph measurements remain
-font design units. This static-font oracle does not evaluate MathKernInfo or Device/VariationIndex
-records. Those policies have independent synthetic byte and point-placement expectations in
+font design units. This static-font oracle checks unadjusted metrics only; the
+[shared independent-decoder method](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#independent-decoder-oracles)
+sets out its scope, hash gating and regeneration. MathKernInfo and Device/VariationIndex records
+have independent synthetic byte and point-placement expectations in
 `MathKernTests`, `MathAdjustmentTests` and `MathVariationTests`, including a generated variable-font
-fixture for actual CoreText instance selection. The pinned real-font oracle remains a check of
-unadjusted static-font metrics; it does not establish cross-engine variable-font or hinted-pixel
-agreement. The original CC0 fixture can be regenerated with fontTools 4.63.0 using
-`python3 Tools/MathVariation/generate_font.py`; its SHA-256 is
+fixture for actual CoreText instance selection. The original CC0 fixture can be regenerated
+with fontTools 4.63.0 using `python3 Tools/MathVariation/generate_font.py`; its SHA-256 is
 `b54cfe1902fd9cfe82d7280b0bd4bbd918326c18d07ec04567c7d23a91f1905e`.
 Its invariant rectangular outline and independent MATH/GDEF records establish a 4-point axis
 at the default and a 10-point axis at weight 650 (20-point font size), after `avar` remaps the
 normalized weight 0.5 to 0.75.
 
-The MATH table hash must match the installed font. A mismatch is an explicit skip, never a
-substitution of another font's metrics. To run against an updated installed font, independently
-decode it into a temporary oracle (review changes before updating the pinned JSON):
+The MATH table hash must match the installed font; `MATHML_REQUIRE_FONT_ORACLE=1` makes a
+mismatch fail instead of skip. To run against an updated installed font, independently decode it
+into a temporary oracle (review changes before updating the pinned JSON):
 
 ```sh
 /tmp/mathml-validation-venv/bin/python tools/externalvalidation/font_oracle.py \
@@ -152,9 +142,6 @@ decode it into a temporary oracle (review changes before updating the pinned JSO
 MATHML_FONT_ORACLE=/tmp/stix-oracle.json MATHML_REQUIRE_FONT_ORACLE=1 \
   swift test --filter IndependentFontTests
 ```
-
-`MATHML_REQUIRE_FONT_ORACLE=1` makes a font mismatch fail instead of skip. Do not regenerate
-this oracle with MathMLLayout's own decoder.
 
 ## Real-world corpus
 
@@ -165,7 +152,7 @@ this oracle with MathMLLayout's own decoder.
 - 100 textbook equations selected from 2,100 distinct formulas in eight OpenStax
   Precalculus 2e modules. The pinned revision `4922e46ebc04326979e19392ccc2384cb8b9076c`
   specifies CC-BY-4.0 in its LICENSE, README and collection metadata. Current upstream
-  editions use different terms; regeneration only uses this exact licensed snapshot.
+  editions use different terms.
   Sampling uses the existing display/complexity/rare-element strata and seed 52.
 - 296 distinct MathML inputs from four SRE Mathspeak files at the project's existing pinned
   Apache-2.0 revision. All 293 valid formulas must render, and the three incomplete script
@@ -173,14 +160,16 @@ this oracle with MathMLLayout's own decoder.
 
 Every valid bundled input checks its hash, finite/bounded dimensions, deterministic layout
 and raster ink containment. A bounds rejection or raster-budget exclusion fails the bundled
-check. These are robustness checks, not independent visual or specification expectations.
+check. These are robustness checks under the
+[shared corpus provenance rules](https://github.com/vocaro/apple-engineering/blob/main/guides/evidence.md#corpus-provenance),
+which also cover the licence-verified snapshot and test-only placement.
 The textbook sample includes 52 inline and 48 display formulas; it covers functions, complex
 numbers, logarithms, trigonometric identities, matrices, geometric sequences, limits and derivatives.
 The SRE corpus adds nested roots, embellished operators, annotations and tensors. This is
 broader structural coverage, not a claim of representative coverage of all mathematical documents.
 
-The corpora live only in the test target's resources. Their full licenses, notices, source
-license evidence and per-case provenance are bundled too. See the
+They are test-target resources, bundled with their full licenses, notices, source license
+evidence and per-case provenance. See the
 [corpus README](../Tests/MathMLLayoutTests/ExternalFixtures/Corpus/README.md) and
 [third-party notices](licenses/THIRD_PARTY_NOTICES.md).
 `MATHML_CORPUS_REPORT` exports the combined results. `MATHML_CORPUS_MANIFEST` adds a local
@@ -195,11 +184,11 @@ Calculus CNXML modules. All 100 passed invariants and rendered in native/Chromiu
 [per-case results](external-validation/best-effort-results.json) for review limits and
 unadjudicated differences. This is a single-source calculus sample, not a broad corpus.
 
-The sources and derived corpus retain **CC-BY-NC-SA-4.0**. Keep them outside the repository
-and distributed library resources. The offline importer verifies the six exact source
-hashes and license hash, retains originals and attribution, and uses seed 52. Its XML
-parser rejects DOCTYPE/entities; display mode is inferred from CNXML equation wrappers
-only when MathML omits it. No arbitrary source scripts or external entities run.
+The sources and derived corpus retain **CC-BY-NC-SA-4.0**, so they stay outside the repository
+under the
+[shared corpus provenance rules](https://github.com/vocaro/apple-engineering/blob/main/guides/evidence.md#corpus-provenance).
+The offline importer checks the six exact source hashes and the license hash and uses seed 52;
+display mode is inferred from CNXML equation wrappers only when MathML omits it.
 
 For research validation under the source license, acquire the pinned local inputs:
 
@@ -226,10 +215,10 @@ node tools/externalvalidation/references.cjs \
   /tmp/mathml-openstax-corpus/manifest.json /tmp/openstax-gallery
 ```
 
-The gallery initially labels all corpus inputs `unreviewed`. Human or model review must
-record a separate disposition, not change the original standards expectations. The committed
-results identify the 24 inspected inputs and describe the selection policy. Corpus `pass`
-means only a limited visual review found no obvious defect; it is not a standards claim.
+The gallery initially labels all corpus inputs `unreviewed`; review records its dispositions
+under the same shared rules. The committed results identify the 24 inspected inputs and
+describe the selection policy. Corpus `pass` means only a limited visual review found no
+obvious defect; it is not a standards claim.
 
 ### Larger ar5iv sample
 
@@ -249,15 +238,16 @@ MATHML_CORPUS_MANIFEST=/tmp/mathml-corpus/manifest.json \
 swift run MathMLExternalRender /tmp/mathml-corpus/manifest.json /tmp/corpus-gallery
 ```
 
-Sampling is deterministic: deduplicate normalized XML, retain every source occurrence, stratify
-by inline/display mode, logarithmic node count, and rarest element, and select round-robin across
-strata in seeded SHA-256 order. IDs, source-file hashes, equation indices, original source files,
-element/attribute usage, complexity, dataset release, license and transformations are recorded.
+Sampling follows the
+[shared deterministic recipe](https://github.com/vocaro/apple-engineering/blob/main/guides/evidence.md#corpus-provenance),
+stratified by inline/display mode, logarithmic node count and rarest element. Each case also
+records its original source file, element/attribute usage and complexity.
 Token text/annotations are retained. Built-in HTML entities resolve to Unicode; no external
-entity loads. The pinned lxml bundles libxml2 2.14, which decodes HTML5 named references.
-Older libxml2 parses HTML 4 and reports every MathML or HTML5 element as an unknown tag; only
-that diagnostic is tolerated. Such a parser excludes a source that uses an HTML5-only reference
-or fills its 100-diagnostic log, rather than sampling markup that could differ
+entity loads. The pinned lxml bundles libxml2 2.14; with an
+[older libxml2](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/document-parsing.md#parser-choice-can-change-text),
+only its unknown-tag diagnostic for MathML and HTML5 elements is tolerated. Such a parser
+excludes a source that uses an HTML5-only reference or fills its 100-diagnostic log, rather
+than sampling markup that could differ
 ([#118](https://github.com/vocaro/MathMLLayout/issues/118)). Library parser/resource protections
 are unchanged. Input-limit exclusions and shortfalls below the requested sample count are
 explicit. Start with a bounded source subset; this importer keeps candidate markup in memory
@@ -265,17 +255,16 @@ and does not stream the full 318 GB dataset.
 
 Corpus tests verify each markup hash and check finite/bounded dimensions, determinism, and ink containment when the raster
 budget permits. At 2x, they allow one point (the public contract's two device pixels) for
-bitmap quantization/smoothing. Input limit errors are categorized separately, including available-stack limits.
-Robustness success remains `unreviewed` for typography. Differential comparisons and manual
-review must classify **pass**, **bug**, **intentional difference**, **unsupported feature**,
-**invalid/out-of-bounds input**, or **unsuitable reference/test** with specific evidence.
-In validation-only work, minimize unexpected failures and file them for a separate production fix.
+bitmap quantization/smoothing. Robustness success remains `unreviewed` for typography.
+Differential comparisons and manual review classify outcomes, input-limit errors included, as the
+[shared outcome classification](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#outcome-classification-and-reviewed-discrepancies)
+describes.
 
 ## Updating fixtures and CI
 
 Obtain a WPT checkout at the exact manifest revision, including the selected `mathml` sources
 and `fonts/math` files. The importer is deliberately restricted to reviewed arithmetic expressions
-and rectangle assertions; it never executes upstream JavaScript.
+and rectangle assertions.
 
 ```sh
 /tmp/mathml-validation-venv/bin/python tools/externalvalidation/import_wpt.py \
@@ -289,12 +278,10 @@ and rectangle assertions; it never executes upstream JavaScript.
 ```
 
 The importer and converter reject source/font hash mismatches using `wpt-pins.json`.
-Changing the WPT revision and pins is an explicit source review: inspect upstream assertions, fonts,
-license and normalization, rerun debug/release, regenerate the browser comparison, review the
-gallery, and retain original failures. Review `reviewed-outcomes.json` independently of imports.
-Reviewed entries can change only bug classification, issue link and observed measurement; they
-cannot replace upstream expectations. Absent case IDs and observations that already satisfy
-the assertion are rejected.
+Changing the WPT revision and pins is the explicit source review in the
+[shared import method](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#importing-upstream-assertions).
+Review `reviewed-outcomes.json` independently of imports, under the
+[shared reviewed-discrepancy rules](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#outcome-classification-and-reviewed-discrepancies).
 
 Run tooling regressions with the pinned dependencies. The optional integration tests exercise
 per-case renderer errors and PNG origins; without these environment variables they skip:

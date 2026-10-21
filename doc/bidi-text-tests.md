@@ -14,12 +14,15 @@ They explicitly list expected visual glyph sequences; they do not derive expecte
 by invoking the library or another CoreText line. The Arabic sequence `بت تب` has initial
 then final forms in each two-letter word, giving the visual glyph sequence `beh.fina`,
 `teh.init`, space, `teh.fina`, `beh.init`. The final word stays on the next logical line.
+The general method is in
+[shared synthetic fixture oracles](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#synthetic-fixture-oracles).
 
 CoreText's [typesetter line API](https://developer.apple.com/documentation/coretext/cttypesettercreatelinewithoffset(_:_:_:))
 creates visual runs for a range of a retained paragraph. The implementation keeps the full
 attributed token in its typesetter so a directional control opening before the selected range
 is still active. Selecting complete logical words prevents cutting combining sequences or
-Arabic joining contexts inside a word.
+Arabic joining contexts inside a word. The general Core Text lessons are in
+[shared text layout and Unicode](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#bidi-wrapping-needs-paragraph-context-and-physical-geometry).
 
 Regression coverage includes exact advances, neutral punctuation, bracket mirroring,
 embedded numbers, RLO/PDF, LRI/PDI, NBSP and narrow NBSP, fallback-font ink containment,

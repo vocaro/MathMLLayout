@@ -55,5 +55,7 @@ The formats and units follow the primary OpenType specifications for
 [Device and VariationIndex](https://learn.microsoft.com/en-us/typography/opentype/spec/chapter2#device-and-variationindex-tables),
 [variation stores](https://learn.microsoft.com/en-us/typography/opentype/spec/otvarcommonformats)
 and [coordinate normalization](https://learn.microsoft.com/en-us/typography/opentype/spec/otvaroverview).
+The general unit and instance-selection lessons behind this policy are in
+[shared text layout and Unicode](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#font-and-image-metrics-have-different-units).
 
 [Documentation index](../README.md#documentation)

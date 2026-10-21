@@ -11,7 +11,9 @@ than 50,000 UTF-16 units of text, more than 50,000 points in any dimension, or w
 layout for insufficient remaining stack before the depth ceiling. Readings obey the source
 node, depth, text and stack bounds, leaving out content past them. `MathMLNode.parse(xml:)`
 refuses document type declarations in any encoding, so no entity expands and nothing external
-loads; it reads at most 4 MiB.
+loads; it reads at most 4 MiB. The general lessons are in
+[shared stack and work bounds](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/stack-and-work-bounds.md#a-depth-limit-does-not-bound-stack-or-total-work)
+and [shared untrusted-markup screening](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/document-parsing.md#screen-untrusted-markup-before-any-parser-sees-it).
 
 Width fitting permits at most 1,114 complete layout passes. Within each pass, tables reserve at
 most 20,000 occupied grid slots apiece; initial table construction shares 200,000 occupancy
@@ -28,14 +30,16 @@ descendants visited, and neighbouring-element fragment edges generated for align
 including retained-word candidate assembly in RTL
 paragraphs. This counter does not measure elapsed time or CoreText's internal paragraph
 resolution and shaping cost. Long logical paragraphs can still take substantial time.
-Narrow paragraphs can exhaust the budget before the input limit.
+Narrow paragraphs can exhaust the budget before the input limit. The general method is in
+[shared work budgets](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/stack-and-work-bounds.md#work-budgets-charge-cached-work-its-original-cost).
 
 ### Worker stack coverage
 
 Layout runs on the calling thread. Single-child wrapper descent, line-breaking descent and
 drawing-item traversal use heap cursors; structural elements and speech still recurse. The
 stack guard retains a 128 KB reserve for remaining work, font operations and host callbacks.
-The engine neither enlarges the caller's stack nor moves layout to another thread.
+The engine neither enlarges the caller's stack nor moves layout to another thread
+([shared remaining-stack guard](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/stack-and-work-bounds.md#a-remaining-stack-guard-keeps-a-reserve-for-work-it-cannot-see)).
 
 `WorkerDepthTests` asserts these 64-level shapes on an **exactly 512 KB** worker in debug and
 release, against an 8 MB reference worker. Leaves are `mi` containing `x`; structural siblings
@@ -67,7 +71,8 @@ These fixtures do not establish universal 64-level coverage. Different attribute
 stretched operators, width constraints or callbacks can reach the stack guard sooner. Smaller
 workers may safely reject bounded inputs; tests include exact 128 KB and 256 KB stacks and the
 requested-stack sweep down to 16 KB. Stack-sensitive results require remeasurement after
-compiler/platform changes; see [Worker depth](testing.md#worker-depth).
+compiler/platform changes; see [Worker depth](testing.md#worker-depth). The general method is in
+[shared small-worker comparison](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/stack-and-work-bounds.md#compare-a-small-worker-against-a-reference-worker-in-debug-and-release).
 
 ## Supported behavior
 

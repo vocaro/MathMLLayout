@@ -1,21 +1,26 @@
 # Testing
 
+These are plain commands for contributors on their own machines. Sessions on the shared Mac run
+them through
+[heavy-work admission](https://github.com/vocaro/apple-engineering/blob/main/guides/shared-host.md#heavy-work-admission).
+
 ```sh
 swift test --jobs 2
 ```
 
-Run configurations sequentially in the same checkout. Run the optimized build as well. A test
-that passes in a debug build can fail there, or end the
-test process: references are dropped sooner and the stack is used differently.
+Run the optimized build as well, after the debug run; the reasons are in
+[shared debug and optimized runs](https://github.com/vocaro/apple-engineering/blob/main/guides/simulator-testing.md#debug-and-optimized-swift-test-runs).
 
 ```sh
 swift test --jobs 2 -c release -Xswiftc -enable-testing
 ```
 
-For iOS, run the same tests on a simulator, for example:
+For iOS, run the same tests on a simulator created for the run. Address it by the UDID that
+`xcrun simctl create` printed, and delete it afterwards
+([shared simulator lifecycle](https://github.com/vocaro/apple-engineering/blob/main/guides/simulator-testing.md#simulator-lifecycle)):
 
 ```sh
-xcodebuild test -scheme MathMLLayout-Package -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild test -scheme MathMLLayout-Package -destination 'platform=iOS Simulator,id=UDID'
 ```
 
 The suite runs the line-breaking fuzzer over seeds 0 to 119. A wider range takes a few minutes
@@ -35,7 +40,8 @@ succeeds and that every row fits that width, including formulas with wrapping un
 
 The [bidi text regressions](bidi-text-tests.md) use a checksum-pinned synthetic font and
 explicit Unicode-derived expected visual order. They run in the regular suite without Python
-or a font download. The font generator is optional.
+or a font download. The font generator is optional. The general method is in
+[shared synthetic fixture oracles](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#synthetic-fixture-oracles).
 
 ## External validation
 
@@ -79,8 +85,9 @@ It does not assume that a hosted macOS 26 runner can execute this package.
 ## Worker depth
 
 `WorkerDepthTests` allocates pthread stacks explicitly, with guard pages and an assertion of the
-actual size. This avoids Darwin's extra allocation for a requested `Thread.stackSize` or
-`pthread_attr_setstacksize`. The asserted coverage and limitations are in
+actual size, because
+[Darwin pads a requested stack size](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/stack-and-work-bounds.md#darwin-pads-a-requested-thread-stack-size).
+The asserted coverage and limitations are in
 [limits.md](limits.md#worker-stack-coverage).
 
 The optional sweep reports the deepest successful pure chain in each fixture; it does not replace
@@ -102,15 +109,14 @@ MATHML_MEASURE_WORKER_DEPTH=1 swift test --jobs 2 -c release \
 
 For iOS, the measurement flag must reach the test process. A plain `xcodebuild test` runs
 the fixed worker assertions but skips `testMeasureWorkerDepth` unless that process has
-`MATHML_MEASURE_WORKER_DEPTH=1`. To run the sweep separately, use `xcodebuild build-for-testing`
-with the same scheme, destination and derived-data directory. In the generated `.xctestrun`
-under `Build/Products`, set that flag in each applicable test target's `EnvironmentVariables`
-(`TestConfigurations` → `TestTargets`). Keep the edited file in the same directory so its
-relative product paths still resolve. Then run:
+`MATHML_MEASURE_WORKER_DEPTH=1`. Pass it with xcodebuild's `TEST_RUNNER_` prefix, which sets it
+in every test runner process
+([shared test environment](https://github.com/vocaro/apple-engineering/blob/main/guides/simulator-testing.md#test-environment)).
+To run the sweep separately:
 
 ```sh
-xcodebuild test-without-building -xctestrun /path/to/edited.xctestrun \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+TEST_RUNNER_MATHML_MEASURE_WORKER_DEPTH=1 xcodebuild test -scheme MathMLLayout-Package \
+  -destination 'platform=iOS Simulator,id=UDID' \
   -only-testing:MathMLLayoutTests/WorkerDepthTests/testMeasureWorkerDepth \
   -parallel-testing-enabled NO
 ```

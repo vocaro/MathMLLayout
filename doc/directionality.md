@@ -32,6 +32,8 @@ base's left corners and the script's right corners. A glyph's right-side italic 
 does not become a left overhang when that unchanged glyph acquires a left-side postscript.
 Accent attachment and limit slant are likewise font/glyph geometry, not reflected child
 coordinates. Compound/fallback/assembled boxes retain the documented zero-corner-kern policy.
+The general shaping and physical-corner lessons are in
+[shared text layout and Unicode](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#bidi-wrapping-needs-paragraph-context-and-physical-geometry).
 
 Explicit alignment marks within a schema are translated with the child that owns them.
 Groups inside a schema do not subdivide the outer table cell; the explicit mark can still

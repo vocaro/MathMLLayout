@@ -4,7 +4,8 @@
 `languages` are the actual selectable BCP 47 voice tags. Custom providers precede built-ins;
 the first complete provider for a canonical tag wins. Catalogs are immutable values supplied
 per call; registration has no global state. Providers must use stable, thread-safe terminology
-and pure composition functions.
+and pure composition functions. The general lesson behind this contract is in
+[shared spoken localization](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#spoken-localization-must-preserve-authored-content-and-actual-language).
 
 ```swift
 let catalog = MathVocabularyCatalog(vocabularies: [MyVocabulary.self, MyRegionalVocabulary.self])
@@ -26,6 +27,8 @@ script/region combination, or borrows English terms for a selected language. Thu
 registered. A complete `qaa-Latn-ZZ` fixture selects that exact tag, while `qaa-Cyrl-ZZ` uses `qaa`.
 Language codes retain Foundation’s normalization (including `fra`/`deu`/`spa` aliases). This is
 a deliberately bounded matching policy, not a full BCP 47 registry or grandfathered-tag lookup.
+The general rationale is in
+[shared spoken localization](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#spoken-localization-must-preserve-authored-content-and-actual-language).
 
 Malformed provider tags, empty symbol/accent names, incomplete geometry maps, or a digit table
 that lacks exactly ten nonempty names make the provider ineligible. An empty `ordinalRoots` table
@@ -64,7 +67,10 @@ operand is an empty string and must not trigger a fresh source traversal.
 Composers are trusted application code. They must return finite output proportional to the
 bounded operands, must not read the source tree or do automatic translation, and should remove
 dangling labels where operands are empty. The engine retains its source node/depth/UTF-16-text
-and thread-stack budgets; it cannot sandbox arbitrary user-supplied Swift functions.
+and thread-stack budgets; it cannot sandbox arbitrary user-supplied Swift functions. The general
+composition and bounded-output rules are in
+[shared spoken localization](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#spoken-localization-must-preserve-authored-content-and-actual-language)
+and [shared stack and work bounds](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/stack-and-work-bounds.md#a-depth-limit-does-not-bound-stack-or-total-work).
 
 ## Explicit regional inheritance
 
@@ -72,7 +78,8 @@ Implement `MathRegionalVocabulary` with `typealias Base = ExistingVocabulary` an
 `language` tag. Unchanged tables and construct functions forward to that complete base. Override
 only the regional terms and compositions required by the evidence. For example, a symbol change
 copies `Base.symbols` and changes a named field; it never rewrites the completed reading, so author
-text containing the same word remains intact.
+text containing the same word remains intact. The general rule is in
+[shared spoken localization](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#spoken-localization-must-preserve-authored-content-and-actual-language).
 
 Inherited construct functions retain the base's internal joining. If a region needs different
 joining or agreement inside a fraction/root/etc., override that construct function as well as
@@ -107,6 +114,8 @@ translation. A `qaa-ZZ` regional fixture changes symbols and power composition. 
 script/region matching, base and whole-English fallback, malformed/incomplete providers,
 first-registration precedence, per-call isolation, selected voice tags, and literal author
 `mtext`/`ms`/image `alt` words. Existing token normalization and mathematical-symbol naming remain.
+The general method is in
+[shared sentinel languages](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#sentinel-languages-test-plumbing-not-pronunciation).
 
 `SpeechLocaleBoundsTests` exercises source node/depth/text budgets, stack group collection, and
 small thread stacks for that complete fixture, its region, `en-GB`, and English fallback.
