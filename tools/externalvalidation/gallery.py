@@ -34,16 +34,13 @@ def aligned(a, b, first, second, report1, report2):
     return left, right
 
 
-def validate_reports(raw, manifest, native, reference):
-    digest = hashlib.sha256(raw).hexdigest()
-    ids = [c['id'] for c in manifest['cases']]
-    if len(set(ids)) != len(ids): raise ValueError('Duplicate manifest IDs')
-    for report in (native, reference):
-        if report['manifestSHA256'] != digest:
-            raise ValueError('Report does not describe the supplied manifest')
-        reported = [c['id'] for c in report['cases']]
-        if len(set(reported)) != len(reported) or set(reported) != set(ids):
-            raise ValueError('Report must contain each manifest ID exactly once')
+
+
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+from _engineering import toolkit_root, project_root
+toolkit_root(project_root(__file__))
+from vocaro_engineering.validation import validate_reports
 
 
 def outcome(case, native, reference):

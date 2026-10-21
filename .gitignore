@@ -6,3 +6,6 @@ DerivedData/
 tools/externalvalidation/node_modules/
 tools/externalvalidation/__pycache__/
 external-validation-output/
+
+__pycache__/
+*.pyc
