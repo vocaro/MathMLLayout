@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "name": "MathMLLayout",
+  "repository": "vocaro/MathMLLayout",
+  "toolkit": {
+    "path": "../apple-engineering"
+  },
+  "capabilities": [
+    "simulator-disposable",
+    "measurement",
+    "external-validation",
+    "packaging"
+  ],
+  "lanes": {
+    "docs": {
+      "command": [
+        "python3",
+        "scripts/eng",
+        "docs",
+        "check"
+      ],
+      "resource": "light"
+    }
+  },
+  "exceptions": [],
+  "integration": "pull-request"
+}
