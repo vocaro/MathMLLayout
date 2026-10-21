@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from lxml import etree
-from sample_corpus import sample
+from sample_corpus import LEGACY_HTML_PARSER, sample
 from import_openstax import import_corpus
 from import_wpt import number, apply_reviewed
 from gallery import aligned, outcome, validate_reports
@@ -154,6 +154,32 @@ class ExternalToolTests(unittest.TestCase):
             manifest = (root/'out'/'manifest.json').read_text()
             self.assertNotIn('EXTERNAL_ENTITY_SHOULD_NOT_LOAD', manifest)
             self.assertNotIn('<!DOCTYPE', manifest)
+
+    def testHTMLParserToleratesOnlyUnknownTags(self):
+        # libxml2 before 2.14 reports MathML and HTML5 elements as unknown HTML 4 tags (#118).
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); inputs = root/'inputs'; inputs.mkdir()
+            (inputs/'a.html').write_text('<!doctype html><html><body><section><figure>'
+                '<math><mi>x</mi></math></figure></section></body></html>')
+            (inputs/'b.html').write_text('<html><body></div><math><mi>y</mi></math></body></html>')
+            (inputs/'c.html').write_text('<html><body>' + ''.join(
+                f'<math><mn>{n}</mn></math>' for n in range(120)) + '</body></html>')
+            (inputs/'d.html').write_text('<html><body><math><mi>a</mi><mo>&InvisibleTimes;</mo>'
+                '<mi>b</mi></math></body></html>')
+            with contextlib.redirect_stdout(io.StringIO()):
+                sample(inputs, root/'out', 1000, 52, 'test', 'test', 'https://example.invalid/')
+            manifest = json.loads((root/'out'/'manifest.json').read_text())
+            reasons = {e['source']: e['reason'] for e in manifest['exclusions']}
+            self.assertIn('Unexpected end tag : div', reasons['b.html'])
+            self.assertNotIn('a.html', reasons)
+            if LEGACY_HTML_PARSER:
+                self.assertIn('stopped reporting HTML diagnostics', reasons['c.html'])
+                self.assertIn('does not decode HTML5 reference &InvisibleTimes;', reasons['d.html'])
+                self.assertEqual(manifest['population']['equations'], 1)
+            else:
+                self.assertEqual(sorted(reasons), ['b.html'])
+                self.assertEqual(manifest['population']['equations'], 122)
+                self.assertTrue(any('\u2062' in c['markup'] for c in manifest['cases']))
 
 class RendererIntegrationTests(unittest.TestCase):
     @unittest.skipUnless(os.environ.get('MATHML_NATIVE_RENDERER'), 'Set MATHML_NATIVE_RENDERER to the built CLI')

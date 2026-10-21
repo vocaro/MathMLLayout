@@ -4,10 +4,13 @@ No downloads or external entity loading. Requires lxml; preserves source files b
 """
 import argparse
 import copy
+import functools
 import hashlib
 import json
 import math
+import re
 from collections import Counter, defaultdict
+from html.entities import html5
 from pathlib import Path
 from lxml import etree, html
 
@@ -15,6 +18,37 @@ NS = 'http://www.w3.org/1998/Math/MathML'
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+# libxml2 before 2.14 parses HTML 4: it reports each MathML/HTML5 element as an unknown tag,
+# stops logging after 100 diagnostics, and leaves HTML5-only named references undecoded.
+LEGACY_HTML_PARSER = etree.LIBXML_VERSION < (2, 14)
+LEGACY_DIAGNOSTIC_LIMIT = 100
+
+
+@functools.cache
+def legacy_decodes(name):
+    return html.fromstring(f'<p>&{name};</p>').text == html5[name + ';']
+
+
+def parse_html(raw):
+    # Tolerate only unknown-tag diagnostics; any other parse error still rejects the source.
+    parser = html.HTMLParser(encoding='utf-8', no_network=True, recover=True)
+    doc = html.fromstring(raw, parser=parser)
+    diagnostics = [e for e in parser.error_log if e.level >= etree.ErrorLevels.ERROR]
+    for e in diagnostics:
+        if e.type != etree.ErrorTypes.HTML_UNKNOWN_TAG:
+            raise ValueError(f'{e.message}, line {e.line}, column {e.column}')
+    if LEGACY_HTML_PARSER:
+        # Exclude sources whose legacy parse could differ from the pinned parser's.
+        version = '.'.join(map(str, etree.LIBXML_VERSION))
+        if len(diagnostics) >= LEGACY_DIAGNOSTIC_LIMIT:
+            raise ValueError(f'libxml2 {version} stopped reporting HTML diagnostics; '
+                             'parse errors cannot be excluded (use the pinned lxml)')
+        for name in sorted({m.decode() for m in re.findall(rb'&([A-Za-z][A-Za-z0-9]*);', raw)}):
+            if name + ';' in html5 and not legacy_decodes(name):
+                raise ValueError(f'libxml2 {version} does not decode HTML5 reference &{name}; (use the pinned lxml)')
+    return doc
 
 
 def sample(inputs, output, count, seed, release, license_name, source_url, input_format='html'):
@@ -45,7 +79,7 @@ def sample(inputs, output, count, seed, release, license_name, source_url, input
                     raise ValueError('XML DOCTYPE/entity declarations are not accepted')
                 doc = etree.fromstring(raw, parser=etree.XMLParser(resolve_entities=False, no_network=True))
             else:
-                doc = html.fromstring(raw, parser=html.HTMLParser(encoding='utf-8', no_network=True, recover=False))
+                doc = parse_html(raw)
         except (ValueError, etree.ParserError, etree.XMLSyntaxError) as error:
             errors.append({'source': str(path.relative_to(inputs)), 'classification': 'invalid/out-of-bounds input',
                            'reason': str(error)}); continue

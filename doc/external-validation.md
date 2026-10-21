@@ -254,9 +254,14 @@ by inline/display mode, logarithmic node count, and rarest element, and select r
 strata in seeded SHA-256 order. IDs, source-file hashes, equation indices, original source files,
 element/attribute usage, complexity, dataset release, license and transformations are recorded.
 Token text/annotations are retained. Built-in HTML entities resolve to Unicode; no external
-entity loads. Library parser/resource protections are unchanged. Input-limit exclusions and
-shortfalls below the requested sample count are explicit. Start with a bounded source subset;
-this importer keeps candidate markup in memory and does not stream the full 318 GB dataset.
+entity loads. The pinned lxml bundles libxml2 2.14, which decodes HTML5 named references.
+Older libxml2 parses HTML 4 and reports every MathML or HTML5 element as an unknown tag; only
+that diagnostic is tolerated. Such a parser excludes a source that uses an HTML5-only reference
+or fills its 100-diagnostic log, rather than sampling markup that could differ
+([#118](https://github.com/vocaro/MathMLLayout/issues/118)). Library parser/resource protections
+are unchanged. Input-limit exclusions and shortfalls below the requested sample count are
+explicit. Start with a bounded source subset; this importer keeps candidate markup in memory
+and does not stream the full 318 GB dataset.
 
 Corpus tests verify each markup hash and check finite/bounded dimensions, determinism, and ink containment when the raster
 budget permits. At 2x, they allow one point (the public contract's two device pixels) for
