@@ -8,7 +8,7 @@ extension LayoutEngine {
         context.alignmentRTL ? total - offset - width : offset
     }
 
-    /// Only a generated surd or bevelled fraction's slash is reflected. These decorations
+    /// Only a generated surd or beveled fraction's slash is reflected. These decorations
     /// consist of flat font runs (including MATH assemblies) or drawn paths, never content.
     /// Runs preserve the selected size variant, hinting and connector positions without
     /// changing the font or adding another level to the formula's drawing/traversal tree.

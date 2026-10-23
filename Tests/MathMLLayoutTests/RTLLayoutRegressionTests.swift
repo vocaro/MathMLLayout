@@ -26,7 +26,7 @@ final class RTLLayoutRegressionTests: XCTestCase {
         }
     }
 
-    func testForcedBreakInRTLScriptBaseIsHonoured() throws {
+    func testForcedBreakInRTLScriptBaseIsHonored() throws {
         let base = "<mrow>" + space(1) + "<mspace linebreak='newline' indentalign='left' indentshift='0px'/>" + space(2, "blue") + "</mrow>"
         for name in ["msub", "msup", "msubsup", "mmultiscripts"] {
             let scripts = name == "msubsup" || name == "mmultiscripts" ? "<mn>2</mn><mn>3</mn>" : "<mn>2</mn>"

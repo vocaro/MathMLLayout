@@ -52,7 +52,7 @@ final class VerticalArrowRegressionTests: XCTestCase {
             XCTAssertEqual(box.width, natural.width, accuracy: 0.001, "\(scalar) advance")
             XCTAssertEqual(ink.midX, try XCTUnwrap(natural.inkBounds).midX, accuracy: 0.001, "\(scalar) ink alignment")
             XCTAssertEqual(ink.height, 90.1, accuracy: 0.001, "\(scalar) covers the 100pt strut with delimiter shortfall")
-            XCTAssertEqual(ink.midY, 10, accuracy: 0.001, "\(scalar) asymmetric centre")
+            XCTAssertEqual(ink.midY, 10, accuracy: 0.001, "\(scalar) asymmetric center")
             XCTAssertEqual(box.ascent, ink.maxY, accuracy: 0.001)
             XCTAssertEqual(box.descent, -ink.minY, accuracy: 0.001)
             let layout = try typeset("<mo mathcolor='blue'>\(scalar)</mo><mspace width='1em' height='3em' depth='2em'/>",
@@ -107,11 +107,11 @@ final class VerticalArrowRegressionTests: XCTestCase {
             XCTAssertEqual(minimum.height, 160, accuracy: 0.001, "\(scalar) minimum wins")
             let (_, lone) = try stretched(scalar, engine: engine, attributes: ["minsize": "4em"], ascent: 0, descent: 0)
             XCTAssertEqual(lone.height, 80, accuracy: 0.001)
-            XCTAssertEqual(try XCTUnwrap(lone.inkBounds).midY, axis, accuracy: 0.001, "\(scalar) lone minimum is centred on the axis")
+            XCTAssertEqual(try XCTUnwrap(lone.inkBounds).midY, axis, accuracy: 0.001, "\(scalar) lone minimum is centered on the axis")
             let (_, symmetric) = try stretched(scalar, engine: engine, ascent: 60, descent: 0, symmetric: true)
             let extent = 2 * max(60 - axis, axis)
             XCTAssertEqual(symmetric.height, max(extent * 0.901, extent - em / 2), accuracy: 0.001, "\(scalar) symmetric height")
-            XCTAssertEqual(try XCTUnwrap(symmetric.inkBounds).midY, axis, accuracy: 0.001, "\(scalar) symmetric centre")
+            XCTAssertEqual(try XCTUnwrap(symmetric.inkBounds).midY, axis, accuracy: 0.001, "\(scalar) symmetric center")
             XCTAssertNil(engine.stretchVertically(mo(String(scalar), ["maxsize": "1"]), glyph: engine.font.glyph(for: scalar),
                                                  scalar: scalar, natural: natural, ascent: 60, descent: 40, symmetric: false, context))
         }

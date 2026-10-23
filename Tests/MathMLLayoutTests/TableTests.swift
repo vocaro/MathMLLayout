@@ -9,7 +9,7 @@ final class TableTests: XCTestCase {
     private let axis = constant(\.axisHeight)
     private var ex: CGFloat { (try? innerBox("<mspace width=\"1ex\"/>").width) ?? 0 }
 
-    /// A coloured cell of exact size, in ems.
+    /// A colored cell of exact size, in ems.
     private func cell(_ width: CGFloat, _ height: CGFloat, _ depth: CGFloat, _ color: String, attributes: String = "") -> String {
         "<mtd \(attributes)><mspace width=\"\(width)em\" height=\"\(height)em\" depth=\"\(depth)em\" mathbackground=\"\(color)\"/></mtd>"
     }
@@ -35,9 +35,9 @@ final class TableTests: XCTestCase {
         let box = try innerBox(grid()), height = 3 * em + ex
         XCTAssertEqual(box.width, 3 * em + 0.8 * em + 2 * em, accuracy: 0.01, "columns as wide as their widest cells, 0.8em apart")
         XCTAssertEqual(box.height, height, accuracy: 0.01, "rows as tall as their tallest cells, 1ex apart")
-        XCTAssertEqual((box.ascent - box.descent) / 2, axis, accuracy: 0.01, "centred on the math axis")
+        XCTAssertEqual((box.ascent - box.descent) / 2, axis, accuracy: 0.01, "centered on the math axis")
         let found = try cells(grid()), top = box.ascent
-        // Cells are centred in their columns.
+        // Cells are centered in their columns.
         XCTAssertEqual(found.red.midX, 1.5 * em, accuracy: pixel)
         XCTAssertEqual(found.green.minX, 0, accuracy: pixel)
         XCTAssertEqual(found.blue.minX, 3.8 * em, accuracy: pixel)
@@ -80,7 +80,7 @@ final class TableTests: XCTestCase {
         XCTAssertEqual(byRow.red.minX, 0, accuracy: pixel); XCTAssertEqual(byRow.black.maxX, 5.8 * em, accuracy: pixel)
         let byCell = try cells(grid("columnalign=\"right\"", lastCell: "columnalign=\"left\""))
         XCTAssertEqual(byCell.black.minX, 3.8 * em, accuracy: pixel); XCTAssertEqual(byCell.red.maxX, 3 * em, accuracy: pixel)
-        XCTAssertEqual(try cells(grid("columnalign=\"bogus\"")).red.midX, 1.5 * em, accuracy: pixel, "an unknown value centres")
+        XCTAssertEqual(try cells(grid("columnalign=\"bogus\"")).red.midX, 1.5 * em, accuracy: pixel, "an unknown value centers")
     }
 
     func testRowAndColumnSpacing() throws {
@@ -167,7 +167,7 @@ final class TableTests: XCTestCase {
         }
         XCTAssertEqual(try extents("axis").ascent, height / 2 + axis, accuracy: 0.01)
         XCTAssertEqual(try extents("center").ascent, height / 2, accuracy: 0.01)
-        XCTAssertEqual(try extents("baseline").ascent, height / 2, accuracy: 0.01, "baseline, without a row, is the centre (MathML 3)")
+        XCTAssertEqual(try extents("baseline").ascent, height / 2, accuracy: 0.01, "baseline, without a row, is the center (MathML 3)")
         XCTAssertEqual(try extents("top").ascent, 0, accuracy: 0.01, "the table hangs from the baseline")
         XCTAssertEqual(try extents("bottom").descent, 0, accuracy: 0.01, "the table stands on the baseline")
         XCTAssertEqual(try extents(" TOP ").ascent, 0, accuracy: 0.01)

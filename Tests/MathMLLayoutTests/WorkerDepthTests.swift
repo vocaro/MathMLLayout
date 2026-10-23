@@ -186,7 +186,7 @@ final class WorkerDepthTests: MathTestCase {
         XCTAssertEqual(onWorker { Self.snapshot(root) }, main)
     }
 
-    func testWrappedNeighbourTargetsAt64LevelsMatchOnAnExact512KBWorker() {
+    func testWrappedNeighborTargetsAt64LevelsMatchOnAnExact512KBWorker() {
         let targetLeaf = MathMLNode(name: "mrow", children: [
             MathMLNode(name: "mspace", attributes: ["width": "1em", "height": "1em", "mathbackground": "red"]),
             MathMLNode(name: "mspace", attributes: ["linebreak": "newline", "indentalign": "left", "indentshift": "0px"]),
@@ -205,7 +205,7 @@ final class WorkerDepthTests: MathTestCase {
             ])
         ])
         let reference = onWorker(stack: 8 * 1024 * 1024) { Self.snapshot(root) }
-        guard case .success = reference else { return XCTFail("64-level wrapped neighbour target must lay out") }
+        guard case .success = reference else { return XCTFail("64-level wrapped neighbor target must lay out") }
         XCTAssertEqual(onWorker { Self.snapshot(root) }, reference)
         XCTAssertEqual(onWorker { Self.snapshot(root) }, reference)
     }

@@ -55,7 +55,7 @@ final class RTLAlignmentTests: XCTestCase {
         }
     }
 
-    func testRowMarkEdgesChoosePhysicalNeighboursAndFirstSourceMarkWins() throws {
+    func testRowMarkEdgesChoosePhysicalNeighborsAndFirstSourceMarkWins() throws {
         let engine = LayoutEngine(fontName: nil)
         let context = LayoutContext(fontSize: em, unclampedSize: em, minSize: 8, display: false,
                                     color: black, trackAlignment: true, alignmentRTL: true)

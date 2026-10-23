@@ -29,7 +29,7 @@ extension LayoutEngine {
         case let attribute?: min(max(length(attribute, context, reference: standard) ?? standard, 0), context.fontSize)
         }
         if node.attributes.flag("bevelled") == true {
-            return bevelled(numerator, denominator, context)
+            return beveled(numerator, denominator, context)
         }
         // A little room each side, like TeX's null delimiters, so adjacent bars stay apart.
         let pad = context.fontSize * 0.08
@@ -78,7 +78,7 @@ extension LayoutEngine {
     }
 
     /// `bevelled="true"`: numerator raised, denominator lowered, either side of a slash.
-    private func bevelled(_ numerator: MathBox, _ denominator: MathBox, _ context: LayoutContext) -> MathBox {
+    private func beveled(_ numerator: MathBox, _ denominator: MathBox, _ context: LayoutContext) -> MathBox {
         let axis = value(\.axisHeight, context)
         let horizontalGap = value(\.skewedFractionHorizontalGap, context)
         let verticalGap = value(\.skewedFractionVerticalGap, context)
@@ -251,7 +251,7 @@ extension LayoutEngine {
         var x: CGFloat = 0
         var ascent = base.ascent, descent = base.descent
         // A base that is a row may break across lines, as in a long bracketed sum squared. Its
-        // scripts are then kept apart too, each raised or lowered as here and held to its neighbour,
+        // scripts are then kept apart too, each raised or lowered as here and held to its neighbor,
         // so the exponent stays on the closing bracket wherever that lands.
         let breaks = base.row != nil && base.op == nil
         var parts: [BreakableRow.Child] = []
@@ -336,7 +336,7 @@ extension LayoutEngine {
     ///
     /// A script's distance from its base is picked by the base, in Core's order (3.4.2.3 to
     /// 3.4.2.5): the limit constants for a large operator, the StretchStack constants for an
-    /// operator that stretches horizontally (a labelled arrow), and otherwise the accent rule
+    /// operator that stretches horizontally (a labeled arrow), and otherwise the accent rule
     /// or the over- and underbar gaps. Two readings differ from Core's text, both settled in
     /// https://github.com/w3c/mathml-core/issues/121:
     /// - The StretchStack shifts are from the base's baseline, as OpenType means them, not from
@@ -486,7 +486,7 @@ extension LayoutEngine {
             descent = max(descent, under.descent - underY + (accentUnder || isLimits || isStretchStack ? 0 : value(\.underbarExtraDescender, context)))
             ascent = max(ascent, under.ascent + underY)
         }
-        // Centre everything; limits of a slanted integral lean with it, and an accent sits on
+        // Center everything; limits of a slanted integral lean with it, and an accent sits on
         // the base glyph's accent attachment point.
         let width = boxes.compactMap { $0?.width }.max() ?? 0
         let italic = isLimits ? base.italicCorrection : 0
@@ -693,7 +693,7 @@ extension LayoutEngine {
     // MARK: Tables
 
     /// `mtable`: a grid with vertically aligned rows with `columnalign`, `rowspacing`,
-    /// `columnspacing`, lines and frame, centred on the math axis by default. `mlabeledtr`
+    /// `columnspacing`, lines and frame, centered on the math axis by default. `mlabeledtr`
     /// labels form a column at the side. Spanning cells reserve rectangles in a bounded grid.
     func table(_ node: MathMLNode, _ context: LayoutContext, depth: Int) throws -> MathBox {
         guard depth + 2 < MathLimits.depth else { throw MathLayoutError.limitExceeded }

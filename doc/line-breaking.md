@@ -139,7 +139,7 @@ move its target indefinitely, so it is never retried to a fixed point.
 
 Wrapper fragmentation is local to each selected host row. Nested wrappers rebuild from the
 inside out after text shaping, surrounding only their own contiguous content rather than
-neighbouring formula items. For explicitly authored `mpadded` geometry, absolute lengths
+neighboring formula items. For explicitly authored `mpadded` geometry, absolute lengths
 apply to every fragment; percentages, multiples, relative changes and `width`/`height`/`depth`
 pseudo-units resolve against that fragment's unpadded content. The fragment's horizontal
 advance then places following items; its ink remains covered even for negative offsets or

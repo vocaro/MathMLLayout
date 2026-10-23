@@ -20,7 +20,7 @@ default, which an explicit table setting overrides. Table and row values are bra
 such as `{right left} {decimalpoint}`; cells use unbraced lists. Last values and last lists
 repeat. Explicit `malignmark` overrides automatic left, right, center, or decimal-point
 alignment. Only the first mark in source order applies. A mark addresses the immediate
-neighbour's edge; a missing neighbour contributes a zero-width edge at the mark.
+neighbor's edge; a missing neighbor contributes a zero-width edge at the mark.
 
 The renderer uses glyph ink for ordinary element edges and advances for numeric digits,
 explicit spaces, text whitespace, and embedded token marks. Internal spacing within a group
@@ -60,7 +60,7 @@ baselines need not match those of another cell. Text marks follow their word thr
 a mark in a trimmed separator belongs to the preceding word for `edge="right"`, or the
 following word otherwise. Paragraph-edge marks remain on the first or last word.
 When a separator remains on the line, its mark retains the original caret instead of snapping
-to a word edge. Row marks use the final bounds of their neighbouring element, including the
+to a word edge. Row marks use the final bounds of their neighboring element, including the
 union of its rendered fragments across cell lines. This applies to nested rows, reshaped or
 segmented text, and resized fences. Targets resolve after stacking the cell's lines and before
 nested table scopes consume or export their markers. Break-only spacers carry no content
@@ -91,7 +91,7 @@ Rows, inferred rows and table columns progress in their inherited direction. Sou
 indices and attribute lists retain source order: in an RTL table, the first column and first
 group section are rightmost, and missing trailing groups reserve space on the left. `left`
 and `right` remain physical edges; decimal numbers retain LTR digit order. Explicit row marks
-select the physical neighbour specified by `edge`, so that neighbour changes source side in
+select the physical neighbor specified by `edge`, so that neighbor changes source side in
 RTL. Token marks retain their mapped positions within the token's shaped text or attachments.
 Labels remain on their authored physical `side`, outside the reflected main grid. Column and
 row rules, including interruptions for spans, use that grid's physical edges.
@@ -118,7 +118,7 @@ or layout retry is introduced. Grouped tables add one fully broken cell measurem
 the existing cell-rebuild and text-work budgets. Span scope checks use prefix counts, so a
 wide span does not rescan its columns for each marker. Fragment reconstruction retains stable
 marker identities to restore source priority after deferred layout and cached-cell restamping.
-Neighbour targets follow the active heap cursor through nested rows; generated fragment edges
+Neighbor targets follow the active heap cursor through nested rows; generated fragment edges
 charge the shared 2,000,000-unit text/assembly budget. Target references retain the pass counter,
 without retaining the layout engine, and resolved marks do not export their targets to another scope.
 Token offset mapping scans bounded source and resolved text; only the first mark is measured,

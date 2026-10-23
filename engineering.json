@@ -22,6 +22,24 @@
       "resource": "light"
     }
   },
+  "spelling": {
+    "exemptPhrases": {
+      "bevelled=": "MathML's beveled-fraction attribute in markup, as the W3C spells it",
+      "\"bevelled": "MathML's beveled-fraction attribute named in a string",
+      "`bevelled`": "MathML's beveled-fraction attribute named in code type",
+      "linethickness bevelled": "MathML's beveled-fraction attribute in the reference renderer's list",
+      "\"grey": "a CSS named color, which CSS accepts beside gray",
+      "au centre": "French speech text: at the center"
+    },
+    "exemptRuns": {
+      "fivecommathreethreetwocommaoneonefour": "glyph names five, comma, three, ... four, joined"
+    },
+    "exemptTokens": {
+      "quatre": "French speech text: four",
+      "entre": "Spanish speech text: between",
+      "sobre": "Spanish speech text: over"
+    }
+  },
   "exceptions": [],
   "integration": "direct-main"
 }

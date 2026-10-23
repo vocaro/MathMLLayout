@@ -162,7 +162,7 @@ Every valid bundled input checks its hash, finite/bounded dimensions, determinis
 and raster ink containment. A bounds rejection or raster-budget exclusion fails the bundled
 check. These are robustness checks under the
 [shared corpus provenance rules](https://github.com/vocaro/apple-engineering/blob/main/guides/evidence.md#corpus-provenance),
-which also cover the licence-verified snapshot and test-only placement.
+which also cover the license-verified snapshot and test-only placement.
 The textbook sample includes 52 inline and 48 display formulas; it covers functions, complex
 numbers, logarithms, trigonometric identities, matrices, geometric sequences, limits and derivatives.
 The SRE corpus adds nested roots, embellished operators, annotations and tensors. This is

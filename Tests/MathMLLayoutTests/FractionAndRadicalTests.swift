@@ -27,7 +27,7 @@ final class FractionAndRadicalTests: XCTestCase {
             XCTAssertEqual(bar.height, rule, accuracy: 0.5, "display \(display)")
             // In text style the parts are a script level down, so their em is smaller.
             XCTAssertEqual(bar.width, display ? 2 * em : 2 * constant(\.scriptPercentScaleDown) / 100, accuracy: pixel, "display \(display)")
-            XCTAssertEqual(bar.midX, fraction.width / 2, accuracy: 0.3, "the bar is centred in the box")
+            XCTAssertEqual(bar.midX, fraction.width / 2, accuracy: 0.3, "the bar is centered in the box")
             XCTAssertGreaterThan(bar.minX, 0.5, "with a little room each side")
         }
     }
@@ -47,7 +47,7 @@ final class FractionAndRadicalTests: XCTestCase {
         XCTAssertEqual(try thickness("bogus"), standard, accuracy: 0.01, "an invalid value is ignored")
         XCTAssertEqual(try thickness("50em"), em, accuracy: 0.5, "bounded by the font size")
         for value in ["thin", "thick", "5px"] {
-            XCTAssertEqual(try XCTUnwrap(try bar("linethickness=\"\(value)\"")).midY, axis, accuracy: 0.3, "\(value) stays centred on the axis")
+            XCTAssertEqual(try XCTUnwrap(try bar("linethickness=\"\(value)\"")).midY, axis, accuracy: 0.3, "\(value) stays centered on the axis")
         }
         for none in ["0", "0px", "0em", "0%", "-2px"] { XCTAssertNil(try bar("linethickness=\"\(none)\""), "linethickness=\(none) draws no bar") }
     }
@@ -103,13 +103,13 @@ final class FractionAndRadicalTests: XCTestCase {
         }
     }
 
-    func testPartsAreCentredUnlessAligned() throws {
+    func testPartsAreCenteredUnlessAligned() throws {
         let wide = "<mn>1000000</mn>", narrow = "<mn>1</mn>"
         for display in [false, true] {
-            let centred = try parts(narrow, wide, display: display)
-            XCTAssertEqual(centred.numerator.midX, centred.denominator.midX, accuracy: 1)
-            XCTAssertEqual(try XCTUnwrap(centred.bar).midX, centred.denominator.midX, accuracy: 1)
-            XCTAssertGreaterThanOrEqual(try XCTUnwrap(centred.bar).width, centred.denominator.width - pixel, "the bar spans the wider part")
+            let centered = try parts(narrow, wide, display: display)
+            XCTAssertEqual(centered.numerator.midX, centered.denominator.midX, accuracy: 1)
+            XCTAssertEqual(try XCTUnwrap(centered.bar).midX, centered.denominator.midX, accuracy: 1)
+            XCTAssertGreaterThanOrEqual(try XCTUnwrap(centered.bar).width, centered.denominator.width - pixel, "the bar spans the wider part")
             let left = try parts(narrow, wide, attributes: "numalign=\"left\"", display: display)
             XCTAssertEqual(left.numerator.minX, left.denominator.minX, accuracy: 1)
             let right = try parts(narrow, wide, attributes: "numalign=\"right\"", display: display)
@@ -150,7 +150,7 @@ final class FractionAndRadicalTests: XCTestCase {
         XCTAssertEqual(try deepest(6), 0.6 * em, accuracy: pixel)
     }
 
-    // MARK: Stacks and bevelled fractions
+    // MARK: Stacks and beveled fractions
 
     func testAStackWithoutABarKeepsTheMinimumGap() throws {
         for display in [false, true] {
@@ -175,7 +175,7 @@ final class FractionAndRadicalTests: XCTestCase {
         XCTAssertLessThanOrEqual(fences.minY, try XCTUnwrap(binomial[.blue]).minY + em / 2)
     }
 
-    func testBevelledFractionsPutTheNumeratorUpAndLeftOfASlash() throws {
+    func testBeveledFractionsPutTheNumeratorUpAndLeftOfASlash() throws {
         for display in [false, true] {
             for (numerator, denominator) in [("<mn>1</mn>", "<mn>2</mn>"), ("<mi>a</mi><mo>+</mo><mi>b</mi>", "<mi>c</mi>"),
                                              ("<mfrac><mi>a</mi><mi>b</mi></mfrac>", "<mfrac><mi>c</mi><mi>d</mi></mfrac>")] {
@@ -191,8 +191,8 @@ final class FractionAndRadicalTests: XCTestCase {
             }
         }
         // bevelled="false" is an ordinary fraction.
-        let plain = try typeset("<mfrac><mn>1</mn><mn>2</mn></mfrac>"), unbevelled = try typeset("<mfrac bevelled=\"false\"><mn>1</mn><mn>2</mn></mfrac>")
-        XCTAssertEqual(plain.width, unbevelled.width); XCTAssertEqual(height(plain), height(unbevelled))
+        let plain = try typeset("<mfrac><mn>1</mn><mn>2</mn></mfrac>"), unbeveled = try typeset("<mfrac bevelled=\"false\"><mn>1</mn><mn>2</mn></mfrac>")
+        XCTAssertEqual(plain.width, unbeveled.width); XCTAssertEqual(height(plain), height(unbeveled))
     }
 
     func testAFractionBoxCoversItsPartsAndBar() throws {

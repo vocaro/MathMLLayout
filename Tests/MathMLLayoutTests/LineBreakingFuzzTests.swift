@@ -31,7 +31,7 @@ final class LineBreakingFuzzTests: MathTestCase {
         mutating func pick<T>(_ values: [T]) -> T { values[below(values.count)] }
     }
 
-    /// The colour of every `mi`, `mn`, `mtext` and `ms` the generator makes, and of nothing else:
+    /// The color of every `mi`, `mn`, `mtext` and `ms` the generator makes, and of nothing else:
     /// what a broken formula must draw exactly as the unbroken one does, whatever its fences
     /// stretch to and its operators repeat.
     static let tokenColor = "#0000ff"
@@ -1165,7 +1165,7 @@ final class LineBreakingFuzzTests: MathTestCase {
     }
 
     /// `.greatestFiniteMagnitude` is how a host says a line has no end as often as `.infinity` is. It
-    /// was taken as a width: a row centred in it or indented by a share of it was placed past the
+    /// was taken as a width: a row centered in it or indented by a share of it was placed past the
     /// bound on extent, and the formula refused.
     func testALineWiderThanAnyFormulaIsNoLimit() throws {
         let terms = "<mi>alpha</mi><mo>=</mo><mi>beta</mi><mo linebreak='newline'>+</mo><mi>gamma</mi>"

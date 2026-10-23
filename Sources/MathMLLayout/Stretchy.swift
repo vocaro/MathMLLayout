@@ -36,11 +36,11 @@ extension LayoutEngine {
         return variant.map { glyphBox($0.glyph, context) }
     }
 
-    /// An operator stretched to cover `ascent` and `descent`, centred on the math axis when
+    /// An operator stretched to cover `ascent` and `descent`, centered on the math axis when
     /// symmetric. `minsize` and `maxsize` bound the size, relative to the natural size, and
     /// where the two disagree `minsize` is the one that holds. A row with nothing for the operator
     /// to cover passes zero for both extents: the operator keeps its natural size unless
-    /// `minsize` is more, and then it is centred on the axis whether it is symmetric or not.
+    /// `minsize` is more, and then it is centered on the axis whether it is symmetric or not.
     func stretchVertically(_ node: MathMLNode, glyph: CGGlyph?, scalar: Unicode.Scalar?, natural: MathBox,
                            ascent: CGFloat, descent: CGFloat, symmetric: Bool, _ context: LayoutContext) -> MathBox? {
         let axis = value(\.axisHeight, context)
@@ -61,7 +61,7 @@ extension LayoutEngine {
         }
         target = min(target, 200 * context.fontSize)
         guard target > natural.height else { return nil }
-        // Nothing to cover is nothing to centre on. The size is then the `minsize`, and MathML
+        // Nothing to cover is nothing to center on. The size is then the `minsize`, and MathML
         // Core 3.2.4.3 puts half of it each side of the axis, symmetric or not.
         let center = top + bottom > 0 ? (top - bottom) / 2 : axis
         if let glyph, let box = stretchedGlyph(glyph, vertical: true, size: target, context) {
@@ -269,7 +269,7 @@ extension LayoutEngine {
     }
 
     /// A vertical arrow whose stroked ink is exactly `height` tall. Keep its natural advance
-    /// and ink's horizontal centre: a harpoon's shaft lies to one side of that centre.
+    /// and ink's horizontal center: a harpoon's shaft lies to one side of that center.
     private func drawnVerticalArrow(_ scalar: Unicode.Scalar, height: CGFloat, natural: MathBox,
                                     _ context: LayoutContext) -> MathBox? {
         guard let equivalent = Self.horizontalEquivalents[scalar], let shape = Self.arrowShapes[equivalent] else { return nil }
@@ -379,7 +379,7 @@ extension LayoutEngine {
         return shapes
     }()
 
-    /// An arrow drawn `width` long, its ink centred on `middle` as the natural glyph's is. The
+    /// An arrow drawn `width` long, its ink centered on `middle` as the natural glyph's is. The
     /// single arrow sets the proportions: a head's arms run back a quarter em and out 0.15 em,
     /// and those of a double or triple arrow at the same slope, as far past its outer lines.
     private func drawnArrow(_ shape: ArrowShape, width: CGFloat, middle: CGFloat, _ context: LayoutContext) -> MathBox {

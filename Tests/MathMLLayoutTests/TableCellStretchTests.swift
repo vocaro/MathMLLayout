@@ -8,14 +8,14 @@ final class TableCellStretchTests: XCTestCase {
         "<mo mathcolor=\"blue\" \(attributes)>→</mo>"
     }
 
-    func testWholeCellVerticalOperatorCoversTallRowNeighbour() throws {
+    func testWholeCellVerticalOperatorCoversTallRowNeighbor() throws {
         let body = "<mtable><mtr><mtd><mo mathcolor=\"blue\" symmetric=\"false\">(</mo></mtd>"
             + "<mtd><mspace height=\"60px\" depth=\"20px\" width=\"10px\"/></mtd></mtr></mtable>"
         XCTAssertGreaterThan(try blue(body).height, 70)
         assertBoxCoversInk(try typeset(body), body)
     }
 
-    func testWholeCellHorizontalOperatorCoversColumnNeighbour() throws {
+    func testWholeCellHorizontalOperatorCoversColumnNeighbor() throws {
         let body = "<mtable><mtr><mtd>\(arrow())</mtd></mtr>"
             + "<mtr><mtd><mspace width=\"120px\"/></mtd></mtr></mtable>"
         XCTAssertGreaterThan(try blue(body).width, 115)
@@ -28,7 +28,7 @@ final class TableCellStretchTests: XCTestCase {
         XCTAssertGreaterThan(try blue(body).width, 115)
     }
 
-    func testDisabledStretchAndMaximumSizeAreHonoured() throws {
+    func testDisabledStretchAndMaximumSizeAreHonored() throws {
         for attributes in ["stretchy=\"false\"", "maxsize=\"100%\""] {
             let body = "<mtable><mtr><mtd>\(arrow(attributes))</mtd></mtr>"
                 + "<mtr><mtd><mspace width=\"120px\"/></mtd></mtr></mtable>"
@@ -68,7 +68,7 @@ final class TableCellStretchTests: XCTestCase {
         XCTAssertGreaterThan(try blue(body).width, 60)
     }
 
-    func testLoneCellHorizontalOperatorHonoursMinimumSize() throws {
+    func testLoneCellHorizontalOperatorHonorsMinimumSize() throws {
         XCTAssertGreaterThan(try blue("<mtable><mtr><mtd>\(arrow("minsize=\"4\""))</mtd></mtr></mtable>").width, 60)
     }
 

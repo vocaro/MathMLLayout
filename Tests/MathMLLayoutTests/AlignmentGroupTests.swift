@@ -307,7 +307,7 @@ final class AlignmentGroupTests: XCTestCase {
         XCTAssertThrowsError(try innerBox(number)) { XCTAssertEqual($0 as? MathLayoutError, .limitExceeded) }
     }
 
-    func testSelectedActionMarksAddressTheirEnclosingRowNeighbours() throws {
+    func testSelectedActionMarksAddressTheirEnclosingRowNeighbors() throws {
         let a = "<maligngroup/>" + space(1, "red") + "<maction><malignmark/></maction><mo lspace='1em' rspace='0px'>x</mo>"
         let b = "<maligngroup/>" + space(3, "lime") + "<maction selection='2'><mi>unused</mi><malignmark/></maction><mo lspace='0px' rspace='0px'>x</mo>"
         let drawn = runs(try innerBox(table(a, b)))

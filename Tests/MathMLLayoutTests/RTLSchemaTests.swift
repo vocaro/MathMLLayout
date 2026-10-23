@@ -68,7 +68,7 @@ final class RTLSchemaTests: XCTestCase {
         for (a, b) in zip(rectangles(ltr), r) { XCTAssertEqual(b.minX, rtl.width - a.maxX, accuracy: 0.001) }
     }
 
-    func testRadicalIndexBarAndBevelledFractionReverseOnlyHorizontalPlacement() throws {
+    func testRadicalIndexBarAndBeveledFractionReverseOnlyHorizontalPlacement() throws {
         for font in [nil, "Helvetica"] {
             for body in ["<msqrt>\(space(50))</msqrt>", "<mroot>\(space(50))\(space(12, "blue"))</mroot>",
                          "<mfrac bevelled='true'>\(space(30))\(space(45, "blue"))</mfrac>"] {
@@ -126,8 +126,8 @@ final class RTLSchemaTests: XCTestCase {
                         guard a[index] > 128 else { return false }
                         for dy in -1...1 {
                             for dx in -1...1 {
-                                let x = index % width + dx, neighbour = index + dy * width + dx
-                                if x >= 0, x < width, b.indices.contains(neighbour), b[neighbour] > 128 { return false }
+                                let x = index % width + dx, neighbor = index + dy * width + dx
+                                if x >= 0, x < width, b.indices.contains(neighbor), b[neighbor] > 128 { return false }
                             }
                         }
                         return true

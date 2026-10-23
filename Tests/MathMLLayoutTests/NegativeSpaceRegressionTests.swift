@@ -17,7 +17,7 @@ final class NegativeSpaceRegressionTests: MathTestCase {
             var shifted = terms
             shifted[20] += "<mspace width=\"\(distance)px\"/><mi>z</mi><mspace width=\"\(-distance)px\"/>"
             let result = try MathLayout(node(shifted.joined(separator: plus)), style: style, maximumWidth: limit)
-            // The excursion cannot share a row with a neighbour. Force just those necessary
+            // The excursion cannot share a row with a neighbor. Force just those necessary
             // breaks to make a reference whose search cannot skip the fitting earlier prefix.
             let forcedPlus = "<mo linebreak=\"newline\">+</mo>"
             let forcedBody = shifted.prefix(20).joined(separator: plus) + forcedPlus + shifted[20]

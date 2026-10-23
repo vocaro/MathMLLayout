@@ -1178,12 +1178,12 @@ final class LayoutEngine {
     /// their spacing. A row whose only in-flow child is an embellished operator is one itself
     /// and passes `embellishment` down to it. An enclosing row then spaces it as a whole; with
     /// none (the root, a table cell, a radicand) it spaces the operator from its space-like
-    /// neighbours itself, so "<mtext>a</mtext><mo>=</mo><mtext>b</mtext>" keeps its relation space.
+    /// neighbors itself, so "<mtext>a</mtext><mo>=</mo><mtext>b</mtext>" keeps its relation space.
     /// Text beside an operator is its operand (`spaceLike`), so every operator of a word equation,
     /// "assets − liabilities = equity", is spaced as it is between identifiers.
     ///
     /// Being an operator is a matter of form and spacing. Stretching is another: the one operator
-    /// of such a row covers its space-like neighbours like any other (MathML 3, 3.2.5.8.2), so a
+    /// of such a row covers its space-like neighbors like any other (MathML 3, 3.2.5.8.2), so a
     /// bar beside a strut of `mspace` is as tall as the strut, and it covers with them what the
     /// enclosing row has the row cover. Operators with nothing at all to cover stretch to a size
     /// of zero, as in MathML Core 3.3.1.2, and that is their natural size unless a `minsize` asks
@@ -1220,7 +1220,7 @@ final class LayoutEngine {
             let stretched = Set(deferred)
             let others = boxes.indices.filter { !stretched.contains($0) }
             var ascents = others.map { boxes[$0].ascent }, descents = others.map { boxes[$0].descent }
-            // The core covers its space-like neighbours, and with them what the row around this one
+            // The core covers its space-like neighbors, and with them what the row around this one
             // has the whole row cover.
             if let core, stretched.contains(core), case .vertical(let ascent, let descent) = embellishment.stretch {
                 ascents.append(ascent); descents.append(descent)
@@ -1256,7 +1256,7 @@ final class LayoutEngine {
         // The sides of the core operator this row spaces itself: those with something beside it.
         var spacesCore = (left: false, right: false)
         if let core, !spacedByParent {
-            // And a side its author gave a space of its own (`lspace`, `rspace`), neighbour or none:
+            // And a side its author gave a space of its own (`lspace`, `rspace`), neighbor or none:
             // that is no inference from the dictionary for a row to withhold.
             let own = boxes[core].op?.ownSpacing ?? (lspace: false, rspace: false)
             spacesCore = (own.lspace || boxes[..<core].contains { $0.width > 0 }, own.rspace || boxes[(core + 1)...].contains { $0.width > 0 })
@@ -1299,9 +1299,9 @@ final class LayoutEngine {
         }
         for mark in markEvents {
             let right = Self.alignmentMark(children[mark.child])?.attributes["edge"]?.lowercased() == "right"
-            let neighbour = mark.child + ((right != context.alignmentRTL) ? -1 : 1)
-            box.alignment[mark.event].x = boxes.indices.contains(neighbour)
-                ? placed[neighbour] + (right ? boxes[neighbour].alignmentEdges.right : boxes[neighbour].alignmentEdges.left)
+            let neighbor = mark.child + ((right != context.alignmentRTL) ? -1 : 1)
+            box.alignment[mark.event].x = boxes.indices.contains(neighbor)
+                ? placed[neighbor] + (right ? boxes[neighbor].alignmentEdges.right : boxes[neighbor].alignmentEdges.left)
                 : placed[mark.child]
         }
         if boxes.count == 1 {
@@ -1645,7 +1645,7 @@ enum MathColor {
         let text = value.trimmingCharacters(in: .whitespaces).lowercased()
         if text == "transparent" { return CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0) }
         if let rgb = names[text] { return color(rgb << 8 | 0xFF) }
-        // Digits only: an integer may have a sign, and a colour may not.
+        // Digits only: an integer may have a sign, and a color may not.
         guard text.hasPrefix("#"), text.dropFirst().allSatisfy({ $0.isASCII && $0.isHexDigit }),
               let number = UInt32(text.dropFirst(), radix: 16) else { return nil }
         switch text.count - 1 {

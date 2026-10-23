@@ -83,7 +83,7 @@ struct MathBox {
     var descent: CGFloat = 0
     /// How far an italic glyph's top leans past the advance; superscripts start after it.
     var italicCorrection: CGFloat = 0
-    /// Where an accent over this box centres, from its left edge; nil is the middle.
+    /// Where an accent over this box centers, from its left edge; nil is the middle.
     var topAccentAttachment: CGFloat? {
         get { metadata?.values.topAccentAttachment }
         set {
@@ -395,8 +395,8 @@ struct MathBox {
                 context.strokePath()
                 context.restoreGState()
             case .image(let image, let rect, let color):
-                // An image mask is filled with the context's fill colour, which is otherwise that of
-                // whatever was drawn last. An image with colours of its own takes no notice of it.
+                // An image mask is filled with the context's fill color, which is otherwise that of
+                // whatever was drawn last. An image with colors of its own takes no notice of it.
                 context.setFillColor(color)
                 // Upright as it is: CoreGraphics puts an image's top row at the rect's greater y.
                 context.draw(image, in: rect.offsetBy(dx: origin.x, dy: origin.y))
@@ -417,7 +417,7 @@ struct GlyphRun {
     var color: CGColor
     /// Ink bounds relative to the same origin.
     var ink: CGRect
-    /// Opt-in reflection for generated surds and bevelled fraction slashes only. Positions
+    /// Opt-in reflection for generated surds and beveled fraction slashes only. Positions
     /// remain in the original font/assembly coordinates; ink is already reflected.
     var reflectionWidth: CGFloat? = nil
 }
@@ -432,7 +432,7 @@ enum MathItem {
     /// its length holds dashes, and markup sets the two apart (a table's rule is as thick as its own
     /// font is large, and as long as its content is wide), so that was millions of dashes nobody drew.
     case dashes(CGPath, lineWidth: CGFloat, color: CGColor, lengths: [CGFloat])
-    /// An `mglyph`'s image, scaled to fill the rect. The colour is for an image mask, which is a
+    /// An `mglyph`'s image, scaled to fill the rect. The color is for an image mask, which is a
     /// shape with none of its own: its token's, as for the text beside it.
     case image(CGImage, CGRect, CGColor)
     case box(MathBox, at: CGPoint)

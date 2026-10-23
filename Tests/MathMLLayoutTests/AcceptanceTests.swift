@@ -187,8 +187,8 @@ final class AcceptanceTests: MathTestCase {
         XCTAssertEqual(shifted.rows[1].origin.x - shifted.rows[0].origin.x, 60, accuracy: 0.5)
         let right = try broken(body("indentalign=\"right\""), width: 400)
         XCTAssertEqual(right.rows[1].origin.x + right.rows[1].width, 400, accuracy: 0.5)
-        let centre = try broken(body("indentalign=\"center\""), width: 400)
-        XCTAssertEqual(centre.rows[1].origin.x + centre.rows[1].width / 2, 200, accuracy: 0.5)
+        let center = try broken(body("indentalign=\"center\""), width: 400)
+        XCTAssertEqual(center.rows[1].origin.x + center.rows[1].width / 2, 200, accuracy: 0.5)
         // Display rows indent their continuations by default; inline fragments do not.
         let display = try broken(body(""), width: 400)
         XCTAssertGreaterThan(display.rows[1].origin.x, display.rows[0].origin.x + 1)

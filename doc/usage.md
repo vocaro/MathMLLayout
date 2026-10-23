@@ -24,7 +24,7 @@ swiftc -swift-version 6 -target "$(uname -m)-apple-macosx27.0" -parse-as-library
 ```
 
 This writes three PNGs to `doc/renderings/`. Each uses STIX Two Math at 28 points,
-centred on a white 320 × 120-point canvas at 2× resolution. If you change a MathML
+centered on a white 320 × 120-point canvas at 2× resolution. If you change a MathML
 example, update the corresponding markup in the README as well.
 
 [Documentation index](../README.md#documentation)

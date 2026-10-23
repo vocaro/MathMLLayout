@@ -5,7 +5,7 @@ import Foundation
 /// Shared across event copies so fragment assembly can recover the parent's source priority.
 final class AlignmentIdentity {}
 
-/// A marker's neighbouring element, shared by its rendered fragments. Fragment edge
+/// A marker's neighboring element, shared by its rendered fragments. Fragment edge
 /// events use the pass's existing assembly budget, including cached/reshaped fragments.
 final class AlignmentTarget {
     let work: TextShapingWork
@@ -124,7 +124,7 @@ extension MathBox {
             default: edges?.left ?? left
             }
             let point = mark?.x ?? automatic
-            // A missing mark neighbour is an effective zero-width element at the mark.
+            // A missing mark neighbor is an effective zero-width element at the mark.
             groups[index].start = min(left, point)
             groups[index].end = max(right, point)
             groups[index].point = point
@@ -315,7 +315,7 @@ extension LayoutEngine {
         box.items.insert(.rect(CGRect(x: 0, y: -box.descent, width: box.width, height: box.height), color), at: 0)
     }
 
-    /// Retained natural table cells enter a fresh relayout engine with new neighbouring events.
+    /// Retained natural table cells enter a fresh relayout engine with new neighboring events.
     /// Keep their source priority while assigning sequence IDs unique to that engine.
     func restampAlignment(_ box: inout MathBox) {
         let priorities = box.alignment.indices.filter { index in
@@ -409,7 +409,7 @@ extension LayoutEngine {
         func offset(_ count: Int) -> CGFloat {
             if let source = box.logicalTextSlice?.source, source.hasAttachments { return source.caret(count) }
             let count = min(max(0, count), text.utf16.count)
-            // At an attachment boundary, a neighbouring RTL run's logical caret may
+            // At an attachment boundary, a neighboring RTL run's logical caret may
             // lie at its opposite visual edge. The rendered attachment edge is exact.
             if let edge = imageEdges[count] { return edge }
             // Single-glyph operators may have been enlarged or assembled after shaping.

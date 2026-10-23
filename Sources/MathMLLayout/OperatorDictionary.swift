@@ -14,7 +14,7 @@ struct OperatorFlags: OptionSet, Sendable, Hashable {
     static let accent = OperatorFlags(rawValue: 64)
 }
 
-/// An operator's resolved spacing and behaviour, after the dictionary and its attributes.
+/// An operator's resolved spacing and behavior, after the dictionary and its attributes.
 struct OperatorProperties: Sendable {
     var form: OperatorForm
     /// Points.
@@ -40,7 +40,7 @@ struct OperatorProperties: Sendable {
 
 /// How willingly a line breaks at an operator, best first (MathML 3, 3.1.7.2, and The TeXbook's
 /// chapter 18: after relations in preference to binary operations). `none` never breaks unless
-/// its `mo` says so, and `glue` also holds its neighbours together: a function and its argument.
+/// its `mo` says so, and `glue` also holds its neighbors together: a function and its argument.
 enum BreakClass: UInt8, Sendable { case none, relation, separator, space, additive, multiplicative, glue }
 
 /// The operator dictionary: default spacing and properties of common operators by form.

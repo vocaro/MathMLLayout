@@ -77,7 +77,7 @@ final class TableAlignmentRegressionTests: XCTestCase {
         }
     }
 
-    func testRowMarksKeepTheResolvedNeighbourEdgeAcrossForcedWrapping() throws {
+    func testRowMarksKeepTheResolvedNeighborEdgeAcrossForcedWrapping() throws {
         for direction in ["ltr", "rtl"] {
             let contents = direction == "ltr"
                 ? ["<malignmark/><mo>+</mo><mi>x</mi>", "<mi>x</mi><mo>+</mo><malignmark edge='right'/>"]

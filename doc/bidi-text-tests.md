@@ -26,7 +26,7 @@ Arabic joining contexts inside a word. The general Core Text lessons are in
 
 Regression coverage includes exact advances, neutral punctuation, bracket mirroring,
 embedded numbers, RLO/PDF, LRI/PDI, NBSP and narrow NBSP, fallback-font ink containment,
-formula neighbours, author paragraph-edge spaces, numeric parentheses in an inherited RTL
+formula neighbors, author paragraph-edge spaces, numeric parentheses in an inherited RTL
 stack, and consistency of the reported minimum wrapping width. System fallback
 font shapes are deliberately not used as a glyph-ID oracle.
 

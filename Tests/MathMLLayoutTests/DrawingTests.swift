@@ -75,7 +75,7 @@ final class DrawingTests: XCTestCase {
         }
     }
 
-    // MARK: Colour
+    // MARK: Color
 
     func testTheStylesColorIsUsedAsGiven() throws {
         let bar = try mathML("<mfrac linethickness=\"10px\"><mspace width=\"2em\" height=\"1ex\"/><mspace width=\"2em\" height=\"1ex\"/></mfrac>", display: true)
@@ -109,7 +109,7 @@ final class DrawingTests: XCTestCase {
         layout.draw(in: context, baselineOrigin: CGPoint(x: 20, y: 40))
         XCTAssertEqual(context.ctm, transform)
         XCTAssertEqual(context.boundingBoxOfClipPath, clip)
-        // And it draws what the host's own state says: a second draw after a host colour change is unaffected by it.
+        // And it draws what the host's own state says: a second draw after a host color change is unaffected by it.
         context.setFillColor(CGColor(srgbRed: 0, green: 1, blue: 0, alpha: 1))
         layout.draw(in: context, baselineOrigin: CGPoint(x: 20, y: 40))
         XCTAssertEqual(context.ctm, transform)

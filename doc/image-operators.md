@@ -21,7 +21,7 @@ still needs explicit `stretchy="true"`, and display enlargement still needs expl
 `largeop="true"`. These opt-ins are not inherited either; inherited `displaystyle`, `mathsize`
 and script style continue to control layout normally.
 
-For an image-only labelled arrow, no visible operator text is necessary:
+For an image-only labeled arrow, no visible operator text is necessary:
 
 ```xml
 <mover>

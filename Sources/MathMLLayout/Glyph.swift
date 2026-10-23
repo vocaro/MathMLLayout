@@ -140,7 +140,7 @@ extension LayoutEngine {
     /// An `alt` on its `mglyph`'s `mathbackground`, which fills "the bounding box of the element"
     /// (3.1.10): the image's when there is one, and without one the box of what is drawn instead.
     /// So this `alt` is a box of its own among the token's text, where any other is part of that
-    /// text. It is drawn as that text is, in the token's variant, size and colour.
+    /// text. It is drawn as that text is, in the token's variant, size and color.
     private func altBox(_ alt: String, on background: CGColor, _ context: LayoutContext) -> MathBox {
         let shown = context.variant?.apply(to: alt) ?? alt
         var box = textBox(shown, context, retainSegments: true)
@@ -187,7 +187,7 @@ extension LayoutEngine {
 
     /// MathML 2, 3.2.9: an index is a glyph ID in the named font, never a Unicode scalar.
     /// Image sizing attributes and variants without a font-trait counterpart are outside this
-    /// compatibility subset. Like image glyphs, size and colour come from the surrounding token.
+    /// compatibility subset. Like image glyphs, size and color come from the surrounding token.
     private func legacyGlyphBox(_ node: MathMLNode, _ context: LayoutContext) -> MathBox? {
         let attributes = node.attributes
         guard attributes["src"] == nil,
@@ -225,7 +225,7 @@ extension LayoutEngine {
     /// image's bottom edge above the baseline. A percentage or bare number is of the attribute's
     /// default (2.1.5.2): the image's own size, and for `valign` zero. `mathbackground` shows
     /// through a transparent image; `mathcolor` has no effect. An image mask, which is a shape and
-    /// has no colour of its own, is filled with the token's as a character would be: that is "the
+    /// has no color of its own, is filled with the token's as a character would be: that is "the
     /// foreground color to use when drawing ... the content for token elements" (3.1.10).
     ///
     /// No dimension exceeds `MathLimits.extent`, whatever the image or the lengths: a larger image

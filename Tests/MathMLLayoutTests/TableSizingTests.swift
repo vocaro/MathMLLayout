@@ -126,7 +126,7 @@ final class TableSizingTests: XCTestCase {
         for direction in ["ltr", "rtl"] {
             let first = cell(10) + "<malignmark/>" + cell(20, color: "blue")
             let second = cell(30, color: "lime") + "<malignmark/>" + cell(10, color: "black")
-            // Use the coloured struts themselves as group children, rather than nested cells.
+            // Use the colored struts themselves as group children, rather than nested cells.
             let a = first.replacingOccurrences(of: "<mtd >", with: "").replacingOccurrences(of: "</mtd>", with: "")
             let b = second.replacingOccurrences(of: "<mtd >", with: "").replacingOccurrences(of: "</mtd>", with: "")
             let body = "<mtable dir=\"\(direction)\" columnwidth=\"70px\" columnspacing=\"0\"><mtr><mtd><maligngroup/>" + a

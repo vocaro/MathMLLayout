@@ -179,7 +179,7 @@ final class OperatorTests: XCTestCase {
             XCTAssertEqual(try width("lspace='1em' rspace='1em'", in: wrap) - (try width("lspace='0' rspace='0'", in: wrap)), 2 * unit, accuracy: 0.01, name)
             XCTAssertEqual(try width("", in: wrap), try width("lspace='0' rspace='0'", in: wrap), accuracy: 0.01, "\(name): none of the dictionary's")
         }
-        // Once: a row around it hands the space up, and the row that has neighbours applies it.
+        // Once: a row around it hands the space up, and the row that has neighbors applies it.
         let between = try innerBox("<mi>a</mi><mo lspace='1em' rspace='1em'>=</mo><mi>b</mi>").width
         XCTAssertEqual(try innerBox("<mi>a</mi><mrow><mo lspace='1em' rspace='1em'>=</mo></mrow><mi>b</mi>").width, between, accuracy: 0.01)
         XCTAssertEqual(try innerBox("<mrow><mrow><mo lspace='1em' rspace='1em'>=</mo></mrow></mrow>").width, bare + 2 * em, accuracy: 0.01)
@@ -253,7 +253,7 @@ final class OperatorTests: XCTestCase {
 
     private let tall = "<mfrac><mfrac><mi>a</mi><mi>b</mi></mfrac><mfrac><mi>c</mi><mi>d</mi></mfrac></mfrac>"
 
-    func testFencesCoverTheirContentCentredOnTheAxis() throws {
+    func testFencesCoverTheirContentCenteredOnTheAxis() throws {
         let axis = constant(\.axisHeight)
         for (open, close) in [("(", ")"), ("[", "]"), ("{", "}"), ("|", "|"), ("‖", "‖"), ("⌈", "⌉"), ("⌊", "⌋"), ("⟨", "⟩")] {
             let (fences, content) = try fenced(open, close, content: tall)
@@ -261,7 +261,7 @@ final class OperatorTests: XCTestCase {
             let extent = 2 * max(content.maxY - axis, axis - content.minY)
             XCTAssertGreaterThanOrEqual(fences.height, min(extent * 0.901, extent - em / 2) - 1, "\(open) \(close) height")
             XCTAssertLessThanOrEqual(fences.height, extent * 1.25 + 2, "\(open) \(close) is not oversized")
-            XCTAssertEqual(fences.midY, axis, accuracy: 1, "\(open) \(close) centre")
+            XCTAssertEqual(fences.midY, axis, accuracy: 1, "\(open) \(close) center")
             XCTAssertLessThan(fences.minX, content.minX, "\(open) is left of the content")
             XCTAssertGreaterThan(fences.maxX, content.maxX, "\(close) is right of the content")
         }
@@ -378,7 +378,7 @@ final class OperatorTests: XCTestCase {
     }
 
     /// A row whose one child in flow is an operator is an operator to the row around it, which
-    /// has it cover what stands beside it there. Its operator covers that and its own neighbours.
+    /// has it cover what stands beside it there. Its operator covers that and its own neighbors.
     func testTheOperatorOfARowCoversWhatIsBesideItAndBesideTheRow() throws {
         let strut = "<mspace width=\"1em\" height=\"3em\" depth=\"2em\"/>", short = "<mspace width=\"1em\" height=\"1em\"/>"
         let alone = try XCTUnwrap(try inks("<mo>|</mo>\(strut)")[.black])
@@ -412,7 +412,7 @@ final class OperatorTests: XCTestCase {
             XCTAssertEqual(found.height, beside.height, accuracy: 0.5, "\(body): as tall as beside an identifier")
             XCTAssertEqual(found.midY, axis, accuracy: 1, "\(body): half above the axis and half below")
         }
-        // An operator that is not symmetric has nothing but the axis to be centred on either.
+        // An operator that is not symmetric has nothing but the axis to be centered on either.
         let lopsided = "<mo mathcolor=\"red\" minsize=\"3em\" symmetric=\"false\">|</mo>"
         for body in [lopsided, "<mo mathcolor=\"red\" minsize=\"3em\">↑</mo>", "\(lopsided)<mspace width=\"1em\"/>", "\(lopsided)<mspace width=\"1em\"/>\(lopsided)"] {
             let found = try ink(body)
@@ -461,7 +461,7 @@ final class OperatorTests: XCTestCase {
 
     // MARK: Large operators
 
-    func testLargeOperatorsGrowAndCentreOnTheAxisInDisplayStyle() throws {
+    func testLargeOperatorsGrowAndCenterOnTheAxisInDisplayStyle() throws {
         let axis = constant(\.axisHeight), minimum = constant(\.displayOperatorMinHeight)
         for op in ["∑", "∏", "∐", "⋃", "⋂", "∫", "∬", "∮", "⨁", "⨂"] {
             let text = try XCTUnwrap(Rendering(try typeset("<mo>\(op)</mo>")).bounds())

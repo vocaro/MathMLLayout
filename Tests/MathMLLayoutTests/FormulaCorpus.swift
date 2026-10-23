@@ -5,7 +5,7 @@ import Foundation
 ///
 /// Parts of a formula are marked with `mathcolor` (red, lime, blue), which changes nothing
 /// about the layout; an expectation then relates the ink of two parts. `.rest` is everything
-/// left in the default colour.
+/// left in the default color.
 struct Formula {
     enum Part { case red, green, blue, rest }
 
@@ -18,8 +18,8 @@ struct Formula {
         case raised(Part, over: Part)
         /// `a`'s top is below `b`'s middle: a subscript, a lower limit.
         case lowered(Part, under: Part)
-        /// `a` and `b` share a vertical centre line.
-        case centred(Part, Part)
+        /// `a` and `b` share a vertical center line.
+        case centered(Part, Part)
         /// `a` reaches as high and as low as `b`, within TeX's delimiter shortfall: a fence, a
         /// radical sign.
         case coversVertically(Part, Part)
@@ -56,7 +56,7 @@ enum FormulaCorpus {
               <mrow mathcolor="red"><mo>−</mo><mi>b</mi><mo>±</mo><msqrt><msup><mi>b</mi><mn>2</mn></msup><mo>−</mo><mn>4</mn><mi>a</mi><mi>c</mi></msqrt></mrow>
               <mrow mathcolor="blue"><mn>2</mn><mi>a</mi></mrow>
             </mfrac>
-            """#, [.above(.red, .blue), .centred(.red, .blue)]),
+            """#, [.above(.red, .blue), .centered(.red, .blue)]),
         Formula("Pythagorean theorem", #"""
             <msup><mi mathcolor="blue">a</mi><mn mathcolor="red">2</mn></msup><mo>+</mo>
             <msup><mi>b</mi><mn>2</mn></msup><mo>=</mo><msup><mi>c</mi><mn>2</mn></msup>
@@ -68,13 +68,13 @@ enum FormulaCorpus {
             <mrow><mo mathcolor="lime">(</mo><mfrac linethickness="0"><mi mathcolor="red">n</mi><mi mathcolor="blue">k</mi></mfrac><mo mathcolor="lime">)</mo></mrow>
             <mo>=</mo>
             <mfrac><mrow><mi>n</mi><mo>!</mo></mrow><mrow><mi>k</mi><mo>!</mo><mo stretchy="false">(</mo><mi>n</mi><mo>−</mo><mi>k</mi><mo stretchy="false">)</mo><mo>!</mo></mrow></mfrac>
-            """#, [.above(.red, .blue), .coversVertically(.green, .red), .coversVertically(.green, .blue), .centred(.red, .blue)]),
+            """#, [.above(.red, .blue), .coversVertically(.green, .red), .coversVertically(.green, .blue), .centered(.red, .blue)]),
         Formula("binomial theorem", #"""
             <msup><mrow><mo>(</mo><mi>x</mi><mo>+</mo><mi>y</mi><mo>)</mo></mrow><mi>n</mi></msup><mo>=</mo>
             <munderover><mo>∑</mo><mrow mathcolor="blue"><mi>k</mi><mo>=</mo><mn>0</mn></mrow><mi mathcolor="red">n</mi></munderover>
             <mrow><mo>(</mo><mfrac linethickness="0"><mi>n</mi><mi>k</mi></mfrac><mo>)</mo></mrow>
             <msup><mi>x</mi><mrow><mi>n</mi><mo>−</mo><mi>k</mi></mrow></msup><msup><mi>y</mi><mi>k</mi></msup>
-            """#, [.above(.red, .blue), .centred(.red, .blue)]),
+            """#, [.above(.red, .blue), .centered(.red, .blue)]),
         Formula("continued fraction", #"""
             <mi>φ</mi><mo>=</mo><mn mathcolor="red">1</mn><mo>+</mo>
             <mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><mi mathcolor="blue">x</mi></mrow></mfrac></mrow></mfrac></mrow></mfrac>
@@ -93,12 +93,12 @@ enum FormulaCorpus {
         Formula("factorial as a product", #"""
             <mi>n</mi><mo>!</mo><mo>=</mo>
             <munderover><mo>∏</mo><mrow mathcolor="blue"><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi mathcolor="red">n</mi></munderover><mi>k</mi>
-            """#, [.above(.red, .blue), .centred(.red, .blue)]),
+            """#, [.above(.red, .blue), .centered(.red, .blue)]),
         Formula("Stirling's approximation", #"""
             <mi>n</mi><mo>!</mo><mo>∼</mo><msqrt><mn>2</mn><mi>π</mi><mi>n</mi></msqrt>
             <msup><mrow><mo mathcolor="lime">(</mo><mfrac><mi mathcolor="red">n</mi><mi mathcolor="blue">e</mi></mfrac><mo mathcolor="lime">)</mo></mrow><mi>n</mi></msup>
             """#, [.above(.red, .blue), .coversVertically(.green, .red), .coversVertically(.green, .blue)]),
-        Formula("bevelled fraction in a sentence", #"""
+        Formula("beveled fraction in a sentence", #"""
             <mtext>about </mtext><mfrac bevelled="true"><mn mathcolor="red">1</mn><mn mathcolor="blue">3</mn></mfrac><mtext> of the total</mtext>
             """#, [.leftOf(.red, .blue), .raised(.red, over: .blue)]),
         Formula("floor and ceiling", #"""
@@ -113,7 +113,7 @@ enum FormulaCorpus {
             <munderover><mo>∑</mo><mrow mathcolor="blue"><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi mathcolor="red">n</mi></munderover>
             <msup><mi>i</mi><mn>2</mn></msup><mo>=</mo>
             <mfrac><mrow><mi>n</mi><mo stretchy="false">(</mo><mi>n</mi><mo>+</mo><mn>1</mn><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mn>2</mn><mi>n</mi><mo>+</mo><mn>1</mn><mo stretchy="false">)</mo></mrow><mn>6</mn></mfrac>
-            """#, [.above(.red, .blue), .centred(.red, .blue)]),
+            """#, [.above(.red, .blue), .centered(.red, .blue)]),
         Formula("fundamental theorem of calculus", #"""
             <msubsup><mo>∫</mo><mi mathcolor="blue">a</mi><mi mathcolor="red">b</mi></msubsup>
             <mi>f</mi><mo>⁡</mo><mrow><mo>(</mo><mi>x</mi><mo>)</mo></mrow><mspace width="0.167em"/><mi mathvariant="normal">d</mi><mi>x</mi>
@@ -122,7 +122,7 @@ enum FormulaCorpus {
         Formula("limit of sin x over x", #"""
             <munder><mo>lim</mo><mrow mathcolor="blue"><mi>x</mi><mo>→</mo><mn>0</mn></mrow></munder>
             <mfrac><mrow mathcolor="red"><mi>sin</mi><mo>⁡</mo><mi>x</mi></mrow><mi mathcolor="lime">x</mi></mfrac><mo>=</mo><mn>1</mn>
-            """#, [.above(.red, .green), .centred(.red, .green), .lowered(.blue, under: .red)]),
+            """#, [.above(.red, .green), .centered(.red, .green), .lowered(.blue, under: .red)]),
         Formula("definition of the derivative", #"""
             <msup><mi>f</mi><mo>′</mo></msup><mo>⁡</mo><mrow><mo>(</mo><mi>x</mi><mo>)</mo></mrow><mo>=</mo>
             <munder><mo>lim</mo><mrow><mi>h</mi><mo>→</mo><mn>0</mn></mrow></munder>
@@ -130,7 +130,7 @@ enum FormulaCorpus {
               <mrow mathcolor="red"><mi>f</mi><mo>⁡</mo><mrow><mo>(</mo><mi>x</mi><mo>+</mo><mi>h</mi><mo>)</mo></mrow><mo>−</mo><mi>f</mi><mo>⁡</mo><mrow><mo>(</mo><mi>x</mi><mo>)</mo></mrow></mrow>
               <mi mathcolor="blue">h</mi>
             </mfrac>
-            """#, [.above(.red, .blue), .centred(.red, .blue)]),
+            """#, [.above(.red, .blue), .centered(.red, .blue)]),
         Formula("Gaussian integral", #"""
             <msubsup><mo>∫</mo><mrow mathcolor="blue"><mo>−</mo><mi>∞</mi></mrow><mi mathcolor="red">∞</mi></msubsup>
             <msup><mi>e</mi><mrow><mo>−</mo><msup><mi>x</mi><mn>2</mn></msup></mrow></msup><mspace width="0.167em"/><mi mathvariant="normal">d</mi><mi>x</mi>
@@ -148,7 +148,7 @@ enum FormulaCorpus {
             <munderover><mo>∑</mo><mrow mathcolor="blue"><mi>n</mi><mo>=</mo><mn>0</mn></mrow><mi mathcolor="red">∞</mi></munderover>
             <mfrac><mrow><msup><mi>f</mi><mrow><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">)</mo></mrow></msup><mo>⁡</mo><mrow><mo>(</mo><mi>a</mi><mo>)</mo></mrow></mrow><mrow><mi>n</mi><mo>!</mo></mrow></mfrac>
             <msup><mrow><mo>(</mo><mi>x</mi><mo>−</mo><mi>a</mi><mo>)</mo></mrow><mi>n</mi></msup>
-            """#, [.above(.red, .blue), .centred(.red, .blue)]),
+            """#, [.above(.red, .blue), .centered(.red, .blue)]),
         Formula("Fourier transform", #"""
             <mover><mi mathcolor="blue">f</mi><mo mathcolor="red">^</mo></mover><mo>⁡</mo><mrow><mo>(</mo><mi>ξ</mi><mo>)</mo></mrow><mo>=</mo>
             <msubsup><mo>∫</mo><mrow><mo>−</mo><mi>∞</mi></mrow><mi>∞</mi></msubsup>
@@ -167,7 +167,7 @@ enum FormulaCorpus {
             <mo>=</mo>
             <munder><mo>∏</mo><mrow mathcolor="blue"><mi>p</mi><mtext> prime</mtext></mrow></munder>
             <mfrac><mn mathcolor="red">1</mn><mrow mathcolor="lime"><mn>1</mn><mo>−</mo><msup><mi>p</mi><mrow><mo>−</mo><mi>s</mi></mrow></msup></mrow></mfrac>
-            """#, [.above(.red, .green), .centred(.red, .green)]),
+            """#, [.above(.red, .green), .centered(.red, .green)]),
         Formula("evaluation bar", #"""
             <msubsup>
               <mrow><mo fence="true" stretchy="true" lspace="0" rspace="0"></mo><mfrac mathcolor="red"><msup><mi>x</mi><mn>3</mn></msup><mn>3</mn></mfrac><mo mathcolor="lime">|</mo></mrow>
@@ -188,7 +188,7 @@ enum FormulaCorpus {
                 <mtr><mtd><mi mathcolor="blue">c</mi></mtd><mtd><mi mathcolor="blue">d</mi></mtd></mtr>
               </mtable>
             <mo mathcolor="lime">]</mo></mrow>
-            """#, [.above(.red, .blue), .coversVertically(.green, .red), .coversVertically(.green, .blue), .centred(.red, .blue)]),
+            """#, [.above(.red, .blue), .coversVertically(.green, .red), .coversVertically(.green, .blue), .centered(.red, .blue)]),
         Formula("determinant", #"""
             <mrow><mo mathcolor="lime">|</mo>
               <mtable>
@@ -235,7 +235,7 @@ enum FormulaCorpus {
         Formula("vector as a column", #"""
             <mover><mi>v</mi><mo>→</mo></mover><mo>=</mo>
             <mrow><mo mathcolor="lime">(</mo><mtable><mtr><mtd><msub><mi mathcolor="red">v</mi><mn>1</mn></msub></mtd></mtr><mtr><mtd><msub><mi>v</mi><mn>2</mn></msub></mtd></mtr><mtr><mtd><msub><mi mathcolor="blue">v</mi><mn>3</mn></msub></mtd></mtr></mtable><mo mathcolor="lime">)</mo></mrow>
-            """#, [.above(.red, .blue), .centred(.red, .blue), .coversVertically(.green, .red), .coversVertically(.green, .blue)]),
+            """#, [.above(.red, .blue), .centered(.red, .blue), .coversVertically(.green, .red), .coversVertically(.green, .blue)]),
         Formula("Euclidean norm", #"""
             <mrow><mo>‖</mo><mi>v</mi><mo>‖</mo></mrow><mo>=</mo>
             <msqrt><mrow mathcolor="red"><msubsup><mi>v</mi><mn>1</mn><mn>2</mn></msubsup><mo>+</mo><mo>⋯</mo><mo>+</mo><msubsup><mi>v</mi><mi>n</mi><mn>2</mn></msubsup></mrow></msqrt>
@@ -273,11 +273,11 @@ enum FormulaCorpus {
             <msub><mi mathvariant="normal">N</mi><mn>2</mn></msub><mo>+</mo><mn>3</mn><msub><mi mathvariant="normal">H</mi><mn>2</mn></msub>
             <munderover><mo mathcolor="lime">⇌</mo><mtext mathcolor="blue">catalyst</mtext><mtext mathcolor="red">450 °C, 200 atm</mtext></munderover>
             <mn>2</mn><msub><mi mathvariant="normal">N</mi><mn>2</mn></msub><msub><mi mathvariant="normal">H</mi><mn>3</mn></msub>
-            """#, [.above(.red, .green), .above(.green, .blue), .coversHorizontally(.green, .red), .centred(.red, .blue)]),
+            """#, [.above(.red, .green), .above(.green, .blue), .coversHorizontally(.green, .red), .centered(.red, .blue)]),
         Formula("dot product", #"""
             <mover><mi mathcolor="blue">a</mi><mo mathcolor="red">→</mo></mover><mo>⋅</mo><mover><mi>b</mi><mo>→</mo></mover><mo>=</mo>
             <mrow><mo>|</mo><mi>a</mi><mo>|</mo></mrow><mrow><mo>|</mo><mi>b</mi><mo>|</mo></mrow><mi>cos</mi><mo>⁡</mo><mi>θ</mi>
-            """#, [.raised(.red, over: .blue), .centred(.red, .blue)]),
+            """#, [.raised(.red, over: .blue), .centered(.red, .blue)]),
         Formula("Dirac notation", #"""
             <mrow><mo>⟨</mo><mi mathcolor="red">ψ</mi><mo>|</mo><mover><mi>H</mi><mo>^</mo></mover><mo>|</mo><mi mathcolor="blue">φ</mi><mo>⟩</mo></mrow>
             <mo>=</mo><msup><mrow><mo>⟨</mo><mi>φ</mi><mo>|</mo><mover><mi>H</mi><mo>^</mo></mover><mo>|</mo><mi>ψ</mi><mo>⟩</mo></mrow><mo>*</mo></msup>
@@ -304,7 +304,7 @@ enum FormulaCorpus {
               <mrow mathcolor="red"><mi>P</mi><mo>⁡</mo><mrow><mo>(</mo><mi>B</mi><mo>|</mo><mi>A</mi><mo>)</mo></mrow><mi>P</mi><mo>⁡</mo><mrow><mo>(</mo><mi>A</mi><mo>)</mo></mrow></mrow>
               <mrow mathcolor="blue"><mi>P</mi><mo>⁡</mo><mrow><mo>(</mo><mi>B</mi><mo>)</mo></mrow></mrow>
             </mfrac>
-            """#, [.above(.red, .blue), .centred(.red, .blue)]),
+            """#, [.above(.red, .blue), .centered(.red, .blue)]),
         Formula("standard deviation", #"""
             <mi>σ</mi><mo>=</mo>
             <msqrt>
@@ -332,20 +332,20 @@ enum FormulaCorpus {
               <mrow mathcolor="red"><mi>n</mi><mtext> times</mtext></mrow>
             </munder>
             <mo>=</mo><mi>n</mi><mi>a</mi>
-            """#, [.above(.blue, .green), .above(.green, .red), .coversHorizontally(.green, .blue), .centred(.green, .blue)]),
+            """#, [.above(.blue, .green), .above(.green, .red), .coversHorizontally(.green, .blue), .centered(.green, .blue)]),
         Formula("overbrace with a label", #"""
             <mover>
               <mover><mrow mathcolor="blue"><mi>x</mi><mo>+</mo><mi>y</mi><mo>+</mo><mi>z</mi></mrow><mo mathcolor="lime">⏞</mo></mover>
               <mn mathcolor="red">3</mn>
             </mover>
-            """#, [.above(.red, .green), .above(.green, .blue), .coversHorizontally(.green, .blue), .centred(.red, .blue)]),
-        Formula("labelled arrow", #"""
+            """#, [.above(.red, .green), .above(.green, .blue), .coversHorizontally(.green, .blue), .centered(.red, .blue)]),
+        Formula("labeled arrow", #"""
             <mi mathcolor="blue">A</mi><mover><mo mathcolor="lime">⟶</mo><mtext mathcolor="red">a long label</mtext></mover><mi>B</mi>
             """#, [.above(.red, .green), .coversHorizontally(.green, .red), .leftOf(.blue, .green)]),
-        Formula("labelled implication", #"""
+        Formula("labeled implication", #"""
             <mi mathcolor="blue">P</mi><mover><mo mathcolor="lime">⟹</mo><mtext mathcolor="red">by the lemma</mtext></mover><mi>Q</mi>
             """#, [.above(.red, .green), .coversHorizontally(.green, .red), .leftOf(.blue, .green)]),
-        Formula("cancelled fraction", #"""
+        Formula("canceled fraction", #"""
             <mfrac>
               <mrow><mn>2</mn><menclose notation="updiagonalstrike"><mi mathcolor="red">x</mi></menclose></mrow>
               <mrow><mn>4</mn><menclose notation="updiagonalstrike"><mi mathcolor="blue">x</mi></menclose></mrow>

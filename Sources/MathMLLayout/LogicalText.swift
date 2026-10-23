@@ -121,7 +121,7 @@ final class LogicalTextSource {
         return caret(line, offset: logicalOffset(offset))
     }
 
-    /// At a bidi boundary CoreText's primary caret can follow the neighbouring text run.
+    /// At a bidi boundary CoreText's primary caret can follow the neighboring text run.
     /// An attachment mark instead follows its exact logical edge in the drawn object run.
     private func caret(_ line: CTLine, offset: Int) -> CGFloat {
         for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? [] {
@@ -143,7 +143,7 @@ final class LogicalTextSource {
         itemCounts[range] == count
     }
 
-    /// A mark in a separator follows its requested neighbouring word when the separator
+    /// A mark in a separator follows its requested neighboring word when the separator
     /// is trimmed at a soft break. Choose that word once, rather than scanning on every shape.
     func setAlignmentMark(_ offset: Int, event: AlignmentEvent) {
         guard let first = words.first, let last = words.last else { return }

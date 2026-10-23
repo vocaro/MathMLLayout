@@ -239,8 +239,8 @@ final class ScriptAndLimitTests: XCTestCase {
             XCTAssertLessThanOrEqual(found.under.maxY, found.op.minY - constant(\.lowerLimitGapMin) + pixel, "\(op) lower gap")
             XCTAssertLessThan(found.over.minY, found.op.maxY + em, "\(op): the limit stays near its operator")
             XCTAssertGreaterThan(found.under.maxY, found.op.minY - em, op)
-            XCTAssertEqual(found.over.midX, found.op.midX, accuracy: 1.5, "\(op) upper limit centred")
-            XCTAssertEqual(found.under.midX, found.op.midX, accuracy: 1.5, "\(op) lower limit centred")
+            XCTAssertEqual(found.over.midX, found.op.midX, accuracy: 1.5, "\(op) upper limit centered")
+            XCTAssertEqual(found.under.midX, found.op.midX, accuracy: 1.5, "\(op) lower limit centered")
         }
         // The limits are script-sized, and their operators keep no spacing.
         let n = try XCTUnwrap(Rendering(try typeset("<mi>n</mi>")).bounds())
@@ -307,22 +307,22 @@ final class ScriptAndLimitTests: XCTestCase {
 
     // MARK: Under and over
 
-    func testUnderAndOverScriptsAreCentredWithTheFontsGaps() throws {
+    func testUnderAndOverScriptsAreCenteredWithTheFontsGaps() throws {
         for base in ["<mi>x</mi>", "<mi>A</mi><mi>B</mi><mi>C</mi>", "<mi>g</mi><mi>f</mi>"] {
             for display in [false, true] {
                 let found = try inks("<munderover><mrow>\(base)</mrow><mi mathcolor=\"blue\">b</mi><mi mathcolor=\"red\">a</mi></munderover>", display: display)
                 let middle = try XCTUnwrap(found[.black]), under = try XCTUnwrap(found[.blue]), over = try XCTUnwrap(found[.red])
                 XCTAssertEqual(over.minY, middle.maxY + constant(\.overbarVerticalGap), accuracy: 0.75, "\(base) over gap")
                 XCTAssertEqual(under.maxY, middle.minY - constant(\.underbarVerticalGap), accuracy: 0.75, "\(base) under gap")
-                XCTAssertEqual(over.midX, middle.midX, accuracy: 0.15 * em, "\(base) over centred")
-                XCTAssertEqual(under.midX, middle.midX, accuracy: 0.15 * em, "\(base) under centred")
+                XCTAssertEqual(over.midX, middle.midX, accuracy: 0.15 * em, "\(base) over centered")
+                XCTAssertEqual(under.midX, middle.midX, accuracy: 0.15 * em, "\(base) under centered")
             }
         }
         // munder and mover place their one script where munderover does.
         let both = try inks("<munderover><mi>x</mi><mi mathcolor=\"blue\">b</mi><mi mathcolor=\"red\">a</mi></munderover>")
         XCTAssertEqual(try XCTUnwrap(try inks("<mover><mi>x</mi><mi mathcolor=\"red\">a</mi></mover>")[.red]).minY, try XCTUnwrap(both[.red]).minY, accuracy: 0.3)
         XCTAssertEqual(try XCTUnwrap(try inks("<munder><mi>x</mi><mi mathcolor=\"blue\">b</mi></munder>")[.blue]).maxY, try XCTUnwrap(both[.blue]).maxY, accuracy: 0.3)
-        // A script wider than its base widens the box, and the base stays centred under it.
+        // A script wider than its base widens the box, and the base stays centered under it.
         let wide = try inks("<mover><mi>x</mi><mtext mathcolor=\"red\">a wide label</mtext></mover>")
         XCTAssertEqual(try XCTUnwrap(wide[.black]).midX, try XCTUnwrap(wide[.red]).midX, accuracy: 0.15 * em)
         XCTAssertGreaterThan(try XCTUnwrap(wide[.black]).minX, em)
@@ -352,9 +352,9 @@ final class ScriptAndLimitTests: XCTestCase {
                 XCTAssertGreaterThan(mark.midX, letter.minX, "over the base: \(label)")
                 XCTAssertLessThan(mark.midX, letter.maxX + 0.1 * em, "over the base: \(label)")
             }
-            // Over an upright symmetric letter the accent is centred.
-            let centred = try inks("<mover><mi mathvariant=\"normal\">o</mi><mo mathcolor=\"red\">\(accent)</mo></mover>")
-            XCTAssertEqual(try XCTUnwrap(centred[.red]).midX, try XCTUnwrap(centred[.black]).midX, accuracy: 0.08 * em, "\(accent) over o")
+            // Over an upright symmetric letter the accent is centered.
+            let centered = try inks("<mover><mi mathvariant=\"normal\">o</mi><mo mathcolor=\"red\">\(accent)</mo></mover>")
+            XCTAssertEqual(try XCTUnwrap(centered[.red]).midX, try XCTUnwrap(centered[.black]).midX, accuracy: 0.08 * em, "\(accent) over o")
         }
     }
 

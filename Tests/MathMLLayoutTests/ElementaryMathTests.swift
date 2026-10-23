@@ -485,7 +485,7 @@ final class ElementaryMathTests: MathTestCase {
         let right = try rows("right")
         for name in ["five", "six", "nine"] { equal(try right.glyph(name).right, right.box.width, name) }
         XCTAssertLessThan(try right.glyph("period", 0).origin.x, try right.glyph("period", 1).origin.x)
-        // Centred on the middle column, or the one right of the middle of an even count.
+        // Centered on the middle column, or the one right of the middle of an even count.
         let center = try rows("center", ["1", "234", "56", "7890"])
         for name in ["one", "six", "nine"] { equal(try center.glyph(name).origin.x, try center.glyph("three").origin.x, name) }
         // The specification's example with the operator on the right: no row needs padding.
@@ -821,7 +821,7 @@ final class ElementaryMathTests: MathTestCase {
     func testCarriesAreSmallAndAnnotateTheNextRow() throws {
         let stack = try drawing("<mstack><mn>678</mn><mscarries><mn>1</mn><mn>2</mn><none/></mscarries><mn>345</mn></mstack>")
         let one = try stack.glyph("one"), two = try stack.glyph("two")
-        // 0.6 of the size, centred over the hundreds and tens of the row below, between the rows.
+        // 0.6 of the size, centered over the hundreds and tens of the row below, between the rows.
         equal(one.size, 0.6 * em); equal(two.size, 0.6 * em)
         equal(try stack.glyph("three").size, em)
         equal(one.middle, try stack.glyph("three").middle)
@@ -942,7 +942,7 @@ final class ElementaryMathTests: MathTestCase {
         let bare = try stack("updiagonalstrike", carry: "<mscarry><none/></mscarry>")
         XCTAssertEqual(bare.segments.count, 1)
         XCTAssertEqual(bare.glyphs.filter { $0.size < em }.map(\.name), ["two"])
-        // In the carry's colour, and really drawn: the ink reaches past the digit's corners.
+        // In the carry's color, and really drawn: the ink reaches past the digit's corners.
         XCTAssertEqual(try stack("updiagonalstrike", color: " mathcolor='red'").segments[0].color, MathColor.parse("red"))
         let crossed = "<mstack><mscarries crossout='updiagonalstrike'><mscarry><none/></mscarry></mscarries><mn>7</mn></mstack>"
         let marks = try XCTUnwrap(ink(try layout(crossed))), clean = try XCTUnwrap(ink(try layout("<mstack><mn>7</mn></mstack>")))
@@ -1195,7 +1195,7 @@ final class ElementaryMathTests: MathTestCase {
         var right: CGFloat = 0
     }
 
-    /// 1 ÷ 8 = 0.125 with `work` under the 1: rows that reach past it, or none. Colour tells what is drawn
+    /// 1 ÷ 8 = 0.125 with `work` under the 1: rows that reach past it, or none. Color tells what is drawn
     /// apart: the dividend and the work are lime, the divisor red and the result blue, which leaves the
     /// frame and the signs black. The top is on the baseline, so that work moves nothing up or down.
     private func eighth(_ style: String, work: String = "", divisor: String = "<mn>8</mn>",
@@ -1383,9 +1383,9 @@ final class ElementaryMathTests: MathTestCase {
         equal(try stack("top 1").box.ascent, 0)
         // In a formula, the row named shares the baseline of what is beside it.
         let beside = try layout("<mi>x</mi><mo>=</mo><mstack align='baseline 1'><mn>12</mn><mn>34</mn></mstack>")
-        let centred = try layout("<mi>x</mi><mo>=</mo><mstack><mn>12</mn><mn>34</mn></mstack>")
-        equal(height(beside), height(centred))
-        XCTAssertGreaterThan(beside.descent, centred.descent + 1)
+        let centered = try layout("<mi>x</mi><mo>=</mo><mstack><mn>12</mn><mn>34</mn></mstack>")
+        equal(height(beside), height(centered))
+        XCTAssertGreaterThan(beside.descent, centered.descent + 1)
         equal(beside.ascent, try stackBox("<mstack align='baseline 1'><mn>12</mn><mn>34</mn></mstack>").ascent)
         // A long division counts the rows of its stack, the result first where it is on top.
         let division = try drawing("<mlongdiv align='baseline 2'><mn>7</mn><mn>58</mn><mn>406</mn></mlongdiv>")
@@ -1416,7 +1416,7 @@ final class ElementaryMathTests: MathTestCase {
         let styled = try drawing("<mstack><msrow><mstyle mathcolor='blue'><mn>1</mn><mo>+</mo></mstyle><mn>2</mn></msrow></mstack>")
         XCTAssertEqual(styled.glyphs.map(\.color), [blue, blue, black])
         XCTAssertEqual(styled.glyphs.map(\.name), ["one", "plus", "two"], "an mstyle's children are the row's cells")
-        // Division frames are drawn in the element's colour.
+        // Division frames are drawn in the element's color.
         for style in Self.styles {
             let division = try drawing("<mlongdiv mathcolor='red' longdivstyle=\"\(style)\"><mn>7</mn><mn>58</mn><mn>406</mn></mlongdiv>")
             XCTAssertTrue(division.glyphs.allSatisfy { $0.color == red } && division.rules.allSatisfy { $0.color == red }
@@ -1518,7 +1518,7 @@ final class ElementaryMathTests: MathTestCase {
         XCTAssertEqual(beside.rules[1].rect, beside.rules[2].rect)
         equal(beside.rules[0].rect.maxX, try beside.glyph("three").origin.x)
 
-        // A line's is the line, overhangs and all: behind it, for a colour that lets it show.
+        // A line's is the line, overhangs and all: behind it, for a color that lets it show.
         let line = try drawing("<mstack><mn>123</mn><msline length='2' leftoverhang='0.5em' mslinethickness='3px' mathbackground='yellow'/>"
             + "<mn>456</mn></mstack>")
         XCTAssertEqual(line.rules.map(\.color), [yellow, black])

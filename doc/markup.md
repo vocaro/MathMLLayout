@@ -62,7 +62,7 @@ all columns. Invalid or negative sizing values are automatic; normal length boun
 A whole-cell embellished operator stretches vertically against eligible cells in its covered
 rows or horizontally against eligible cells contained in its column interval. Compound cell
 content retains ordinary row stretching. Explicit operator stretch and size attributes apply;
-neighbours crossing the covered interval do not supply a stretch target. `leftoverlap` and
+neighbors crossing the covered interval do not supply a stretch target. `leftoverlap` and
 `rightoverlap` put labels at the physical grid edge without reserving a gutter. The label sits
 above its covered row rectangle for `top` alignment, otherwise below, separated by
 `minlabelspacing`; its drawing contributes to the final bounds. Ordinary `left`/`right` labels

@@ -33,13 +33,13 @@ Existing 0.2.0 initializers and default base-language readings remain supported.
 ### Added
 
 - Inherited RTL progression for rows, table columns, scripts, multiscripts, radicals,
-  bevelled fractions, leading padding and directional enclosures. Mixed-direction children
+  beveled fractions, leading padding and directional enclosures. Mixed-direction children
   retain their own shaping and local overrides; physical alignment and explicit enclosure
   sides retain their meaning. See [directionality](doc/directionality.md)
   ([#108](https://github.com/vocaro/MathMLLayout/issues/108)).
 - Bounded table `rowspan` and `columnspan`, vertical cell/row alignment and inherited
   `mstyle` row defaults. Alignment groups and marks work in LTR and RTL, through cell
-  wrapping, compatible spans, nested tables and wrapped neighbouring elements. Token marks
+  wrapping, compatible spans, nested tables and wrapped neighboring elements. Token marks
   retain their position beside text, inline images and legacy glyphs through the new
   `MathMLNode.tokenTextOffset` property. See [table alignment groups](doc/alignment-groups.md).
 - `MathImage` and `MathImageProvider.resolving` supply intrinsic image scale or logical size
@@ -75,7 +75,7 @@ Existing 0.2.0 initializers and default base-language readings remain supported.
 - Default `mpadded` and `mphantom` preserve wrapper semantics across line fragments;
   phantom fragments stay invisible. Nested indentation targets and nested-table width
   fitting retain their geometry through relayout.
-- Table alignment resolves against rendered neighbour fragments and retains marker and
+- Table alignment resolves against rendered neighbor fragments and retains marker and
   background geometry through wrapping, spans and direction changes. Invalid direction
   attributes preserve inherited scope.
 - Recursive layout uses less worker stack space, releases cached table engines and preserves
@@ -154,7 +154,7 @@ Line breaking, `mglyph`, elementary math and localized readings
   Underbars, brace names, Italian caron and bounded ordinals also follow upstream evidence;
   Spanish variable roots retain explicit indices
   ([#31](https://github.com/vocaro/MathMLLayout/issues/31)).
-- Neighbouring wrapping parts receive independent width budgets when a shared budget overflows.
+- Neighboring wrapping parts receive independent width budgets when a shared budget overflows.
   The reported `widestUnbreakableWidth` is verified by laying out at that width, including
   height-dependent padding, forced rows and the layout's geometry bounds
   ([#26](https://github.com/vocaro/MathMLLayout/issues/26)).
@@ -197,7 +197,7 @@ Line breaking, `mglyph`, elementary math and localized readings
     default spacing used.
   - `display` on the root and `side` on `mtable` ignore case and surrounding space, like every
     other enumerated attribute: `display="BLOCK"` gave text style.
-  - A colour with a sign among its hex digits, such as `#+ff`, is no colour. It was read as
+  - A color with a sign among its hex digits, such as `#+ff`, is no color. It was read as
     `#0ff`.
 - `<mtable displaystyle="true">` sets its cells in display style, as MathJax and LaTeXML write
   `align`, `gather` and `cases`. The attribute was ignored on the table itself, so every fraction

@@ -2,7 +2,7 @@ import CoreGraphics
 
 extension LayoutEngine {
     /// MathML 3, 3.2.5.8: a cell consisting of an embellished operator stretches against
-    /// its row or column. A spanning neighbour contributes only when its complete span is
+    /// its row or column. A spanning neighbor contributes only when its complete span is
     /// contained in the operator's span. Measure all targets before rebuilding any cell.
     func stretchTableCells(_ cells: inout TableGrid, sources: [[TableCellSource]],
                            rowGaps: [CGFloat], columnGaps: [CGFloat], widths: [CGFloat],
@@ -63,7 +63,7 @@ extension LayoutEngine {
                         } else { peers.append((otherRow, otherIndex)) }
                     }
                 }
-                // No neighbouring expression means no requested stretch. When every neighbour
+                // No neighboring expression means no requested stretch. When every neighbor
                 // stretches, use their normal sizes, before minsize/maxsize changed them.
                 guard !peers.isEmpty || !stretchyPeers.isEmpty || op.core.attributes["minsize"] != nil
                     || allocated > cell.box.width else { continue }

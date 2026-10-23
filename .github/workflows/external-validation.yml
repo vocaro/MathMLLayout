@@ -1,6 +1,6 @@
 name: External MathML validation
 # This package requires macOS 27. Hosted macOS 26 images cannot execute it.
-# Configure the labelled runner before invoking this workflow, or call it with another
+# Configure the labeled runner before invoking this workflow, or call it with another
 # supported runner label set from the repository's normal CI workflow.
 on:
   workflow_dispatch:

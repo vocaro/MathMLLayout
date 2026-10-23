@@ -51,7 +51,7 @@ private struct StackLine {
     var kind: Kind
     /// The font size its strut, leading and strokes scale with.
     var em: CGFloat
-    /// A rule's colour.
+    /// A rule's color.
     var color: CGColor
     /// The column of its first cell, counted rightwards from the stack's alignment column, and
     /// how many columns it spans. A rule across the whole stack spans none of its own.
@@ -86,7 +86,7 @@ private struct StackLine {
 private struct StackStyle {
     typealias Align = MathStackAlignment
     var align = Align.decimalPoint
-    /// Where a cell narrower than its column goes: 0 left, 0.5 centre, 1 right (`charalign`).
+    /// Where a cell narrower than its column goes: 0 left, 0.5 center, 1 right (`charalign`).
     var charAlign: CGFloat = 1
     /// The space between columns (`charspacing`), and whether it grows to fit the widest carry.
     var gap: CGFloat
@@ -507,7 +507,7 @@ extension LayoutEngine {
         for column in widths.indices.dropFirst() { lefts[column] = lefts[column - 1] + widths[column - 1] + gap }
         let width = columns > 0 ? lefts[columns - 1] + widths[columns - 1] : 0
 
-        // Where each cell starts, from the last line up. A carry is centred over the character
+        // Where each cell starts, from the last line up. A carry is centered over the character
         // under it. A digit goes where `charalign` says, and so does what is too wide for its
         // column, overflowing on the other side (3.6.1.2), except at an end of a row, where
         // it overflows away from the row: a leading sign to the left, a trailing one to the right.
@@ -541,7 +541,7 @@ extension LayoutEngine {
         }
         /// Where a carry attached to line `index` goes around the character in `column`,
         /// from the left end of the line's baseline: beside it at mid-height (w, e), raised
-        /// or lowered as a script would be (nw, ne, sw, se), or centred under it (s).
+        /// or lowered as a script would be (nw, ne, sw, se), or centered under it (s).
         func origin(of carry: Carry, on index: Int, _ column: Int) -> CGPoint {
             let em = lines[index].em, target = character(index, column), box = carry.box
             let left = target?.x ?? lefts[column - first], width = target?.box.width ?? widths[column - first]

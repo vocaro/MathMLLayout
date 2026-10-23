@@ -26,7 +26,7 @@ final class LineBreakingTests: MathTestCase {
     enum Tint { case any, red, blue }
 
     /// Draws one row alone, as a host placing rows on text lines does, and returns the bounds of
-    /// its ink (or of its ink of one colour), in points relative to the row's baseline origin, y up.
+    /// its ink (or of its ink of one color), in points relative to the row's baseline origin, y up.
     func ink(_ row: MathLayout.Row, _ tint: Tint = .any, margin: CGFloat = 20) -> CGRect? {
         let scale: CGFloat = 2
         let width = Int((row.width + 2 * margin) * scale), height = Int((row.ascent + row.descent + 2 * margin) * scale)
@@ -172,7 +172,7 @@ final class LineBreakingTests: MathTestCase {
             XCTAssertEqual(above.origin.y - below.origin.y, distance, accuracy: 0.001,
                            "rows of plain symbols keep one baseline distance, whatever their ink")
         }
-        // A tall row pushes its neighbours away by its own extent and the leading.
+        // A tall row pushes its neighbors away by its own extent and the leading.
         let tall = try broken("<mi>y</mi><mo>=</mo><mi>alpha</mi><mo>+</mo><mfrac><mfrac><mi>a</mi><mi>b</mi></mfrac><mfrac><mi>c</mi><mi>d</mi></mfrac></mfrac><mo>+</mo><mi>gamma</mi>",
                               width: 100, display: true)
         XCTAssertEqual(tall.rows.count, 3)
@@ -576,7 +576,7 @@ final class LineBreakingTests: MathTestCase {
                 let opening = try XCTUnwrap(ink(layout.rows[0], .red)), closing = try XCTUnwrap(ink(layout.rows.last!, .red))
                 XCTAssertEqual(opening.height, unbroken.height, accuracy: 0.5, body)
                 XCTAssertEqual(closing.height, opening.height, accuracy: 0.5, body)
-                XCTAssertEqual(closing.midY, opening.midY, accuracy: 0.5, "both centred on the one axis")
+                XCTAssertEqual(closing.midY, opening.midY, accuracy: 0.5, "both centered on the one axis")
                 XCTAssertTrue(ends(layout.rows.last!, with: .red), body)
             }
         }
@@ -770,7 +770,7 @@ final class LineBreakingTests: MathTestCase {
         root.attributes["indentshiftfirst"] = "5px"
         let rooted = try MathLayout(root, style: MathStyle(fontSize: em, color: black))
         XCTAssertEqual(rooted.rows.map(\.origin.x), [5, 25])
-        // With no line to align within, centred and right-aligned rows align within the widest row.
+        // With no line to align within, centered and right-aligned rows align within the widest row.
         let free = "<mstyle indentalign=\"ALIGN\">" + sum(Array(names.prefix(3))) + mo("=", "linebreak=\"newline\"") + mi("x")
             + mo("+", "linebreak=\"newline\"") + mi("yy") + "</mstyle>"
         layout = try broken(free.replacingOccurrences(of: "ALIGN", with: "center"))
@@ -1192,7 +1192,7 @@ final class LineBreakingTests: MathTestCase {
         }
     }
 
-    func testPhantomDoesNotHideItsVisibleNeighbours() throws {
+    func testPhantomDoesNotHideItsVisibleNeighbors() throws {
         let contents = mi("a") + red("+", "linebreak=\"newline\"") + mi("b")
         let hidden = try broken(blue("=") + "<mpadded><mphantom>\(contents)</mphantom></mpadded>" + blue("+"))
         XCTAssertEqual(hidden.rows.count, 2)
@@ -1234,7 +1234,7 @@ final class LineBreakingTests: MathTestCase {
                 XCTAssertGreaterThanOrEqual(bounds.minY, -row.descent - 0.5)
                 XCTAssertLessThanOrEqual(bounds.maxY, row.ascent + 0.5)
             }
-            // Neighbours remain on the same two host rows, outside the wrapper's drawing.
+            // Neighbors remain on the same two host rows, outside the wrapper's drawing.
             let hosted = try broken(mi("before") + "<\(wrapper)>\(forcedContents)</\(closing)>" + mi("after"))
             XCTAssertEqual(hosted.rows.count, 2)
             XCTAssertGreaterThan(hosted.rows[0].width, forced.rows[0].width)

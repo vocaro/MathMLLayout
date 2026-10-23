@@ -35,7 +35,7 @@ final class FormulaCorpusTests: XCTestCase {
         case .above(let a, let b): return both(a, b) { $0.minY >= $1.maxY - 0.5 ? nil : "\(a) is not above \(b)" }
         case .raised(let a, let b): return both(a, b) { $0.minY > $1.midY ? nil : "\(a) is not raised over \(b)" }
         case .lowered(let a, let b): return both(a, b) { $0.maxY < $1.midY ? nil : "\(a) is not lowered under \(b)" }
-        case .centred(let a, let b): return both(a, b) { abs($0.midX - $1.midX) <= 0.25 * em ? nil : "\(a) is not centred on \(b)" }
+        case .centered(let a, let b): return both(a, b) { abs($0.midX - $1.midX) <= 0.25 * em ? nil : "\(a) is not centered on \(b)" }
         case .coversVertically(let a, let b):
             return both(a, b) { $0.maxY >= $1.maxY - em / 2 - 0.5 && $0.minY <= $1.minY + em / 2 + 0.5 ? nil : "\(a) does not cover \(b) vertically" }
         case .coversHorizontally(let a, let b):
@@ -175,7 +175,7 @@ final class FormulaCorpusTests: XCTestCase {
     }
 
     /// Every box in a formula's tree, not only the root, reaches as high and as low as what it
-    /// draws: that is what keeps neighbours, bars and limits clear of it.
+    /// draws: that is what keeps neighbors, bars and limits clear of it.
     func testEveryInnerBoxCoversItsInkVertically() throws {
         func violations(_ box: MathBox, _ path: String) -> [String] {
             var result: [String] = []

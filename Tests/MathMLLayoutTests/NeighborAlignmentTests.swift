@@ -3,7 +3,7 @@ import CoreText
 @testable import MathMLLayout
 import XCTest
 
-final class NeighbourAlignmentTests: XCTestCase {
+final class NeighborAlignmentTests: XCTestCase {
     private let forced = "<mspace linebreak='newline' indentalign='left' indentshift='0px'/>"
     private func space(_ width: Int, _ color: String) -> String {
         "<mspace width='\(width)em' height='1em' mathbackground='\(color)'/>"
@@ -50,7 +50,7 @@ final class NeighbourAlignmentTests: XCTestCase {
         }
     }
 
-    func testMarkUsesTheFullRenderedBoundsOfANeighbourBrokenAcrossLines() throws {
+    func testMarkUsesTheFullRenderedBoundsOfANeighborBrokenAcrossLines() throws {
         for direction in ["ltr", "rtl"] {
             for edge in ["left", "right"] {
                 let mark = "<malignmark edge='\(edge)'/>"

@@ -26,7 +26,7 @@ measurement caches and share only a small counter object, so retaining a recipe 
 its source table cache or create a cache/recipe/engine ownership cycle.
 Logical text range requests and row assembly share 2,000,000 units per pass: requested UTF-16
 range lengths (including cache hits), row units, wrapper reconstruction placements and annotation
-descendants visited, and neighbouring-element fragment edges generated for alignment marks,
+descendants visited, and neighboring-element fragment edges generated for alignment marks,
 including retained-word candidate assembly in RTL
 paragraphs. This counter does not measure elapsed time or CoreText's internal paragraph
 resolution and shaping cost. Long logical paragraphs can still take substantial time.
@@ -62,7 +62,7 @@ table wrappers, including pure subscript and under-over chains. The sweep checks
 comparisons above. The linked verification records the compiler and platform versions.
 
 Additional fixed 64-level tests cover the same shape matrix with inherited `dir="rtl"`,
-and RTL table alignment through 58 nested rows, including a wrapped neighbouring-element
+and RTL table alignment through 58 nested rows, including a wrapped neighboring-element
 target. Geometry, drawing-item counts, ink, pixels and all five base-language readings match
 the 8 MB reference on an exactly 512 KB worker, including repeated runs. Generated sign
 reflection keeps the font's glyph runs and introduces no extra drawing-tree depth.
@@ -99,7 +99,7 @@ compiler/platform changes; see [Worker depth](testing.md#worker-depth). The gene
   retries. See [Line breaking](line-breaking.md#indentation-targets).
 - **Direction and elementary math.** Inherited `dir` controls token shaping and structural
   progression in rows, table columns and layout schemata. RTL scripts attach on the left;
-  surds/root degrees move right; bevelled fractions and directional enclosures reverse
+  surds/root degrees move right; beveled fractions and directional enclosures reverse
   progression. Children retain their own shaping and local overrides. Physical alignments,
   glyph accent attachments and explicit enclosure sides remain physical. A number's `mglyph`
   occupies one logical column, sized to its image or entire fallback. See
@@ -171,7 +171,7 @@ The following restrictions remain in the current implementation:
   those minima, and oversubscribed percentages reduce toward them. Invalid/negative widths
   are automatic, unresolved relative table widths are automatic without a finite host, and
   ordinary MathML length limits apply. Allocation uses a fixed 48-step search, never retries
-  to solve percentages. Stretch neighbour visits share the existing table-work bound, and
+  to solve percentages. Stretch neighbor visits share the existing table-work bound, and
   stretching shares cell-rebuild/stack limits. A label's `columnspan` adds no main-grid columns.
   Alignment groups in
   column spans interact only within identical source-column intervals; spans crossing a

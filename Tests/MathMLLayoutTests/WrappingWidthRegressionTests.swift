@@ -62,7 +62,7 @@ final class WrappingWidthRegressionTests: MathTestCase {
         }
     }
 
-    func testManyWrappingNeighboursKeepRetriesBounded() throws {
+    func testManyWrappingNeighborsKeepRetriesBounded() throws {
         let sum = (1...12).map { "<mi>term\($0)</mi>" }.joined(separator: "<mo>+</mo>")
         let radical = "<msqrt>\(sum)</msqrt>"
         let style = MathStyle(fontSize: 20, color: black)

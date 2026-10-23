@@ -241,7 +241,7 @@ final class GroupingElementTests: XCTestCase {
             let found = try enclosed(notation), lines = try XCTUnwrap(found.lines, notation)
             XCTAssertGreaterThan(found.box.width, 2 * em + 4, notation)
             XCTAssertGreaterThan(found.box.ascent, em + 2, notation); XCTAssertGreaterThan(found.box.descent, 0.5 * em + 2, notation)
-            // The frame is the box's outline, and the content is centred inside it with clearance.
+            // The frame is the box's outline, and the content is centered inside it with clearance.
             XCTAssertEqual(lines.minX, 0, accuracy: pixel, notation); XCTAssertEqual(lines.maxX, found.box.width, accuracy: pixel, notation)
             XCTAssertEqual(lines.maxY, found.box.ascent, accuracy: pixel, notation); XCTAssertEqual(lines.minY, -found.box.descent, accuracy: pixel, notation)
             XCTAssertEqual(found.content.midX, found.box.width / 2, accuracy: pixel, notation)

@@ -178,7 +178,7 @@ final class TokenTests: XCTestCase {
         XCTAssertEqual(ex, try typeset("<mi mathvariant=\"normal\">x</mi>").ascent, accuracy: 1)
         XCTAssertEqual(try typeset("<mstyle scriptlevel=\"1\"><mspace width=\"1em\"/></mstyle>").width, 0.7 * em, accuracy: 0.01)
         XCTAssertEqual(try typeset("<mstyle mathsize=\"30px\"><mspace width=\"1em\"/></mstyle>").width, 30, accuracy: 0.01)
-        // Space separates its neighbours by exactly its width.
+        // Space separates its neighbors by exactly its width.
         let a = try innerBox("<mi>a</mi>").width, b = try innerBox("<mi>b</mi>").width
         XCTAssertEqual(try innerBox("<mi>a</mi><mspace width=\"7px\"/><mi>b</mi>").width, a + 7 + b, accuracy: 0.001)
     }
@@ -212,7 +212,7 @@ final class TokenTests: XCTestCase {
         }
     }
 
-    // MARK: Colour
+    // MARK: Color
 
     func testMathColorParsing() {
         func components(_ value: String) -> [CGFloat]? { MathColor.parse(value)?.components.map { $0.map { ($0 * 255).rounded() } } }
@@ -232,7 +232,7 @@ final class TokenTests: XCTestCase {
     }
 
     func testMathColorRejectsSignedHexDigits() {
-        // "+ff" and "-00" are not hexadecimal colours, though integer parsing accepts a sign.
+        // "+ff" and "-00" are not hexadecimal colors, though integer parsing accepts a sign.
         for invalid in ["#+ff", "#-00", "#+12345", "#-0000000"] { XCTAssertNil(MathColor.parse(invalid), "\"\(invalid)\"") }
     }
 
@@ -242,13 +242,13 @@ final class TokenTests: XCTestCase {
             XCTAssertNotNil(rendering.bounds(.red), color)
             XCTAssertNil(rendering.bounds(.black), color)
         }
-        // Inherited, overridden, and an invalid value keeps the inherited colour.
+        // Inherited, overridden, and an invalid value keeps the inherited color.
         let mixed = Rendering(try typeset("<mstyle mathcolor=\"red\"><mi>a</mi><mi mathcolor=\"blue\">b</mi><mi mathcolor=\"nope\">c</mi></mstyle>"))
         let red = try XCTUnwrap(mixed.bounds(.red)), blue = try XCTUnwrap(mixed.bounds(.blue))
         XCTAssertNil(mixed.bounds(.black))
         XCTAssertLessThan(red.minX, blue.minX)
         XCTAssertGreaterThan(red.maxX, blue.maxX, "c, after b, is red again")
-        // The style's colour is the default.
+        // The style's color is the default.
         let styled = try MathLayout(mathML("<mi>x</mi>"), style: MathStyle(fontSize: em, color: CGColor(srgbRed: 0, green: 0, blue: 1, alpha: 1)))
         XCTAssertNotNil(Rendering(styled).bounds(.blue))
         XCTAssertNil(Rendering(styled).bounds(.black))
@@ -267,7 +267,7 @@ final class TokenTests: XCTestCase {
             XCTAssertNil(rendering.bounds(.black), body)
         }
         let fraction = Rendering(try typeset("<mfrac><mi mathcolor=\"red\">a</mi><mi mathcolor=\"blue\">b</mi></mfrac>"))
-        XCTAssertNotNil(fraction.bounds(.black), "the bar keeps the fraction's colour")
+        XCTAssertNotNil(fraction.bounds(.black), "the bar keeps the fraction's color")
     }
 
     func testMathBackgroundFillsTheElementsBox() throws {

@@ -5,7 +5,7 @@ import Foundation
 import XCTest
 
 // Shared helpers for the test suite: parsing and laying out a formula body, the font's
-// constants in points, and a bitmap rendering whose ink can be located by colour.
+// constants in points, and a bitmap rendering whose ink can be located by color.
 
 var black: CGColor { CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1) }
 
@@ -99,7 +99,7 @@ struct Rendering {
         }
     }
 
-    /// The colour class of a premultiplied pixel, or nil when it is too faint to count as ink.
+    /// The color class of a premultiplied pixel, or nil when it is too faint to count as ink.
     private static func classify(_ r: UInt8, _ g: UInt8, _ b: UInt8, _ a: UInt8) -> Ink? {
         guard a > 48 else { return nil }
         let red = Int(r) * 255 / Int(a), green = Int(g) * 255 / Int(a), blue = Int(b) * 255 / Int(a)
@@ -109,10 +109,10 @@ struct Rendering {
         return .black
     }
 
-    /// The bounds of the ink of one colour, in points relative to the baseline origin, y up.
+    /// The bounds of the ink of one color, in points relative to the baseline origin, y up.
     func bounds(_ ink: Ink = .any) -> CGRect? { found[ink] }
 
-    /// The colour at a point given relative to the baseline origin: straight (not
+    /// The color at a point given relative to the baseline origin: straight (not
     /// premultiplied) components in 0...1.
     func color(at point: CGPoint) -> (red: CGFloat, green: CGFloat, blue: CGFloat, alpha: CGFloat) {
         let column = Int(((point.x + margin) * scale).rounded(.down))
@@ -126,7 +126,7 @@ struct Rendering {
     }
 }
 
-/// The ink of `body` by colour: `.any`, and whichever of black, red, green and blue it has.
+/// The ink of `body` by color: `.any`, and whichever of black, red, green and blue it has.
 func inks(_ body: String, size: CGFloat = em, display: Bool = false, font: String? = nil) throws -> [Rendering.Ink: CGRect] {
     let rendering = Rendering(try typeset(body, size: size, display: display, font: font))
     var result: [Rendering.Ink: CGRect] = [:]

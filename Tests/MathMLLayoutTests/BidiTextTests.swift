@@ -223,7 +223,7 @@ final class BidiTextTests: MathTestCase {
         }
     }
 
-    func testFallbackFontsAndNeighbourGeometry() throws {
+    func testFallbackFontsAndNeighborGeometry() throws {
         var fonts: Set<String> = []
         func collect(_ box: MathBox) {
             for item in box.items {
@@ -243,19 +243,19 @@ final class BidiTextTests: MathTestCase {
         }
     }
 
-    func testAuthorOuterSpacesSurviveFormulaBreaksAndKeepNeighbourPlacement() throws {
+    func testAuthorOuterSpacesSurviveFormulaBreaksAndKeepNeighborPlacement() throws {
         let style = MathStyle(fontSize: 20, color: black, fontName: fontName)
-        for neighbour in [false, true] {
+        for neighbor in [false, true] {
             var children = [MathMLNode(name: "mtext", text: " אב גד ")]
-            if neighbour { children.append(MathMLNode(name: "mi", attributes: ["mathvariant": "normal"], text: "A")) }
+            if neighbor { children.append(MathMLNode(name: "mi", attributes: ["mathvariant": "normal"], text: "A")) }
             children += [MathMLNode(name: "mo", attributes: ["linebreak": "newline"], text: "+"), MathMLNode(name: "mi", text: "B")]
             let root = MathMLNode(name: "math", children: children)
             let output = try MathLayout(root, style: style)
             XCTAssertEqual(output.rows.count, 2)
-            XCTAssertEqual(output.rows[0].width, neighbour ? 65 : 55, accuracy: 0.001)
+            XCTAssertEqual(output.rows[0].width, neighbor ? 65 : 55, accuracy: 0.001)
             let box = try LayoutEngine(fontName: fontName).layoutRoot(root, style: style)
             let broken = Paragraph(box).rows(limit: .infinity, first: .infinity, auto: (.left, 0))
-            XCTAssertEqual(visualGlyphs(broken[0].box), names(neighbour ? " דג בא A" : " דג בא "))
+            XCTAssertEqual(visualGlyphs(broken[0].box), names(neighbor ? " דג בא A" : " דג בא "))
         }
         let split = try rows(" אב גד ", width: 25)
         XCTAssertEqual(split.map { $0.box.width }, [25, 25])

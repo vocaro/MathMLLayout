@@ -262,10 +262,10 @@ extension LayoutEngine {
             for (index, child) in children.enumerated() {
                 guard let mark = Self.alignmentMark(child) else { continue }
                 let right = mark.attributes["edge"]?.lowercased() == "right"
-                let neighbour = index + ((right != context.alignmentRTL) ? -1 : 1)
-                guard boxes.indices.contains(neighbour) else { continue }
+                let neighbor = index + ((right != context.alignmentRTL) ? -1 : 1)
+                guard boxes.indices.contains(neighbor) else { continue }
                 let target = AlignmentTarget(work: textWork)
-                targets[neighbour, default: []].append(target)
+                targets[neighbor, default: []].append(target)
                 markTargets[index] = target
             }
         }
@@ -279,7 +279,7 @@ extension LayoutEngine {
                                           isUnary: unary.contains(index), id: child.attributes["id"])
             if let targets = targets[index] { item.box.alignmentTargets += targets }
             if let mark = Self.alignmentMark(child) {
-                // Row assembly resolves a direct mark to its neighbour's effective edge.
+                // Row assembly resolves a direct mark to its neighbor's effective edge.
                 // Retain that coordinate, rather than the empty marker box's own origin.
                 let x = context.alignmentRTL ? box.width - offsets[index] - item.box.width : offsets[index]
                 let right = mark.attributes["edge"]?.lowercased() == "right"
@@ -400,7 +400,7 @@ extension LayoutEngine {
                 ? (children.lastIndex { $0.x < mark.x } ?? 0)
                 : (children.firstIndex { $0.x + $0.box.width > mark.x } ?? children.count - 1)
             var event = mark
-            // Keep the full caret while neighbouring words share a line. Only the
+            // Keep the full caret while neighboring words share a line. Only the
             // selected row knows whether the separator beside this word was trimmed.
             event.x = mark.x - children[index].x
             event.path = []
@@ -411,7 +411,7 @@ extension LayoutEngine {
 
     // MARK: Lines
 
-    /// Fits a formula with shared budgets first, then independent budgets for wrapping neighbours.
+    /// Fits a formula with shared budgets first, then independent budgets for wrapping neighbors.
     /// Kept apart from `lines` so the reporter's search does not enlarge the layout frame.
     private static func fittedParagraph(_ root: MathMLNode, style: MathStyle, limit: CGFloat,
                                         first: CGFloat, engine: LayoutEngine, layoutPasses: inout Int) throws -> Paragraph {
@@ -462,7 +462,7 @@ extension LayoutEngine {
         // to `widestUnbreakable` and laid it out at that width found a row wider still.
         //
         // Try fully wrapping too, and keep any improvement. Height-dependent geometry can make
-        // some neighbours wider, so the independent part retries below also try leaving them whole.
+        // some neighbors wider, so the independent part retries below also try leaving them whole.
         if limit.isFinite, engine.mayNarrow, kept.wrap > 0, kept.widest > limit + Paragraph.slop {
             let narrowest = try pass(0)
             if narrowest.widest <= limit + Paragraph.slop || narrowest.widest < kept.widest {
@@ -492,10 +492,10 @@ extension LayoutEngine {
                 }
             }
         }
-        // A shared budget cannot choose which neighbour should wrap. In particular, a taller
+        // A shared budget cannot choose which neighbor should wrap. In particular, a taller
         // radical can widen its sign or a surrounding fence, and padding may depend on height.
         // Try each part independently and compare the completed formula, including that ink.
-        // A strict improvement is kept; the bounded search never oscillates between neighbours.
+        // A strict improvement is kept; the bounded search never oscillates between neighbors.
         if limit.isFinite, kept.widest > limit + Paragraph.slop, engine.mayNarrow {
             _ = try pass(kept.wrap)
             var budgets: [Int: CGFloat] = [:]
@@ -541,7 +541,7 @@ extension LayoutEngine {
         // have no room for those frames even before the first element can check its own stack.
         guard !MathLimits.isStackSpent(MathLimits.stackFloor()) else { throw MathLayoutError.limitExceeded }
         // A line wider than any formula may be is no limit: `.greatestFiniteMagnitude` is how a host
-        // says so as often as `.infinity`. Taken as a width, a row centred in it, or indented by a
+        // says so as often as `.infinity`. Taken as a width, a row centered in it, or indented by a
         // tenth of it, was placed past the bound on extent and the formula refused, and a share of
         // 1e308 points overflowed to infinity and from there to rows of no width.
         func bound(_ width: CGFloat) -> CGFloat { width.isNaN || width > MathLimits.extent ? .infinity : max(width, 0) }
@@ -669,7 +669,7 @@ extension LayoutEngine {
 
     /// Rows one under another like lines of text. Each counts as at least a strut of the font's
     /// ascent and descent, so rows of plain symbols keep one baseline distance, and a taller row
-    /// pushes its neighbours away. Between them goes the MATH table's `mathLeading`, scaled by
+    /// pushes its neighbors away. Between them goes the MATH table's `mathLeading`, scaled by
     /// `lineleading` (MathML 3 leaves its default to the renderer). Origins have y up.
     func stack(_ rows: [Paragraph.Row], em: CGFloat) -> [(box: MathBox, origin: CGPoint)] {
         let ascent = CTFontGetAscent(font.base) * em, descent = CTFontGetDescent(font.base) * em
@@ -1363,7 +1363,7 @@ struct Paragraph {
             let frame = pending[last], row = frame.row, index = frame.index
             let child = row.children[index]
             pending[last].index += 1
-            // What holds a row to its neighbour holds the row's first unit.
+            // What holds a row to its neighbor holds the row's first unit.
             let attached = child.isAttached || index == 0 && frame.isAttached
             let fence = Self.fence(child)
             if fence?.closes == true { pending[last].fences = max(pending[last].fences - 1, 0) }
@@ -1765,7 +1765,7 @@ struct Paragraph {
     /// between them the cheapest stops that leave no row too wide. A row is too wide only when it
     /// is a single stretch between two stops that is wider than the line; it then gives up its
     /// indentation and overflows. `auto` is what `indentalign="auto"` means here: the alignment,
-    /// and the indentation of rows after the first. `tight` aligns centred and right-aligned
+    /// and the indentation of rows after the first. `tight` aligns centered and right-aligned
     /// rows within the widest provisionally placed row rather than the line, as an infinite
     /// line does. That common frame stays fixed when final ID placements extend its width:
     /// a right-aligned target with a longer continuation need not have a finite shared frame.
@@ -1859,7 +1859,7 @@ struct Paragraph {
             }
             guard align == .center || align == .right else { return (max(0, x), max(0, x), .left) }
             // What a shift takes from the line: all of it on the right, and as much again on the left
-            // of a centred row.
+            // of a centered row.
             let indent = align == .center ? 2 * abs(x) : max(0, -x)
             guard room.isFinite, !tight else { return (x, indent, align) }
             x += align == .center ? (room - size.width) / 2 : room - size.width
@@ -1971,7 +1971,7 @@ struct Paragraph {
             rows.append(Row(box: built.box, x: placement.x, leading: stops[j].point.style.leading))
             pending.append(placement.align)
         }
-        // Centred and right-aligned rows with no line to align within: within the widest row.
+        // Centered and right-aligned rows with no line to align within: within the widest row.
         if pending.contains(where: { $0 != .left }) {
             let frame = zip(rows, pending).reduce(0) { max($0, ($1.1 == .left ? $1.0.x : 0) + $1.0.box.width) }
             for index in rows.indices where pending[index] != .left {

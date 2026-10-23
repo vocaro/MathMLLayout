@@ -98,7 +98,7 @@ final class MathMLLayoutTests: MathTestCase {
                                       Embellishment(form: .prefix, stretch: .vertical(ascent: 200, descent: 190)), depth: 0)
         XCTAssertEqual(brace.height, max(390 * 0.901, 390 - 10), accuracy: 6, "TeX's delimiter factor and shortfall")
         XCTAssertEqual((brace.ascent - brace.descent) / 2, engine.value(\.axisHeight, context), accuracy: 0.5,
-                       "symmetric fences centre on the math axis")
+                       "symmetric fences center on the math axis")
     }
 
     func testHorizontalStretchCoversTheBase() throws {
@@ -185,7 +185,7 @@ final class MathMLLayoutTests: MathTestCase {
         XCTAssertEqual(try added { "<mtext>a</mtext><mrow>\($0)<mtext>b</mtext></mrow>" }, relation, accuracy: 0.01)
         // An enclosing row spaces an embellished row as a whole, once.
         XCTAssertEqual(try added { "<mi>x</mi><mrow>\(between($0))</mrow><mi>y</mi>" }, relation, accuracy: 0.01)
-        // Space only towards a neighbour: an operator alone, or at an edge, is not padded there.
+        // Space only towards a neighbor: an operator alone, or at an edge, is not padded there.
         XCTAssertEqual(try added { $0 }, 0, accuracy: 0.01)
         XCTAssertEqual(try added { "<mrow>\($0)</mrow>" }, 0, accuracy: 0.01)
         XCTAssertEqual(try added { "<mtext>a</mtext>\($0)" }, relation / 2, accuracy: 0.01)
