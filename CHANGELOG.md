@@ -23,7 +23,7 @@ Wrapping, indentation, table layout, image metrics and OpenType MATH corrections
 
 - Documentation distinguishes supported behavior from remaining restrictions and records
   macOS and iOS release verification. See [bounds and limitations](doc/limits.md) and
-  [testing](doc/testing.md#031-release-verification).
+  [testing](https://github.com/vocaro/MathMLLayout/blob/0.3.1/doc/testing.md#031-release-verification).
 
 ## 0.3.0 — 2026-10-13
 

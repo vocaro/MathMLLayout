@@ -1,7 +1,7 @@
 # Bounds and limitations
 
 For the latest measured results and platform details, see
-[0.3.1 release verification](testing.md#031-release-verification).
+[0.3.1 release verification](https://github.com/vocaro/MathMLLayout/releases/tag/0.3.1).
 
 ## Bounds
 
@@ -54,7 +54,7 @@ rendering and all five base-language readings are compared with the reference an
 | Single-cell `mtable` → `mtr` → `mtd` | 21 tables (63 element levels) |
 | Script-nested `msub`, base-nested `munderover` | 48, plus 15 outer `mrow` |
 
-The [0.3.0 release verification](testing.md#030-release-verification) on 2026-10-13
+The [0.3.0 release verification](https://github.com/vocaro/MathMLLayout/releases/tag/0.3.0) on 2026-10-13
 repeated these assertions and measured all eleven optional pure-chain fixtures in macOS debug,
 macOS optimized and iOS. Every sweep reached 64 element levels: 63 wrappers, or 21 three-element
 table wrappers, including pure subscript and under-over chains. The sweep checks successful
