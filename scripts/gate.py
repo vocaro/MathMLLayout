@@ -31,7 +31,7 @@ sys.path.insert(0, str(TOOLKIT / "src/python"))
 from vocaro_engineering.simulators import lifecycle  # noqa: E402
 
 # Floors: a suite that runs fewer tests fails. Lower one only in the commit that removes tests.
-SWIFT_TESTS = 804
+SWIFT_TESTS = 806
 TOOL_TESTS = 13
 # Admission counts the gate as one job, so every build it starts takes this many jobs.
 JOBS = "2"

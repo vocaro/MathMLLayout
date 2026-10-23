@@ -54,7 +54,7 @@ native-renderer and Chromium integration tests, and deterministic regeneration o
 Every Swift suite sets `MATHML_MEASURE_WORKER_DEPTH=1`, `MATHML_REQUIRE_FONT_ORACLE=1` and
 `MATHML_STRICT_EXTERNAL=1`, the iOS suite through the `TEST_RUNNER_` prefix.
 
-The gate passes only when every step passed: each Swift suite ran at least 804 tests and the tool
+The gate passes only when every step passed: each Swift suite ran at least 806 tests and the tool
 tests at least 13, none skipped or failed, and no step changed the checkout. The lane's
 `minimumTests` holds their total. A failure exits 1. A step whose prerequisite is missing, or
 that gives no result within its hang bound, is unmeasured and exits 3, never 0. Lower a floor

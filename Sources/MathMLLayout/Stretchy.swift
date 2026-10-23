@@ -151,8 +151,8 @@ extension LayoutEngine {
         for (index, part) in sequence.enumerated() {
             if index > 0 { offset -= overlap }
             var glyph = part.glyph
-            var rect = CGRect.zero, advance = CGSize.zero
-            CTFontGetBoundingRectsForGlyphs(ctFont, .horizontal, &glyph, &rect, 1)
+            let rect = textWork.glyphInk.rect(glyph, in: ctFont)
+            var advance = CGSize.zero
             CTFontGetAdvancesForGlyphs(ctFont, .horizontal, &glyph, &advance, 1)
             // Vertical parts stack by their ink; horizontal parts by their origins.
             let position = vertical ? CGPoint(x: 0, y: offset - (rect.isEmpty ? 0 : rect.minY)) : CGPoint(x: offset, y: 0)

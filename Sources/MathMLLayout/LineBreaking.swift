@@ -623,6 +623,7 @@ extension LayoutEngine {
         var lines = try engine.measuredLines(paragraph, limit: limit, first: first, size: size)
         lines.widestUnbreakable = needed
         lines.layoutPasses = layoutPasses
+        lines.glyphInkRequests = engine.textWork.glyphInk.requests
         return lines
     }
 
@@ -947,6 +948,8 @@ extension LayoutEngine {
 struct MathLines {
     /// Complete-layout retries, exposed internally so adversarial tests can verify the work bound.
     var layoutPasses = 0
+    /// Glyphs whose ink the layout asked CoreText for, exposed internally for the same reason.
+    var glyphInkRequests = 0
     var rows: [(box: MathBox, origin: CGPoint)]
     var width: CGFloat = 0
     var ascent: CGFloat = 0

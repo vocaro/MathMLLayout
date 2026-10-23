@@ -961,7 +961,7 @@ final class LayoutEngine {
         nodeCount = 0
         alignmentSequence = 0
         textLength = 0
-        textWork = TextShapingWork()
+        textWork = TextShapingWork(glyphInk: textWork.glyphInk)
         tableWork = 0
         narrowable = nil
         loosest = 0
@@ -1450,7 +1450,7 @@ final class LayoutEngine {
         guard !text.isEmpty else { return .empty() }
         textWork.requestedLine()
         let line = CTLineCreateWithAttributedString(attributedText(text, context))
-        var box = Self.shapedTextBox(line, color: context.color)
+        var box = Self.shapedTextBox(line, color: context.color, ink: textWork.glyphInk)
         if retainSegments {
             box.textSegments = textSegments(text, line: line, box: box,
                 requireSeparatedSpaces: requireSeparatedSpaces)
@@ -1472,7 +1472,7 @@ final class LayoutEngine {
         return CFAttributedStringCreate(nil, text as CFString, attributes)
     }
 
-    static func shapedTextBox(_ line: CTLine, color: CGColor) -> MathBox {
+    static func shapedTextBox(_ line: CTLine, color: CGColor, ink glyphInk: GlyphInk) -> MathBox {
         var box = MathBox(width: CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)))
         var ink: CGRect?
         var attachmentMetrics: (ascent: CGFloat, descent: CGFloat)?
@@ -1499,8 +1499,7 @@ final class LayoutEngine {
             CTRunGetGlyphs(run, CFRange(), &glyphs)
             CTRunGetPositions(run, CFRange(), &positions)
             let runFont = runAttributes[kCTFontAttributeName] as! CTFont
-            var rects = [CGRect](repeating: .zero, count: count)
-            CTFontGetBoundingRectsForGlyphs(runFont, .horizontal, glyphs, &rects, count)
+            let rects = glyphInk.rects(glyphs, in: runFont)
             var runInk: CGRect?
             for (rect, position) in zip(rects, positions) where !rect.isEmpty {
                 let placed = rect.offsetBy(dx: position.x, dy: position.y)
@@ -1538,8 +1537,8 @@ final class LayoutEngine {
     func glyphBox(_ glyph: CGGlyph, _ context: LayoutContext) -> MathBox {
         let ctFont = font.font(size: context.fontSize)
         var glyph = glyph
-        var rect = CGRect.zero, advance = CGSize.zero
-        CTFontGetBoundingRectsForGlyphs(ctFont, .horizontal, &glyph, &rect, 1)
+        let rect = textWork.glyphInk.rect(glyph, in: ctFont)
+        var advance = CGSize.zero
         CTFontGetAdvancesForGlyphs(ctFont, .horizontal, &glyph, &advance, 1)
         let italic = font.table?.italicsCorrection(glyph, size: context.fontSize).map { max(0, font.points($0, size: context.fontSize)) } ?? 0
         let shift = advance.width <= 0 && !rect.isEmpty ? -rect.minX : 0

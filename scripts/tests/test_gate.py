@@ -21,19 +21,19 @@ def xctest_log(executed, failures=0, skipped=0, outcome="passed"):
 
 class SuiteJudgmentTests(unittest.TestCase):
     def test_a_full_suite_with_nothing_skipped_passes(self):
-        self.assertEqual(gate.xctest(0, xctest_log(804)), "804 tests passed, none skipped")
+        self.assertEqual(gate.xctest(0, xctest_log(806)), "806 tests passed, none skipped")
 
     def test_a_failed_test_fails_the_suite(self):
-        with self.assertRaisesRegex(gate.Failed, "1 of 804 tests failed"):
-            gate.xctest(1, xctest_log(804, failures=1, outcome="failed"))
+        with self.assertRaisesRegex(gate.Failed, "1 of 806 tests failed"):
+            gate.xctest(1, xctest_log(806, failures=1, outcome="failed"))
 
     def test_a_skipped_test_fails_the_suite(self):
-        with self.assertRaisesRegex(gate.Failed, "1 of 804 tests skipped"):
-            gate.xctest(0, xctest_log(804, skipped=1))
+        with self.assertRaisesRegex(gate.Failed, "1 of 806 tests skipped"):
+            gate.xctest(0, xctest_log(806, skipped=1))
 
     def test_fewer_tests_than_the_floor_fail_the_suite(self):
-        with self.assertRaisesRegex(gate.Failed, "ran 803 tests, fewer than 804"):
-            gate.xctest(0, xctest_log(803))
+        with self.assertRaisesRegex(gate.Failed, "ran 805 tests, fewer than 806"):
+            gate.xctest(0, xctest_log(805))
 
     def test_a_build_failure_fails_and_a_silent_success_is_unmeasured(self):
         with self.assertRaisesRegex(gate.Failed, "exited 1 before reporting any test totals"):
@@ -70,7 +70,7 @@ class ParallelismTests(unittest.TestCase):
         commands = []
         def run(command, **_):
             commands.append([str(part) for part in command])
-            return 0, "Ran 13 tests in 1.0s\n\nOK\n" if "unittest" in commands[-1] else xctest_log(804)
+            return 0, "Ran 13 tests in 1.0s\n\nOK\n" if "unittest" in commands[-1] else xctest_log(806)
         runtime = {"version": "27.0", "buildversion": "24A1", "identifier": "runtime"}
         device = mock.Mock(udid="UDID")
         with mock.patch.object(gate, "run", side_effect=run), \

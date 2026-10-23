@@ -341,8 +341,7 @@ extension LayoutEngine {
                 while end < count, indices[end] >= 0, indices[end] < owners.count, owners[indices[end]] == owner { end += 1 }
                 let glyphs = Array(drawing.glyphs[index..<end])
                 let positions = drawing.positions[index..<end].map { CGPoint(x: $0.x - offsets[owner], y: $0.y) }
-                var rects = [CGRect](repeating: .zero, count: glyphs.count)
-                CTFontGetBoundingRectsForGlyphs(drawing.font, .horizontal, glyphs, &rects, glyphs.count)
+                let rects = textWork.glyphInk.rects(glyphs, in: drawing.font)
                 var ink: CGRect?
                 for (rect, position) in zip(rects, positions) where !rect.isEmpty {
                     let placed = rect.offsetBy(dx: position.x, dy: position.y)

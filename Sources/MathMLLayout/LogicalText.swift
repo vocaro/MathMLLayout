@@ -11,6 +11,10 @@ final class TextShapingWork {
     /// CoreText line requests, independently of cache hits and the UTF-16/assembly work budget.
     private(set) var lineRequests = 0
     private(set) var rowAssemblies = 0
+    /// Kept from pass to pass: what a glyph's ink is does not change with the width tried.
+    let glyphInk: GlyphInk
+
+    init(glyphInk: GlyphInk = GlyphInk()) { self.glyphInk = glyphInk }
 
     func requestedLine() { lineRequests += 1 }
     func assembledRow() { rowAssemblies += 1 }
@@ -20,6 +24,46 @@ final class TextShapingWork {
         spent += count
         return true
     }
+}
+
+/// The ink of each glyph one layout has measured, in each font it measured it in.
+///
+/// CoreText takes a glyph's ink from its outline, and FontParser keeps outlines in one cache per
+/// font file behind one lock, which every size of the font and every thread share. Line breaking
+/// shapes the same words again for each row and each width it tries, and asked for the ink of
+/// every glyph each time: a release build laying formulas out on 18 threads spent most of its CPU
+/// time in the kernel, waiting for that lock. A layout runs on one thread, so what it keeps here
+/// needs no lock of its own.
+final class GlyphInk {
+    /// Holding the font keeps its address, the key, from passing to another font.
+    private final class Measured {
+        let font: CTFont
+        var rects: [CGGlyph: CGRect] = [:]
+        init(_ font: CTFont) { self.font = font }
+    }
+    private var fonts: [ObjectIdentifier: Measured] = [:]
+    private var count = 0
+    /// Glyphs whose ink was asked of CoreText.
+    private(set) var requests = 0
+
+    /// What `CTFontGetBoundingRectsForGlyphs` gives for each of `glyphs` in `font`.
+    func rects(_ glyphs: [CGGlyph], in font: CTFont) -> [CGRect] {
+        // Bounded like a layout's other caches: a full one starts again.
+        if count >= 16_384 || fonts.count >= 64 { fonts.removeAll(); count = 0 }
+        let measured = fonts[ObjectIdentifier(font)] ?? Measured(font)
+        fonts[ObjectIdentifier(font)] = measured
+        let missing = Array(Set(glyphs.lazy.filter { measured.rects[$0] == nil }))
+        if !missing.isEmpty {
+            var rects = [CGRect](repeating: .zero, count: missing.count)
+            CTFontGetBoundingRectsForGlyphs(font, .horizontal, missing, &rects, missing.count)
+            for (glyph, rect) in zip(missing, rects) { measured.rects[glyph] = rect }
+            count += missing.count
+            requests += missing.count
+        }
+        return glyphs.map { measured.rects[$0]! }
+    }
+
+    func rect(_ glyph: CGGlyph, in font: CTFont) -> CGRect { rects([glyph], in: font)[0] }
 }
 
 struct LogicalTextSlice {
@@ -161,7 +205,7 @@ final class LogicalTextSource {
         if let cached = boxes[range] { return cached }
         work.requestedLine()
         let line = CTTypesetterCreateLine(typesetter, CFRange(location: range.lowerBound, length: range.count))
-        var box = LayoutEngine.shapedTextBox(line, color: color)
+        var box = LayoutEngine.shapedTextBox(line, color: color, ink: work.glyphInk)
         if trackAlignment {
             let ink = box.spacingInkBounds
             let left = min(0, ink?.minX ?? 0), right = max(box.width, ink?.maxX ?? box.width)

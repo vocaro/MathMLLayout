@@ -27,7 +27,7 @@
         "scripts/gate.py"
       ],
       "resource": "heavy",
-      "minimumTests": 2438,
+      "minimumTests": 2444,
       "timeout": 14400
     }
   },

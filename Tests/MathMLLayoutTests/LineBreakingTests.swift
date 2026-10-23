@@ -1456,6 +1456,38 @@ final class LineBreakingTests: MathTestCase {
         XCTAssertEqual(ink(try MathLayout(parsed, style: style, maximumWidth: 180, firstRowMaximumWidth: 90)), ink(reference))
     }
 
+    /// CoreText takes a glyph's ink from its outline, behind a lock that every thread laying out
+    /// in the font shares. Breaking shapes the same words again for every row and width it tries;
+    /// a layout asks for each glyph's ink once, however long the paragraph.
+    func testBreakingAsksForEachGlyphsInkOnce() throws {
+        let style = MathStyle(fontSize: 20, color: black)
+        func requests(words: Int) throws -> Int {
+            let text = Array(repeating: "ab", count: words).joined(separator: " ")
+            let root = MathMLNode(name: "math", children: [MathMLNode(name: "mtext", text: text)])
+            let lines = try LayoutEngine.lines(root, style: style, maximumWidth: 60, firstRowMaximumWidth: nil)
+            XCTAssertGreaterThan(lines.rows.count, words / 3)
+            XCTAssertGreaterThan(lines.layoutPasses, 1)
+            return lines.glyphInkRequests
+        }
+        XCTAssertEqual(try requests(words: 40), try requests(words: 4))
+    }
+
+    /// What a layout keeps of a glyph's ink is what CoreText gives, for that font and no other.
+    func testKeptGlyphInkIsCoreTexts() throws {
+        let math = MathFont.named(nil)
+        let glyphs = try "x∑x(∫".unicodeScalars.map { try XCTUnwrap(math.glyph(for: $0)) } + [0]
+        let ink = GlyphInk()
+        for size in [17, 34] as [CGFloat] {
+            let font = math.font(size: size)
+            var expected = [CGRect](repeating: .zero, count: glyphs.count)
+            CTFontGetBoundingRectsForGlyphs(font, .horizontal, glyphs, &expected, glyphs.count)
+            XCTAssertEqual(ink.rects(glyphs, in: font), expected)
+            XCTAssertEqual(ink.rects(glyphs.reversed(), in: font), expected.reversed())
+            XCTAssertEqual(ink.rect(glyphs[1], in: font), expected[1])
+        }
+        XCTAssertEqual(ink.requests, 10, "five glyphs, in each of two fonts, once")
+    }
+
     func testUntrustedInputStaysBounded() throws {
         let style = MathStyle(fontSize: 17, color: black)
         // The limits on depth, nodes and text hold with a width as without.

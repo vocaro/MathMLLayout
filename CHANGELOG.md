@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- A layout measures each glyph's ink once, not again for every row and width that line breaking
+  tries. Layouts on many threads at once no longer queue in the kernel for CoreText's glyph
+  outlines; no layout result changed.
+
 ## 0.3.2 — 2026-10-23
 
 - Code, tests and documents are spelled in American English; no public declaration, output or
