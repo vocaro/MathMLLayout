@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.3.2 — 2026-10-23
+
+- Code, tests and documents are spelled in American English; no public declaration, output or
+  reading changed ([#121](https://github.com/vocaro/MathMLLayout/issues/121)).
+- The corpus sampler finds the equations in HTML fixtures under libxml2 releases before 2.14
+  ([#118](https://github.com/vocaro/MathMLLayout/issues/118)).
+- `python3 scripts/eng run gate` runs the whole release gate as one exclusive lane
+  ([#122](https://github.com/vocaro/MathMLLayout/issues/122)).
+
 ## 0.3.1 — 2026-10-13
 
 Wrapping, indentation, table layout, image metrics and OpenType MATH corrections.
