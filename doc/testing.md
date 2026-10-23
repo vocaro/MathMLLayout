@@ -62,7 +62,8 @@ only in the commit that removes the tests.
 
 Admission counts the gate as one job, so the gate bounds its own parallelism: every build takes
 two jobs, each suite runs its tests in one process, the iOS suite with parallel testing off, and
-the thread-safety test lays formulas out on four threads. An optimized build's whole-module
+the long thread-safety test lays formulas out on four threads. Seven shorter thread-safety tests
+still use a thread per core, for under half a second each. An optimized build's whole-module
 compile still generates code on a thread per core for a few seconds: SwiftPM passes
 `-num-threads` with the core count after any value given through `-Xswiftc`.
 
