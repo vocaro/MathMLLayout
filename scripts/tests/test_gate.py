@@ -2,6 +2,7 @@
 import contextlib
 import io
 from pathlib import Path
+import subprocess
 import sys
 import unittest
 from unittest import mock
@@ -62,6 +63,41 @@ class PrerequisiteTests(unittest.TestCase):
                 gate.corpus()
 
 
+class ParallelismTests(unittest.TestCase):
+    """Admission counts the gate as one job, so it bounds what it starts."""
+
+    def commands(self, step):
+        commands = []
+        def run(command, **_):
+            commands.append([str(part) for part in command])
+            return 0, "Ran 13 tests in 1.0s\n\nOK\n" if "unittest" in commands[-1] else xctest_log(804)
+        runtime = {"version": "27.0", "buildversion": "24A1", "identifier": "runtime"}
+        device = mock.Mock(udid="UDID")
+        with mock.patch.object(gate, "run", side_effect=run), \
+                mock.patch.object(gate, "BUILD", Path("/nonexistent/gate")), \
+                mock.patch.object(gate, "simulator_identities", return_value=(runtime, {"identifier": "type"})), \
+                mock.patch.object(gate.lifecycle, "disposable", return_value=contextlib.nullcontext(device)), \
+                mock.patch.object(gate, "chromium", return_value="node"), \
+                mock.patch.object(gate, "inspected", return_value=Path("/nonexistent/python")), \
+                mock.patch.object(gate.subprocess, "run", return_value=mock.Mock(stdout="/nonexistent/bin\n")), \
+                contextlib.redirect_stdout(io.StringIO()):
+            step()
+        return commands
+
+    def test_every_build_takes_two_jobs_and_tests_run_in_one_process(self):
+        steps = dict(gate.STEPS)
+        commands = [command for name in ("macOS debug", "macOS optimized", "iOS simulator", "validation tools")
+                    for command in self.commands(steps[name]) if command[0] in ("swift", "xcodebuild")]
+        self.assertEqual([command[:2] for command in commands],
+                         [["swift", "test"], ["swift", "test"], ["xcodebuild", "test"], ["swift", "build"]])
+        for command in commands:
+            flag = "-jobs" if command[0] == "xcodebuild" else "--jobs"
+            self.assertIn(flag, command, command)
+            self.assertEqual(command[command.index(flag) + 1], "2", command)
+        self.assertNotIn("--parallel", commands[0] + commands[1])
+        self.assertEqual(commands[2][commands[2].index("-parallel-testing-enabled") + 1], "NO")
+
+
 class OutcomeTests(unittest.TestCase):
     def outcome(self, *results):
         def step(result):
@@ -76,6 +112,11 @@ class OutcomeTests(unittest.TestCase):
         self.assertEqual(self.outcome("passed", "passed"), 0)
         self.assertEqual(self.outcome("passed", gate.Unmeasured("no Chromium")), 3)
         self.assertEqual(self.outcome(gate.Unmeasured("no Chromium"), gate.Failed("1 failed")), 1)
+
+    def test_a_step_that_outlasts_its_hang_bound_is_unmeasured(self):
+        hung = subprocess.TimeoutExpired(["xcrun", "simctl", "list"], 120)
+        self.assertEqual(self.outcome("passed", hung), 3)
+        self.assertEqual(self.outcome(hung, gate.Failed("1 failed")), 1)
 
     def test_a_step_that_changes_the_checkout_fails_the_gate(self):
         states = iter([b"", b" M Sources/MathMLLayout/Glyph.swift\0"])

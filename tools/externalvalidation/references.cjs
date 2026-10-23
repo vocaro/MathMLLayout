@@ -22,10 +22,13 @@ const { chromium, firefox, webkit } = require('playwright');
     fonts.set(font.path, data.toString('base64'));
   }
   fs.mkdirSync(output, { recursive: true });
-  const browser = await ({ chromium, firefox, webkit }[engine]).launch();
+  // Hang bounds, not time limits: Playwright's 30 s defaults would fail a launch or a case that a
+  // busy host only kept waiting for a core. The launch and six cases take under a second.
+  const browser = await ({ chromium, firefox, webkit }[engine]).launch({ timeout: 300_000 });
   const results = [];
   try {
     const context = await browser.newContext({ viewport: { width: 4096, height: 4096 }, deviceScaleFactor: 4 });
+    context.setDefaultTimeout(120_000);
     await context.route('**/*', route => route.abort());
     const page = await context.newPage();
     for (const sample of manifest.cases) {

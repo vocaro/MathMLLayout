@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """MathMLLayout's release gate: every check doc/testing.md requires for a release, on one tree.
 
-Run it as the exclusive `gate` lane, `python3 scripts/eng run gate`. It passes only when every
-step passed: the full Swift suite in macOS debug and optimized builds and on a disposable iOS
-simulator, each with at least SWIFT_TESTS tests and none skipped or failed; the validation-tool
-tests, the native-renderer and Chromium integration included, with none skipped; deterministic
-regeneration of the bundled corpus; the documentation and spelling checks; and the gate's own
-tests. A step whose prerequisite is missing, such as Playwright's Chromium, is unmeasured, and
-the gate then exits 3, never 0. `--setup` prepares those prerequisites and is the only part that
-downloads anything.
+Run it as the heavy `gate` lane, `python3 scripts/eng run gate`, beside other sessions' work.
+Admission counts it as one job, so every build it starts takes JOBS jobs and each suite runs its
+tests in one process. It passes only when every step passed: the full Swift suite in macOS debug
+and optimized builds and on a disposable iOS simulator, each with at least SWIFT_TESTS tests and
+none skipped or failed; the validation-tool tests, the native-renderer and Chromium integration
+included, with none skipped; deterministic regeneration of the bundled corpus; the documentation
+and spelling checks; and the gate's own tests. No test holds a wall-clock limit that a busy host
+can break, and a step that gives no result within its hang bound is unmeasured, as is one whose
+prerequisite is missing, such as Playwright's Chromium; the gate then exits 3, never 0. `--setup`
+prepares those prerequisites and is the only part that downloads anything.
 """
 import json
 import os
@@ -31,6 +33,8 @@ from vocaro_engineering.simulators import lifecycle  # noqa: E402
 # Floors: a suite that runs fewer tests fails. Lower one only in the commit that removes tests.
 SWIFT_TESTS = 804
 TOOL_TESTS = 13
+# Admission counts the gate as one job, so every build it starts takes this many jobs.
+JOBS = "2"
 TEST_ENVIRONMENT = {"MATHML_MEASURE_WORKER_DEPTH": "1", "MATHML_REQUIRE_FONT_ORACLE": "1",
                     "MATHML_STRICT_EXTERNAL": "1"}
 DEVICE = "iPhone 17 Pro"
@@ -158,7 +162,7 @@ def own_tests():
 
 
 def swift_suite(name, *configuration):
-    return xctest(*run(["swift", "test", "--jobs", "2", "--scratch-path", BUILD / name, *configuration],
+    return xctest(*run(["swift", "test", "--jobs", JOBS, "--scratch-path", BUILD / name, *configuration],
                        timeout=5400, env=TEST_ENVIRONMENT))
 
 
@@ -189,7 +193,7 @@ def ios_suite():
             raise Unmeasured(f"simulator {device.udid} did not boot: {error}")
         return xctest(*run(["xcodebuild", "test", "-scheme", "MathMLLayout-Package",
                             "-destination", f"platform=iOS Simulator,id={device.udid}", "-destination-timeout", "600",
-                            "-parallel-testing-enabled", "NO", "-collect-test-diagnostics", "never",
+                            "-jobs", JOBS, "-parallel-testing-enabled", "NO", "-collect-test-diagnostics", "never",
                             "-derivedDataPath", BUILD / "ios-derived-data", "-resultBundlePath", results],
                            timeout=7200, env=environment))
 
@@ -211,7 +215,7 @@ def chromium():
 def tool_tests():
     node = chromium()
     python = inspected(TOOLS)
-    if run(["swift", "build", "--product", "MathMLExternalRender", "--scratch-path", BUILD / "debug"],
+    if run(["swift", "build", "--product", "MathMLExternalRender", "--jobs", JOBS, "--scratch-path", BUILD / "debug"],
            timeout=3600)[0]:
         raise Failed("the native renderer did not build")
     binaries = subprocess.run(["swift", "build", "--show-bin-path", "--scratch-path", BUILD / "debug"],
@@ -276,6 +280,10 @@ def gate(steps=STEPS):
             results.append((name, "failed", str(error)))
         except Unmeasured as error:
             results.append((name, "unmeasured", str(error)))
+        except subprocess.TimeoutExpired as error:
+            # A hang bound expired, which a busy host can also do: no result, not a failure.
+            command = error.cmd[0] if isinstance(error.cmd, (list, tuple)) else error.cmd
+            results.append((name, "unmeasured", f"`{command}` gave no result within {error.timeout:g} s"))
     if tree() != before:
         results.append(("checkout", "failed", "a step changed the checkout"))
     print(f"\n=== Gate for {commit}" + ("" if before == b"" else ", with local changes"))

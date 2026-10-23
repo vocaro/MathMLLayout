@@ -40,7 +40,7 @@ succeeds and that every row fits that width, including formulas with wrapping un
 
 A release runs the whole gate on its release commit, as the shared
 [release guide](https://github.com/vocaro/apple-engineering/blob/main/guides/releasing.md#preparing-a-release)
-describes. It is exclusive admitted work:
+describes. It is heavy admitted work, which shares the host with other sessions:
 
 ```sh
 python3 scripts/eng run gate
@@ -56,8 +56,22 @@ Every Swift suite sets `MATHML_MEASURE_WORKER_DEPTH=1`, `MATHML_REQUIRE_FONT_ORA
 
 The gate passes only when every step passed: each Swift suite ran at least 804 tests and the tool
 tests at least 13, none skipped or failed, and no step changed the checkout. The lane's
-`minimumTests` holds their total. A failure exits 1. A step whose prerequisite is missing is
-unmeasured and exits 3, never 0. Lower a floor only in the commit that removes the tests.
+`minimumTests` holds their total. A failure exits 1. A step whose prerequisite is missing, or
+that gives no result within its hang bound, is unmeasured and exits 3, never 0. Lower a floor
+only in the commit that removes the tests.
+
+Admission counts the gate as one job, so the gate bounds its own parallelism: every build takes
+two jobs, each suite runs its tests in one process, the iOS suite with parallel testing off, and
+the thread-safety test lays formulas out on four threads. An optimized build's whole-module
+compile still generates code on a thread per core for a few seconds: SwiftPM passes
+`-num-threads` with the core count after any value given through `-Xswiftc`.
+
+No test holds a wall-clock limit that a busy host can break. The complexity guards compare the
+thread CPU time of a larger input with a smaller one's, which leaves out time spent waiting for
+a core
+([core-wait time](https://github.com/vocaro/apple-engineering/blob/main/guides/measurement.md#cpu-scheduling-and-core-wait-time)).
+The remaining waits only bound a hang, far above what a quiet host takes: two minutes for a
+Chromium case that draws in a fraction of a second, for example.
 
 The gate reads two pinned Python environments, the pinned corpus sources and Playwright's
 Chromium, and never downloads them. With uv, Node 20+ and pnpm installed, prepare them once per

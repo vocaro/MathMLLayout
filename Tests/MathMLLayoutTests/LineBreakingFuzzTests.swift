@@ -976,8 +976,9 @@ final class LineBreakingFuzzTests: MathTestCase {
         if trace != nil { print("fuzz: seeds \(seeds) done, slowest seed \(slowest.seed) took \(slowest.seconds)s") }
     }
 
-    /// Layouts share the font and its sized copies and nothing else: laid out on many threads at
-    /// once, every formula is what it is alone.
+    /// Layouts share the font and its sized copies and nothing else: laid out on four threads at
+    /// once, every formula is what it is alone. Four, not a thread per core, because the gate runs
+    /// as one admitted job beside other work.
     func testRandomFormulasAreTheSameOnEveryThread() {
         typealias Case = (root: MathMLNode, style: MathStyle, width: CGFloat, first: CGFloat?)
         let cases: [Case] = (0..<40 as Range<UInt64>).flatMap { seed -> [Case] in
@@ -995,8 +996,12 @@ final class LineBreakingFuzzTests: MathTestCase {
         defer { same.deallocate() }
         same.initialize(repeating: false)
         let flags = Flags(buffer: same)
-        DispatchQueue.concurrentPerform(iterations: cases.count * 4) { index in
-            flags.buffer[index] = result(cases[index % cases.count]) == expected[index % cases.count]
+        // Each thread lays out every case, starting a quarter further on, so different formulas meet.
+        DispatchQueue.concurrentPerform(iterations: 4) { thread in
+            for step in cases.indices {
+                let index = (thread * cases.count / 4 + step) % cases.count
+                flags.buffer[thread * cases.count + index] = result(cases[index]) == expected[index]
+            }
         }
         XCTAssertEqual(same.filter { !$0 }.count, 0)
     }
