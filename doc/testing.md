@@ -36,6 +36,28 @@ succeeds and that every row fits that width, including formulas with wrapping un
 
 [Documentation index](../README.md#documentation)
 
+## Spelling
+
+Everything the project writes is spelled in American English, identifiers included. The shared
+[spelling check](https://github.com/vocaro/apple-engineering/blob/main/guides/maintenance.md#spelling-check)
+reads every tracked text file and fails on a British form. What is kept as others spell it, such
+as MathML's `bevelled` attribute, is listed with its reason in the `spelling` section of
+[engineering.json](../engineering.json).
+
+```sh
+python3 scripts/eng spelling
+```
+
+The [pre-push hook](../scripts/hooks/pre-push) runs the check and refuses a push that fails it or
+that it could not run. Install it once per clone:
+
+```sh
+git config core.hooksPath scripts/hooks
+```
+
+The check reads the working tree, so the hook accepts only a push of the checked-out commit from a
+clean tree.
+
 ## Bidirectional text
 
 The [bidi text regressions](bidi-text-tests.md) use a checksum-pinned synthetic font and

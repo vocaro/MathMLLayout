@@ -1,0 +1,35 @@
+#!/bin/sh
+# Blocks a push that carries a British spelling (issue #121). Install once per clone:
+#
+#     git config core.hooksPath scripts/hooks
+#
+# `eng spelling` reads the tracked files in the working tree, not the commits being pushed, so
+# the push must carry the checked-out commit from a clean tree. Exit 2 from the check means it
+# never ran, which blocks the push as surely as a failure: nothing was checked.
+
+head=$(git rev-parse HEAD) || exit 1
+while read -r local_ref local_sha remote_ref remote_sha; do
+    case $local_sha in *[!0]*) ;; *) continue ;; esac  # a deletion carries no text
+    commit=$(git rev-parse --verify --quiet "$local_sha^{commit}") || continue
+    if [ "$commit" != "$head" ]; then
+        echo "pre-push: $local_ref is not the checked-out commit, so its spelling cannot be checked here." >&2
+        echo "pre-push: check it out and push it from a clean tree." >&2
+        exit 1
+    fi
+done
+if ! git diff --quiet HEAD --; then
+    echo "pre-push: tracked files differ from HEAD, so the spelling check would not read what is pushed." >&2
+    echo "pre-push: commit or stash them first." >&2
+    exit 1
+fi
+
+python3 scripts/eng spelling
+case $? in
+    0) ;;
+    2)
+        echo "pre-push: push refused: the spelling check did not run, so nothing was checked." >&2
+        exit 1 ;;
+    *)
+        echo "pre-push: push refused. Spell the hits the American way, or list a kept name with its reason in engineering.json's spelling." >&2
+        exit 1 ;;
+esac

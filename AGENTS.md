@@ -9,4 +9,5 @@ Before shared device, foreground or runner use, run `python3 scripts/eng policy 
 read this project's current main instructions. Shipping Swift targets do not link the
 engineering toolkit, which is public and MIT licensed.
 
-Build and test procedures are in [doc/testing.md](doc/testing.md).
+Build and test procedures are in [doc/testing.md](doc/testing.md). Pushes are gated on American
+spelling; install the hook once per clone, as [Spelling](doc/testing.md#spelling) describes.
