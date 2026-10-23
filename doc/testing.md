@@ -36,6 +36,39 @@ succeeds and that every row fits that width, including formulas with wrapping un
 
 [Documentation index](../README.md#documentation)
 
+## Release gate
+
+A release runs the whole gate on its release commit, as the shared
+[release guide](https://github.com/vocaro/apple-engineering/blob/main/guides/releasing.md#preparing-a-release)
+describes. It is exclusive admitted work:
+
+```sh
+python3 scripts/eng run gate
+```
+
+[`scripts/gate.py`](../scripts/gate.py) runs its own tests, the documentation and spelling
+checks, the full Swift suite in macOS debug and optimized builds and on a disposable iPhone 17 Pro
+simulator of the newest available iOS runtime, the validation-tool tests with their
+native-renderer and Chromium integration tests, and deterministic regeneration of the
+[bundled corpus](../Tests/MathMLLayoutTests/ExternalFixtures/Corpus/README.md) with `--verify`.
+Every Swift suite sets `MATHML_MEASURE_WORKER_DEPTH=1`, `MATHML_REQUIRE_FONT_ORACLE=1` and
+`MATHML_STRICT_EXTERNAL=1`, the iOS suite through the `TEST_RUNNER_` prefix.
+
+The gate passes only when every step passed: each Swift suite ran at least 804 tests and the tool
+tests at least 13, none skipped or failed, and no step changed the checkout. The lane's
+`minimumTests` holds their total. A failure exits 1. A step whose prerequisite is missing is
+unmeasured and exits 3, never 0. Lower a floor only in the commit that removes the tests.
+
+The gate reads two pinned Python environments, the pinned corpus sources and Playwright's
+Chromium, and never downloads them. With uv, Node 20+ and pnpm installed, prepare them once per
+machine, and Playwright once per checkout:
+
+```sh
+python3 scripts/gate.py --setup
+```
+
+They live under `~/Library/Caches/MathMLLayout/gate`, or wherever `MATHML_GATE_CACHE` points.
+
 ## Spelling
 
 Everything the project writes is spelled in American English, identifiers included. The shared

@@ -20,6 +20,15 @@
         "check"
       ],
       "resource": "light"
+    },
+    "gate": {
+      "command": [
+        "python3",
+        "scripts/gate.py"
+      ],
+      "resource": "exclusive",
+      "minimumTests": 2436,
+      "timeout": 14400
     }
   },
   "spelling": {
