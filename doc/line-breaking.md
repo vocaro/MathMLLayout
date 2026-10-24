@@ -39,7 +39,7 @@ scrolling, eliding, truncating or scaling remain the host's responsibility.
   bracket pair split across rows keeps one size; a pair wholly on one row shrinks to that row's
   content after the breaks are chosen. Long `mtext` wraps at its logical U+0020 spaces. Arabic, Hebrew and mixed direction
   text are resolved and shaped for each selected line from the full token paragraph
-  ([shared bidi wrapping](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#bidi-wrapping-needs-paragraph-context-and-physical-geometry)). Numbers,
+  ([shared bidi wrapping](https://github.com/vocaro/vocaro-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#bidi-wrapping-needs-paragraph-context-and-physical-geometry)). Numbers,
   punctuation, neutral characters and directional controls retain that paragraph context;
   no-break spaces keep adjacent words together. An inherited `dir="rtl"` or `dir="ltr"` sets
   the text paragraph direction. Text with inline images and decorated `alt` fallbacks retains
@@ -69,7 +69,7 @@ scrolling, eliding, truncating or scaling remain the host's responsibility.
 - **Clipping.** A box covers the ink as it is laid out; a host that clips a bitmap context to a
   box allows two device pixels around it, or turns off `setShouldSubpixelQuantizeFonts` and
   `setShouldSmoothFonts` in its own context before drawing. The cause is in
-  [shared raster contracts](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/raster-contracts.md#rasterized-glyph-ink-can-fall-outside-the-typographic-box).
+  [shared raster contracts](https://github.com/vocaro/vocaro-engineering/blob/main/knowledge/apple/raster-contracts.md#rasterized-glyph-ink-can-fall-outside-the-typographic-box).
 - **Too wide anyway.** A unit that cannot break (a long number, a wide radical) makes its row
   overflow. `widestUnbreakableWidth` is the narrowest `maximumWidth` at which none does; when it
   is more than the line, scale the formula.

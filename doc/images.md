@@ -47,7 +47,7 @@ See [Images.swift](examples/Images.swift) for the complete Swift example.
   No image metrics are inferred from pixels, text or
   `alt`, and no font glyph metrics or corner kerning are fabricated for an image. The general
   unit rules are in
-  [shared text layout and Unicode](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#font-and-image-metrics-have-different-units).
+  [shared text layout and Unicode](https://github.com/vocaro/vocaro-engineering/blob/main/knowledge/apple/text-layout-and-unicode.md#font-and-image-metrics-have-different-units).
 - Explicit `width` and `height` take precedence over the intrinsic size. With one dimension,
   the other preserves the **logical** aspect ratio. Percentages and unitless multiples refer
   to the logical size: `width="50%"` halves both dimensions, while two explicit dimensions
@@ -68,7 +68,7 @@ See [Images.swift](examples/Images.swift) for the complete Swift example.
   there is none. Nothing throws.
 - `src` reaches the provider as written. It is as untrusted as the rest of the markup: resolve
   it against the document yourself, and refuse what the document may not load
-  ([shared untrusted-markup screening](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/document-parsing.md#screen-untrusted-markup-before-any-parser-sees-it)).
+  ([shared untrusted-markup screening](https://github.com/vocaro/vocaro-engineering/blob/main/knowledge/apple/document-parsing.md#screen-untrusted-markup-before-any-parser-sees-it)).
 - In a `MathMLNode` you build yourself, mark each `mglyph`'s place in its token's `text` with
   U+FFFC and keep the element, with its attributes, among the token's `children`.
   `MathMLNode.parse(xml:)` does this.

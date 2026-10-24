@@ -1,9 +1,9 @@
 # Shared engineering
 
 Common rules, technical lessons and reusable engineering tools are maintained in the public MIT-licensed
-[vocaro/apple-engineering](https://github.com/vocaro/apple-engineering) repository. Clone it as
-`apple-engineering` beside this checkout with
-`git clone https://github.com/vocaro/apple-engineering.git`, or set
+[vocaro/vocaro-engineering](https://github.com/vocaro/vocaro-engineering) repository. Clone it as
+`vocaro-engineering` beside this checkout with
+`git clone https://github.com/vocaro/vocaro-engineering.git`, or set
 `VOCARO_ENGINEERING_ROOT` to its location. No private repository access is needed for the toolkit.
 
 ```sh
@@ -25,7 +25,7 @@ The public shipping library has no dependency on the engineering toolkit or priv
 
 ## Updates and new repositories
 
-The toolkit's [adoption guide](https://github.com/vocaro/apple-engineering/blob/main/guides/adoption.md)
+The toolkit's [adoption guide](https://github.com/vocaro/vocaro-engineering/blob/main/guides/adoption.md)
 describes local checkout updates, isolated trials and rollback. No pin is required. Runtime
 package changes are qualified separately with their own suites and affected consumer checks;
 local path adoption is also supported where this project's distribution contract permits it.

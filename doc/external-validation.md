@@ -22,7 +22,7 @@ recorded separately from the 81-case numeric manifest. These checks run in the s
 measurements. Their expectations are upstream geometry assertions, not library baselines.
 
 Each case carries the provenance that the
-[shared import method](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#importing-upstream-assertions)
+[shared import method](https://github.com/vocaro/vocaro-engineering/blob/main/guides/external-validation.md#importing-upstream-assertions)
 requires, and the original upstream HTML files and BSD license are included. Thirty-six
 purpose-built fonts are repackaged from WOFF as sfnt using fontTools, with unchanged MATH bytes
 and glyph metrics, and recorded with their PostScript names. No STIX font is distributed.
@@ -44,14 +44,14 @@ subset has not yet been extended to import its kerning cases. The latter
 choices remain documented in [markup.md](markup.md) and tested by the existing operator/script
 suite. One symbolic radical-width assertion awaits a separate reviewed port. This subset does
 not enumerate every unselected WPT test;
-[shared harness scope and claims](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#harness-scope-and-claims)
+[shared harness scope and claims](https://github.com/vocaro/vocaro-engineering/blob/main/guides/external-validation.md#harness-scope-and-claims)
 says how its exclusion records may be read. Table spans are covered by the native
 `TableSpanTests`; no upstream span test is included in this pinned numeric subset.
 
 The eight limit-placement discrepancies from [#54](https://github.com/vocaro/MathMLLayout/issues/54)
 now pass their unchanged upstream expectations. `reviewed-outcomes.json` is currently empty.
 Any future known discrepancies live there, under the
-[shared reviewed-discrepancy rules](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#outcome-classification-and-reviewed-discrepancies).
+[shared reviewed-discrepancy rules](https://github.com/vocaro/vocaro-engineering/blob/main/guides/external-validation.md#outcome-classification-and-reviewed-discrepancies).
 Set `MATHML_STRICT_EXTERNAL=1` to fail against the original expectation.
 
 ## Batch rendering and reference gallery
@@ -68,7 +68,7 @@ width, ink bounds by color, measured background rectangles, readings, clipping o
 registered font identity, platform, a hash of the input manifest, and the actual baseline origin
 in each PNG's pixel coordinates. Per-case errors, the batch raster budget and the distinct
 measurements follow the
-[shared report rules](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#reports).
+[shared report rules](https://github.com/vocaro/vocaro-engineering/blob/main/guides/external-validation.md#reports).
 
 The reference adapter uses pinned Playwright **1.62.1**, including its pinned browser revisions.
 Install Node 20+ and pnpm, then:
@@ -85,7 +85,7 @@ node tools/externalvalidation/references.cjs \
 Use `firefox` or `webkit` as the final argument after installing those Playwright engines.
 Only Chromium has been executed for the initial report; these engine adapters are available
 but are not claims of equivalent support. The tool follows the
-[shared browser-oracle rules](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#browser-reference-oracles)
+[shared browser-oracle rules](https://github.com/vocaro/vocaro-engineering/blob/main/guides/external-validation.md#browser-reference-oracles)
 for font loading, isolated XML parsing and reference errors; its allowlist admits only MathML
 presentation elements and attributes.
 
@@ -121,7 +121,7 @@ all 56 constants, coverage-keyed italic/accent values, minimum connector overlap
 assemblies, and glyph IDs. Tests query every glyph, including absent coverage entries.
 Lengths in constants are em units; percentages remain percentages; glyph measurements remain
 font design units. This static-font oracle checks unadjusted metrics only; the
-[shared independent-decoder method](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#independent-decoder-oracles)
+[shared independent-decoder method](https://github.com/vocaro/vocaro-engineering/blob/main/guides/external-validation.md#independent-decoder-oracles)
 sets out its scope, hash gating and regeneration. MathKernInfo and Device/VariationIndex records
 have independent synthetic byte and point-placement expectations in
 `MathKernTests`, `MathAdjustmentTests` and `MathVariationTests`, including a generated variable-font
@@ -161,7 +161,7 @@ MATHML_FONT_ORACLE=/tmp/stix-oracle.json MATHML_REQUIRE_FONT_ORACLE=1 \
 Every valid bundled input checks its hash, finite/bounded dimensions, deterministic layout
 and raster ink containment. A bounds rejection or raster-budget exclusion fails the bundled
 check. These are robustness checks under the
-[shared corpus provenance rules](https://github.com/vocaro/apple-engineering/blob/main/guides/evidence.md#corpus-provenance),
+[shared corpus provenance rules](https://github.com/vocaro/vocaro-engineering/blob/main/guides/evidence.md#corpus-provenance),
 which also cover the license-verified snapshot and test-only placement.
 The textbook sample includes 52 inline and 48 display formulas; it covers functions, complex
 numbers, logarithms, trigonometric identities, matrices, geometric sequences, limits and derivatives.
@@ -186,7 +186,7 @@ unadjudicated differences. This is a single-source calculus sample, not a broad 
 
 The sources and derived corpus retain **CC-BY-NC-SA-4.0**, so they stay outside the repository
 under the
-[shared corpus provenance rules](https://github.com/vocaro/apple-engineering/blob/main/guides/evidence.md#corpus-provenance).
+[shared corpus provenance rules](https://github.com/vocaro/vocaro-engineering/blob/main/guides/evidence.md#corpus-provenance).
 The offline importer checks the six exact source hashes and the license hash and uses seed 52;
 display mode is inferred from CNXML equation wrappers only when MathML omits it.
 
@@ -239,12 +239,12 @@ swift run MathMLExternalRender /tmp/mathml-corpus/manifest.json /tmp/corpus-gall
 ```
 
 Sampling follows the
-[shared deterministic recipe](https://github.com/vocaro/apple-engineering/blob/main/guides/evidence.md#corpus-provenance),
+[shared deterministic recipe](https://github.com/vocaro/vocaro-engineering/blob/main/guides/evidence.md#corpus-provenance),
 stratified by inline/display mode, logarithmic node count and rarest element. Each case also
 records its original source file, element/attribute usage and complexity.
 Token text/annotations are retained. Built-in HTML entities resolve to Unicode; no external
 entity loads. The pinned lxml bundles libxml2 2.14; with an
-[older libxml2](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/document-parsing.md#parser-choice-can-change-text),
+[older libxml2](https://github.com/vocaro/vocaro-engineering/blob/main/knowledge/apple/document-parsing.md#parser-choice-can-change-text),
 only its unknown-tag diagnostic for MathML and HTML5 elements is tolerated. Such a parser
 excludes a source that uses an HTML5-only reference or fills its 100-diagnostic log, rather
 than sampling markup that could differ
@@ -257,7 +257,7 @@ Corpus tests verify each markup hash and check finite/bounded dimensions, determ
 budget permits. At 2x, they allow one point (the public contract's two device pixels) for
 bitmap quantization/smoothing. Robustness success remains `unreviewed` for typography.
 Differential comparisons and manual review classify outcomes, input-limit errors included, as the
-[shared outcome classification](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#outcome-classification-and-reviewed-discrepancies)
+[shared outcome classification](https://github.com/vocaro/vocaro-engineering/blob/main/guides/external-validation.md#outcome-classification-and-reviewed-discrepancies)
 describes.
 
 ## Updating fixtures and CI
@@ -279,9 +279,9 @@ and rectangle assertions.
 
 The importer and converter reject source/font hash mismatches using `wpt-pins.json`.
 Changing the WPT revision and pins is the explicit source review in the
-[shared import method](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#importing-upstream-assertions).
+[shared import method](https://github.com/vocaro/vocaro-engineering/blob/main/guides/external-validation.md#importing-upstream-assertions).
 Review `reviewed-outcomes.json` independently of imports, under the
-[shared reviewed-discrepancy rules](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#outcome-classification-and-reviewed-discrepancies).
+[shared reviewed-discrepancy rules](https://github.com/vocaro/vocaro-engineering/blob/main/guides/external-validation.md#outcome-classification-and-reviewed-discrepancies).
 
 Run tooling regressions with the pinned dependencies. The optional integration tests exercise
 per-case renderer errors and PNG origins; without these environment variables they skip:

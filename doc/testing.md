@@ -2,14 +2,14 @@
 
 These are plain commands for contributors on their own machines. Sessions on the shared Mac run
 them through
-[heavy-work admission](https://github.com/vocaro/apple-engineering/blob/main/guides/shared-host.md#heavy-work-admission).
+[heavy-work admission](https://github.com/vocaro/vocaro-engineering/blob/main/guides/shared-host.md#heavy-work-admission).
 
 ```sh
 swift test --jobs 2
 ```
 
 Run the optimized build as well, after the debug run; the reasons are in
-[shared debug and optimized runs](https://github.com/vocaro/apple-engineering/blob/main/guides/simulator-testing.md#debug-and-optimized-swift-test-runs).
+[shared debug and optimized runs](https://github.com/vocaro/vocaro-engineering/blob/main/guides/simulator-testing.md#debug-and-optimized-swift-test-runs).
 
 ```sh
 swift test --jobs 2 -c release -Xswiftc -enable-testing
@@ -17,7 +17,7 @@ swift test --jobs 2 -c release -Xswiftc -enable-testing
 
 For iOS, run the same tests on a simulator created for the run. Address it by the UDID that
 `xcrun simctl create` printed, and delete it afterwards
-([shared simulator lifecycle](https://github.com/vocaro/apple-engineering/blob/main/guides/simulator-testing.md#simulator-lifecycle)):
+([shared simulator lifecycle](https://github.com/vocaro/vocaro-engineering/blob/main/guides/simulator-testing.md#simulator-lifecycle)):
 
 ```sh
 xcodebuild test -scheme MathMLLayout-Package -destination 'platform=iOS Simulator,id=UDID'
@@ -39,7 +39,7 @@ succeeds and that every row fits that width, including formulas with wrapping un
 ## Release gate
 
 A release runs the whole gate on its release commit, as the shared
-[release guide](https://github.com/vocaro/apple-engineering/blob/main/guides/releasing.md#preparing-a-release)
+[release guide](https://github.com/vocaro/vocaro-engineering/blob/main/guides/releasing.md#preparing-a-release)
 describes. It is heavy admitted work, which shares the host with other sessions:
 
 ```sh
@@ -70,7 +70,7 @@ compile still generates code on a thread per core for a few seconds: SwiftPM pas
 No test holds a wall-clock limit that a busy host can break. The complexity guards compare the
 thread CPU time of a larger input with a smaller one's, which leaves out time spent waiting for
 a core
-([core-wait time](https://github.com/vocaro/apple-engineering/blob/main/guides/measurement.md#cpu-scheduling-and-core-wait-time)).
+([core-wait time](https://github.com/vocaro/vocaro-engineering/blob/main/guides/measurement.md#cpu-scheduling-and-core-wait-time)).
 The remaining waits only bound a hang, far above what a quiet host takes: two minutes for a
 Chromium case that draws in a fraction of a second, for example.
 
@@ -87,7 +87,7 @@ They live under `~/Library/Caches/MathMLLayout/gate`, or wherever `MATHML_GATE_C
 ## Spelling
 
 Everything the project writes is spelled in American English, identifiers included. The shared
-[spelling check](https://github.com/vocaro/apple-engineering/blob/main/guides/maintenance.md#spelling-check)
+[spelling check](https://github.com/vocaro/vocaro-engineering/blob/main/guides/maintenance.md#spelling-check)
 reads every tracked text file and fails on a British form. What is kept as others spell it, such
 as MathML's `bevelled` attribute, is listed with its reason in the `spelling` section of
 [engineering.json](../engineering.json).
@@ -111,7 +111,7 @@ clean tree.
 The [bidi text regressions](bidi-text-tests.md) use a checksum-pinned synthetic font and
 explicit Unicode-derived expected visual order. They run in the regular suite without Python
 or a font download. The font generator is optional. The general method is in
-[shared synthetic fixture oracles](https://github.com/vocaro/apple-engineering/blob/main/guides/external-validation.md#synthetic-fixture-oracles).
+[shared synthetic fixture oracles](https://github.com/vocaro/vocaro-engineering/blob/main/guides/external-validation.md#synthetic-fixture-oracles).
 
 ## External validation
 
@@ -156,7 +156,7 @@ It does not assume that a hosted macOS 26 runner can execute this package.
 
 `WorkerDepthTests` allocates pthread stacks explicitly, with guard pages and an assertion of the
 actual size, because
-[Darwin pads a requested stack size](https://github.com/vocaro/apple-engineering/blob/main/knowledge/apple/stack-and-work-bounds.md#darwin-pads-a-requested-thread-stack-size).
+[Darwin pads a requested stack size](https://github.com/vocaro/vocaro-engineering/blob/main/knowledge/apple/stack-and-work-bounds.md#darwin-pads-a-requested-thread-stack-size).
 The asserted coverage and limitations are in
 [limits.md](limits.md#worker-stack-coverage).
 
@@ -181,7 +181,7 @@ For iOS, the measurement flag must reach the test process. A plain `xcodebuild t
 the fixed worker assertions but skips `testMeasureWorkerDepth` unless that process has
 `MATHML_MEASURE_WORKER_DEPTH=1`. Pass it with xcodebuild's `TEST_RUNNER_` prefix, which sets it
 in every test runner process
-([shared test environment](https://github.com/vocaro/apple-engineering/blob/main/guides/simulator-testing.md#test-environment)).
+([shared test environment](https://github.com/vocaro/vocaro-engineering/blob/main/guides/simulator-testing.md#test-environment)).
 To run the sweep separately:
 
 ```sh
